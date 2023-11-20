@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"net/http"
@@ -36,7 +37,7 @@ func main() {
 
 	// Graceful shutdown
 	go func() {
-		if err := e.Start(":" + app.Port); err != nil && err != http.ErrServerClosed {
+		if err := e.Start(":" + app.Port); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			e.Logger.Error(err)
 			e.Logger.Fatal("shutting down the server")
 		}
@@ -55,5 +56,4 @@ func main() {
 
 func registerHandler(r *echo.Echo, l log.Logger, db *dbcontext.DB) {
 	web.RegisterHandlers(r)
-
 }

@@ -1,13 +1,16 @@
-import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react";
 import * as path from "path";
 
-// https://vitejs.dev/config/
-export default defineConfig({
+export default {
+    // Other Vite configurations...
     plugins: [react()],
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "src"),
         },
     },
-});
+    // Exclude node_modules from watch mode
+    optimizeDeps: {
+        exclude: ['node_modules'],
+    },
+};
