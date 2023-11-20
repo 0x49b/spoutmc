@@ -3,20 +3,26 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import {MantineProvider} from "@mantine/core";
+import { MantineProvider, createTheme } from '@mantine/core';
+import {BrowserRouter} from 'react-router-dom';
+import '@mantine/core/styles.css';
+
+const theme = createTheme({
+  /** Put your mantine theme override here */
+});
 
 
 const root = ReactDOM.createRoot(
-    document.getElementById('root') as HTMLElement
+  document.getElementById('root') as HTMLElement
 );
-
-
 root.render(
-    <React.StrictMode>
-        <MantineProvider defaultColorScheme="light">
-            <App/>
-        </MantineProvider>
-    </React.StrictMode>
+  <React.StrictMode>
+  <MantineProvider theme={theme} defaultColorScheme='dark'>
+   <BrowserRouter>
+   <App />
+   </BrowserRouter>
+  </MantineProvider>
+  </React.StrictMode>
 );
 
 // If you want to start measuring performance in your app, pass a function
