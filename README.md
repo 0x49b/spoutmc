@@ -11,6 +11,13 @@
 
 Docker based Minecraft Server Networks
 
+### Check 
+https://docs.docker.com/engine/api/sdk/examples/#run-a-container-in-the-background  
+https://pkg.go.dev/github.com/docker/docker/client#pkg-overview  
+https://docker-minecraft-server.readthedocs.io/en/latest/
+
+
+
 ### Quickstart (Linux/MacOS/Windows)
 
 Please find your compiled binaries in the repository's [Releases](https://github.com/0x49b/spout/releases)
