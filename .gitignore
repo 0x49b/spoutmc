@@ -12,4 +12,3 @@ proxy.log*
 modules/
 bundler/
 *.gz
-/testservers/data/
