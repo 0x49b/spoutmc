@@ -22,9 +22,6 @@ function App() {
         <AppShell.Main>
           <RouterSwitcher />
         </AppShell.Main>
-        <AppShell.Footer zIndex={opened ? 'auto' : 201}>
-          Built by you the THICCest of all CODERS 🫃🫃🫃🫃🫃🫃🫃🫃🫃🫃
-        </AppShell.Footer>
       </AppShell>
     </div>
   );

@@ -1,0 +1,43 @@
+{
+  "server": [
+    {
+      "name": "spout-bungeecord",
+      "image": "itzg/bungeecord",
+      "ports": {
+        "hostPort": "25565",
+        "containerPort": "25577"
+      },
+      "env": {
+        "TZ": "Europe/Zurich"
+      },
+      "volumes": [
+        {
+          "hostpath": "/Users/florianthievent/development/spoutmc/testservers/data/bungeecord",
+          "containerpath": "/data"
+        }
+      ]
+    },
+    {
+      "name": "spout-lobby",
+      "image": "itzg/minecraft-server",
+      "env": {
+        "EULA": "TRUE",
+        "TYPE": "SPIGOT",
+        "ONLINE_MODE": "FALSE",
+        "ENFORCE_SECURE_PROFILE": "FALSE",
+        "MAX_MEMORY": "4G",
+        "VERSION": "1.20.2",
+        "GUI": "FALSE",
+        "CONSOLE": "FALSE",
+        "LOG_TIMESTAMP": "TRUE",
+        "TZ": "Europe/Zurich"
+      },
+      "volumes": [
+        {
+          "hostpath": "/Users/florianthievent/development/spoutmc/testservers/data/lobby",
+          "containerpath": "/data"
+        }
+      ]
+    }
+  ]
+}

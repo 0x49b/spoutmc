@@ -1,25 +1,25 @@
-import { Flex, Burger, Button, useMantineColorScheme, useComputedColorScheme, AppShell } from '@mantine/core';
-import { FaSun, FaMoon } from 'react-icons/fa';
+import {AppShell, Burger, Button, Flex, useComputedColorScheme, useMantineColorScheme} from '@mantine/core';
+import {FiSun, FiMoon} from 'react-icons/fi';
+import spoutLogo from '../assets/spout.svg'
 
 const Header = ({toggle, opened}: any) => {
-  const { setColorScheme } = useMantineColorScheme();
-  const computedColorScheme = useComputedColorScheme('light');
+    const {setColorScheme} = useMantineColorScheme();
+    const computedColorScheme = useComputedColorScheme('light');
 
-  const toggleColorScheme = () => {
-    setColorScheme(computedColorScheme === 'dark' ? 'light' : 'dark');
-  };
+    const toggleColorScheme = () => {
+        setColorScheme(computedColorScheme === 'dark' ? 'light' : 'dark');
+    };
 
-  return (
-    <AppShell.Header>
-      <Flex justify="space-between" align="center" style={{ padding: '10px 20px' }}>
-        <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-        <div>Quirky Mantine Tutorials 🤓</div>
-        <Button size="sm" variant="link" onClick={toggleColorScheme}>
-          {computedColorScheme === 'dark' ? <FaSun /> : <FaMoon />}
-        </Button>
-      </Flex>
-    </AppShell.Header>
-  );
+    return (
+        <AppShell.Header>
+            <Flex justify="space-between" align="center" style={{padding: '10px 20px'}}>
+                <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm"/>
+                <div><img src={spoutLogo} alt={"SpoutMC Logo"} height={40} width={40}/>SpoutMC</div>
+                <Button color="gray" size="sm" radius="xl" variant="outline" onClick={toggleColorScheme}> {computedColorScheme === 'dark' ?
+                    <FiSun/> : <FiMoon/>} </Button>
+            </Flex>
+        </AppShell.Header>
+    );
 };
 
 export default Header;

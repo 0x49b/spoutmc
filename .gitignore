@@ -3,3 +3,12 @@ dist
 /web/C:/
 .idea
 /tmp/
+*.jar
+logs/
+world/
+world_nether/
+world_the_end/
+proxy.log*
+modules/
+bundler/
+*.gz

@@ -1,0 +1,39 @@
+version: '3.7'
+
+services:
+  lobby:
+    container_name: spout-lobby
+    hostname: lobby
+    image: itzg/minecraft-server
+    environment:
+      EULA: "TRUE"
+      TYPE: "SPIGOT"
+      ONLINE_MODE: "FALSE"
+      ENFORCE_SECURE_PROFILE: "FALSE"
+      MAX_MEMORY: "4G"
+      VERSION: "1.20.1"
+      GUI: "FALSE"
+      CONSOLE: "FALSE"
+      LOG_TIMESTAMP: "TRUE"
+      TZ: "Europe/Zurich"
+    tty: true
+    stdin_open: true
+    volumes:
+      - /Users/florianthievent/development/spoutmc/testservers/data/lobby:/data
+    networks:
+      - default
+    restart: always
+
+  bungee:
+    container_name: spout-bungeecord
+    hostname: bungee
+    image: itzg/bungeecord
+    environment:
+      TZ: "Europe/Zurich"
+    ports:
+      - "25565:25577"
+    networks:
+      - default
+    volumes:
+      - /Users/florianthievent/development/spoutmc/testservers/data/bungeecord:/server
+    restart: always
