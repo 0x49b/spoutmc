@@ -20,6 +20,10 @@
     {
       "name": "spout-lobby",
       "image": "itzg/minecraft-server",
+      "ports": {
+        "hostPort": "25575",
+        "containerPort": "25565"
+      },
       "env": {
         "EULA": "TRUE",
         "TYPE": "SPIGOT",

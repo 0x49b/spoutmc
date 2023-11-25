@@ -48,5 +48,5 @@ disabled_commands:
 servers:
   lobby:
     motd: spout-lobby
-    address: spout-lobby:25565
+    address: spout-lobby:25575
     restricted: false
