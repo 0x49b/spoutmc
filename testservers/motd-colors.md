@@ -1,11 +1,10 @@
 Confirmed working with Minecraft 1.12
 
+Welcome to my tutorial on how to colour and format your servers MOTD! If you're here, then you have probably tried to do
+a MOTD such as "&5Vauff's Awesome Server!". Sadly though, it would have shown up like this.
 
-Welcome to my tutorial on how to colour and format your servers MOTD! If you're here, then you have probably tried to do a MOTD such as "&5Vauff's Awesome Server!". Sadly though, it would have shown up like this.
-
-
-
-Let's try to fix this shall we? First we're going to need to get rid of the &5 and make the MOTD "Vauff's Awesome Server!" again. Before we more in depth to tutorial lets go over the colour and formatting codes again.
+Let's try to fix this shall we? First we're going to need to get rid of the &5 and make the MOTD "Vauff's Awesome
+Server!" again. Before we more in depth to tutorial lets go over the colour and formatting codes again.
 
 &0 - BLACK  
 &1 - DARK BLUE  
@@ -28,9 +27,10 @@ Let's try to fix this shall we? First we're going to need to get rid of the &5 a
 &m - Strikethrough  
 &n - Underline  
 &o - Italic  
-&r - Reset  
+&r - Reset
 
-Now, in order to get our MOTD coloured or formatted we need to put \u00A7 instead of the &. So something like &5 would turn into \u00A75. The full list of these is listed below.
+Now, in order to get our MOTD coloured or formatted we need to put \u00A7 instead of the &. So something like &5 would
+turn into \u00A75. The full list of these is listed below.
 
 \u00A70 - BLACK  
 \u00A71 - DARK BLUE  
@@ -53,14 +53,10 @@ Now, in order to get our MOTD coloured or formatted we need to put \u00A7 instea
 \u00A7m - Strikethrough  
 \u00A7n - Underline  
 \u00A7o - Italic  
-\u00A7r - Reset  
-
+\u00A7r - Reset
 
 You would also be able to use § in replacement of the & instead of \u00A7 if you choose to do so.
 
-
 After replacing the &5 in my MOTD with \u00A75 my MOTD now looks like this.
-
-
 
 Hope you found this tutorial helpful :)

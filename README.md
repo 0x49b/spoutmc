@@ -1,4 +1,5 @@
 # SpoutMC
+
 ```
      =()=        
  ,/'\_||_           _____                   __  __  _________    
@@ -11,12 +12,11 @@
 
 Docker based Minecraft Server Networks
 
-### Check 
+### Check
+
 https://docs.docker.com/engine/api/sdk/examples/#run-a-container-in-the-background  
 https://pkg.go.dev/github.com/docker/docker/client#pkg-overview  
 https://docker-minecraft-server.readthedocs.io/en/latest/
-
-
 
 ### Quickstart (Linux/MacOS/Windows)
 

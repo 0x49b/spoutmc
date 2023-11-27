@@ -1,10 +1,10 @@
 import {Title} from "@mantine/core";
 
 
-function ServerList(){
+function ServerList() {
 
 
-    return(
+    return (
         <>
             <Title order={2} ta={"left"}>Serverlist</Title>
         </>
