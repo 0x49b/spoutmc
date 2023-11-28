@@ -27,8 +27,10 @@ import (
 
 func main() {
 
-	go startContainers()
+	startContainers()
+}
 
+func startWebServer() {
 	conf := config.New(os.Getenv("PORT"), os.Getenv("ENV"))
 
 	l := log.New()
@@ -69,12 +71,16 @@ func main() {
 
 func readServersToStart() (SpoutServers, error) {
 
+	fmt.Println("I'm in")
+
 	wd, err := os.Getwd()
 	if err != nil {
 		return SpoutServers{}, err
 	}
-	path := filepath.Join(wd, "cmd", "api", "spout-servers.json")
+	path := filepath.Join(wd, "internal", "config", "spout-servers.json")
+
 	fmt.Println(path)
+
 	jsonFile, err := os.Open(path)
 	if err != nil {
 		fmt.Println(err)

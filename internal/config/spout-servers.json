@@ -12,7 +12,7 @@
       },
       "volumes": [
         {
-          "hostpath": "/Users/florianthievent/development/spoutmc/testservers/data/bungeecord",
+          "hostpath": "/Users/florianthievent/workspace/private/spoutmc/testservers/data/bungeecord",
           "containerpath": "/data"
         }
       ]
@@ -38,7 +38,7 @@
       },
       "volumes": [
         {
-          "hostpath": "/Users/florianthievent/development/spoutmc/testservers/data/lobby",
+          "hostpath": "/Users/florianthievent/workspace/private/spoutmc/testservers/data/lobby",
           "containerpath": "/data"
         }
       ]
