@@ -1,4 +1,4 @@
-package main
+package models
 
 type SpoutConfiguration struct {
 	ContainerNetwork SpoutContainerNetwork `json:"container-network,omitempty"`

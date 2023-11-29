@@ -5,8 +5,8 @@ import (
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"os"
-	"spoutmc/internal/models"
-	"spoutmc/pkg/dbcontext"
+	"spoutmc/backend/dbcontext"
+	"spoutmc/backend/models"
 	"strconv"
 )
 
