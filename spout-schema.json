@@ -3,5 +3,11 @@
   "$id": "https://0x49b.github.io/spoutmc/spout-schema.json",
   "title": "SpoutMC",
   "description": "SpoutMC configuration schema",
-  "type": "object"
+  "type": "object",
+  "properties": {
+    "base": {
+      "type": "object",
+      "description": "Add basic behaviour"
+    }
+  }
 }
