@@ -139,3 +139,8 @@ func StartContainer(s models.SpoutServer) {
 	}
 
 }
+
+func ShutdownContainers() error {
+	logger.Info("initialized container shutdown")
+	return nil
+}

@@ -9,11 +9,15 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
-	"spoutmc/backend/web"
+	"spoutmc/backend/webserver"
+	"sync"
+	"syscall"
+	"time"
 )
 
 var spoutConfiguration models.SpoutConfiguration
@@ -23,7 +27,18 @@ func main() {
 	printBanner()
 	logger.Info("Starting SpoutNetwork")
 	go startSpout()
-	web.Start()
+	e := webserver.Start()
+
+	wait := registerShutdown(context.Background(), 2*time.Second, map[string]operation{
+		"containers": func(ctx context.Context) error {
+			return docker.ShutdownContainers()
+		},
+		"webserver": func(ctx context.Context) error {
+			return webserver.ShutdownServer(e)
+		},
+	})
+
+	<-wait
 }
 
 func startSpout() {
@@ -132,4 +147,53 @@ func printBanner() {
 	fmt.Println("        |||      /____/ .___/\\____/\\__,_/\\__/_/  /_/\\____/   ")
 	fmt.Println("        |||          /_/                            0.0.1    ")
 	fmt.Println()
+}
+
+type operation func(ctx context.Context) error
+
+func registerShutdown(ctx context.Context, timeout time.Duration, ops map[string]operation) <-chan struct{} {
+	wait := make(chan struct{})
+	go func() {
+		s := make(chan os.Signal, 1)
+
+		// add any other syscalls that you want to be notified with
+		signal.Notify(s, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+		<-s
+
+		logger.Info("shutting down initiated")
+
+		// set timeout for the ops to be done to prevent system hang
+		timeoutFunc := time.AfterFunc(timeout, func() {
+			logger.Info(fmt.Sprintf("timeout %d ms has been elapsed, force exit", timeout.Milliseconds()))
+			os.Exit(0)
+		})
+
+		defer timeoutFunc.Stop()
+
+		var wg sync.WaitGroup
+
+		// Do the operations asynchronously to save time
+		for key, op := range ops {
+			wg.Add(1)
+			innerOp := op
+			innerKey := key
+			go func() {
+				defer wg.Done()
+
+				logger.Info(fmt.Sprintf("cleaning up: %s", innerKey))
+				if err := innerOp(ctx); err != nil {
+					zap.Error(err)
+					return
+				}
+
+				logger.Info(fmt.Sprintf("%s was shutdown gracefully", innerKey))
+			}()
+		}
+
+		wg.Wait()
+
+		close(wait)
+	}()
+
+	return wait
 }
