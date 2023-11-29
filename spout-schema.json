@@ -5,6 +5,11 @@
   "description": "SpoutMC configuration schema",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Url to define a schema for the spout-configuration.json",
+      "default": "https://0x49b.github.io/spoutmc/spout-schema.json"
+    },
     "base": {
       "description": "Add basic behaviour",
       "type": "object",
