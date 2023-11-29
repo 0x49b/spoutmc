@@ -1,16 +1,18 @@
 {
-  "$schema": "https://clew-resources.sbb-cloud.net/tekton-schema.json",
+  "$schema": "https://0x49b.github.io/spoutmc/spout-schema.json",
   "base": {
     "restart_servers": true,
     "stop_servers": true
   },
   "database": {
-    "type": "mysql",
-    "port": 3306,
-    "root_user": "mysql_admin",
-    "root_password": "mysql_password",
-    "name": "spout",
-    "enable_phpmyadmin": true
+    "db_type": "mysql",
+    "db_port": 3306,
+    "db_user": "db_user",
+    "db_password": "db_password",
+    "db_name": "spout",
+    "enable_phpmyadmin": true,
+    "external_database": false,
+    "external_host": ""
   },
   "network": {
     "name": "spoutnetwork",

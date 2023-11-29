@@ -3,7 +3,7 @@
     "name": "spoutnetwork",
     "driver": "bridge"
   },
-  "server": [
+  "servers": [
     {
       "name": "spoutproxy",
       "image": "itzg/bungeecord",
