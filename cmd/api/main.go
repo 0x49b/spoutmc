@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -21,6 +20,7 @@ import (
 	"path/filepath"
 	"spoutmc/internal/config"
 	"spoutmc/pkg/dbcontext"
+	"spoutmc/pkg/docker"
 	"spoutmc/pkg/log"
 	"spoutmc/web"
 	"time"
@@ -38,11 +38,12 @@ func main() {
 func startSpout() {
 	err := readConfiguration()
 	if err != nil {
-		fmt.Println("Cannot open/read configuration")
-		panic(err)
+		logger.Error("Cannot open/read configuration", zap.Error(err))
+		panic("")
 	}
 
-	startWebServer()
+	//startWebServer()
+	startContainers()
 }
 
 func readConfiguration() error {
@@ -52,13 +53,13 @@ func readConfiguration() error {
 	}
 	path := filepath.Join(wd, "internal", "config", "spout-servers.json")
 
-	fmt.Println(path)
+	logger.Debug(path)
 
 	jsonFile, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Successfully opened configuration file")
+	logger.Info("Successfully opened configuration file")
 
 	defer jsonFile.Close()
 	byteValue, _ := io.ReadAll(jsonFile)
@@ -123,13 +124,10 @@ func readServersToStart() (SpoutConfiguration, error) {
 	}
 	path := filepath.Join(wd, "internal", "config", "spout-servers.json")
 
-	fmt.Println(path)
-
 	jsonFile, err := os.Open(path)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("Successfully opened spout-servers.json")
 
 	defer func(jsonFile *os.File) {
 		err := jsonFile.Close()
@@ -189,22 +187,6 @@ func mapVolumeBindings(volumes []SpoutServerVolumes) []string {
 	return spoutVolumes
 }
 
-func createSpoutNetwork() types.NetworkCreateResponse {
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		panic(err)
-	}
-	defer cli.Close()
-
-	spoutNetwork, err := cli.NetworkCreate(ctx, "spoutnetwork", types.NetworkCreate{Driver: "bridge"})
-	if err != nil {
-		panic(err)
-	}
-
-	return spoutNetwork
-}
-
 func mapExposedPorts(p SpoutServerPorts) (nat.PortSet, nat.PortMap) {
 	var exposedPorts nat.PortSet
 	var hostBinding nat.PortBinding
@@ -228,7 +210,7 @@ func mapExposedPorts(p SpoutServerPorts) (nat.PortSet, nat.PortMap) {
 
 func startContainers() {
 
-	fmt.Println("Starting Containers")
+	logger.Info("Starting Containers")
 
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -238,17 +220,18 @@ func startContainers() {
 	defer cli.Close()
 
 	spoutServers, err := readServersToStart()
-	spoutNetwork := createSpoutNetwork()
+
+	// Check or Create the Spout Network
+	spoutNetwork := docker.CreateSpoutNetwork("spoutnetwork") // Todo get this from config
 
 	if err != nil {
 		panic(err)
 	}
 
 	for _, s := range spoutServers.Servers {
-		fmt.Println(s.Name)
 
-		fmt.Println("TESTING PORtS")
-		fmt.Println(s.Ports)
+		// Pull Image for Container
+		docker.PullImage(s.Image)
 
 		exposedPorts, containerPortBinding := mapExposedPorts(s.Ports)
 
@@ -277,17 +260,8 @@ func startContainers() {
 		}
 
 		if err := cli.ContainerStart(ctx, spoutContainer.ID, types.ContainerStartOptions{}); err != nil {
-			panic(err)
+			logger.Error("Cannot start container", zap.Error(err))
 		}
-
-		out, err := cli.ContainerLogs(ctx, spoutContainer.ID, types.ContainerLogsOptions{ShowStdout: true})
-		if err != nil {
-			panic(err)
-		}
-
-		defer out.Close()
-		stdcopy.StdCopy(os.Stdout, os.Stderr, out)
-
 	}
 
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
@@ -296,7 +270,7 @@ func startContainers() {
 	}
 
 	for _, container := range containers {
-		fmt.Printf("%s %s\n", container.ID[:10], container.Image)
+		logger.Info(fmt.Sprintf("Running container %s", container.Names[0]), zap.String("image", container.Image), zap.String("containerShortId", container.ID[:10]))
 	}
 
 }

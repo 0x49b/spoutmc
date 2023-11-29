@@ -33,6 +33,7 @@
         "db_type": {
           "type": "string",
           "description": "database system",
+          "enum": ["mysql"],
           "default": [
             "mysql"
           ]
@@ -74,6 +75,32 @@
         "db_name",
         "enable_phpmyadmin",
         "external_database"
+      ]
+    },
+    "network": {
+      "type": "object",
+      "description": "properties to setup the internal network (docker network)",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the network"
+        },
+        "driver": {
+          "type": "string",
+          "description": "The driver used to create the network. See details here https://docs.docker.com/network/drivers/",
+          "enum": [
+            "bridge",
+            "host",
+            "overlay",
+            "ipvlan",
+            "macvlan",
+            "none"
+          ],
+          "default": "bridge"
+        }
+      },
+      "required": [
+        "name"
       ]
     }
   },
