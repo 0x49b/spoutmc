@@ -16,11 +16,13 @@
       "properties": {
         "restart_servers": {
           "type": "boolean",
-          "description": "restart all game servers when spout is starting"
+          "description": "restart all game servers when spout is starting",
+          "default": true
         },
         "stop_servers": {
           "type": "boolean",
-          "description": "Stop all game servers when spout is (gracefully) shutdown"
+          "description": "Stop all game servers when spout is (gracefully) shutdown",
+          "default": true
         }
       }
     }
