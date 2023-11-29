@@ -37,14 +37,43 @@
             "mysql"
           ]
         },
-        "port": {
+        "db_port": {
           "type": "number",
           "description": "Database Port to connect"
+        },
+        "db_user": {
+          "type": "string",
+          "description": "User to connect"
+        },
+        "db_password": {
+          "type": "string",
+          "description": "Password to connect"
+        },
+        "db_name": {
+          "type": "string",
+          "description": "Name of Database"
+        },
+        "enable_phpmyadmin": {
+          "type": "boolean",
+          "description": "Starts an instance of PHPMyAdmin and connect it to the Database"
+        },
+        "external_database": {
+          "type": "boolean",
+          "description": "If set to true, then SpoutMC will try to connect to an external database host. If set to false, SpoutMc will start a Database Container"
+        },
+        "external_host": {
+          "type": "string",
+          "description": "Hostname for a external database host. Must be set if <external_database> is set to true"
         }
       },
       "required": [
         "db_type",
-        "port"
+        "db_port",
+        "db_user",
+        "db_password",
+        "db_name",
+        "enable_phpmyadmin",
+        "external_database"
       ]
     }
   },
