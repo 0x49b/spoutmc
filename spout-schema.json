@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "#SpoutConfiguratioSchema",
-  "title": "SpoutMC",
+  "title": "SpoutMC Schema",
   "description": "SpoutMC configuration schema",
   "type": "object",
   "properties": {
@@ -25,7 +25,30 @@
           "default": true
         }
       }
+    },
+    "database": {
+      "description": "Configuration values for the Database",
+      "type": "object",
+      "properties": {
+        "db_type": {
+          "type": "string",
+          "description": "database system",
+          "default": [
+            "mysql"
+          ]
+        },
+        "port": {
+          "type": "number",
+          "description": "Database Port to connect"
+        }
+      },
+      "required": [
+        "db_type",
+        "port"
+      ]
     }
   },
-  "required": []
+  "required": [
+    "database"
+  ]
 }
