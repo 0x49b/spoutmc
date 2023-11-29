@@ -6,8 +6,19 @@
   "type": "object",
   "properties": {
     "base": {
+      "description": "Add basic behaviour",
       "type": "object",
-      "description": "Add basic behaviour"
+      "properties": {
+        "restart_servers": {
+          "type": "boolean",
+          "description": "restart all game servers when spout is starting"
+        },
+        "stop_servers": {
+          "type": "boolean",
+          "description": "Stop all game servers when spout is (gracefully) shutdown"
+        }
+      }
     }
-  }
+  },
+  "required": []
 }
