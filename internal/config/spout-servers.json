@@ -1,27 +1,32 @@
 {
+  "container-network": {
+    "name": "spoutnetwork",
+    "driver": "bridge"
+  },
   "server": [
     {
-      "name": "spout-bungeecord",
+      "name": "spoutproxy",
       "image": "itzg/bungeecord",
       "ports": {
         "hostPort": "25565",
         "containerPort": "25577"
       },
       "env": {
+        "TYPE": "VELOCITY",
         "TZ": "Europe/Zurich"
       },
       "volumes": [
         {
-          "hostpath": "/Users/florianthievent/development/spoutmc/testservers/data/bungeecord",
+          "hostpath": "/Users/florianthievent/workspace/private/spoutmc/testservers/data/proxy",
           "containerpath": "/data"
         }
       ]
     },
     {
-      "name": "spout-lobby",
+      "name": "spoutlobby",
       "image": "itzg/minecraft-server",
       "ports": {
-        "hostPort": "25575",
+        "hostPort": "30066",
         "containerPort": "25565"
       },
       "env": {
@@ -35,13 +40,7 @@
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",
         "TZ": "Europe/Zurich"
-      },
-      "volumes": [
-        {
-          "hostpath": "/Users/florianthievent/development/spoutmc/testservers/data/lobby",
-          "containerpath": "/data"
-        }
-      ]
+      }
     }
   ]
 }

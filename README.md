@@ -17,7 +17,8 @@ Docker based Minecraft Server Networks
 https://docs.docker.com/engine/api/sdk/examples/#run-a-container-in-the-background  
 https://pkg.go.dev/github.com/docker/docker/client#pkg-overview  
 https://docker-minecraft-server.readthedocs.io/en/latest/  
-https://towardsdatascience.com/use-environment-variable-in-your-next-golang-project-39e17c3aaa66
+https://towardsdatascience.com/use-environment-variable-in-your-next-golang-project-39e17c3aaa66  
+https://betterstack.com/community/guides/logging/go/zap/
 
 ### Quickstart (Linux/MacOS/Windows)
 

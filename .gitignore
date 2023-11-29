@@ -13,3 +13,4 @@ modules/
 bundler/
 *.gz
 /testservers/data/lobby/*
+/testservers/velocity/

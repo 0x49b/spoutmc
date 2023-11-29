@@ -38,7 +38,7 @@ groups:
   md_5:
     - admin
 remote_ping_timeout: 5000
-connection_throttle: 4000
+connection_throttle: 5000
 log_commands: true
 stats: 82b96e2b-92c3-4190-ade3-d6351a50e990
 online_mode: true
@@ -48,5 +48,5 @@ disabled_commands:
 servers:
   lobby:
     motd: spout-lobby
-    address: spout-lobby:25575
+    address: spoutlobby:25575
     restricted: false

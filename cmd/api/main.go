@@ -13,7 +13,8 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"io/ioutil"
+	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,15 +26,53 @@ import (
 	"time"
 )
 
-func main() {
+var spoutConfiguration SpoutConfiguration
+var logger = log.New()
 
-	startContainers()
+func main() {
+	printBanner()
+	logger.Info("Starting SpoutNetwork")
+	startSpout()
+}
+
+func startSpout() {
+	err := readConfiguration()
+	if err != nil {
+		fmt.Println("Cannot open/read configuration")
+		panic(err)
+	}
+
+	startWebServer()
+}
+
+func readConfiguration() error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(wd, "internal", "config", "spout-servers.json")
+
+	fmt.Println(path)
+
+	jsonFile, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Successfully opened configuration file")
+
+	defer jsonFile.Close()
+	byteValue, _ := io.ReadAll(jsonFile)
+	err = json.Unmarshal(byteValue, &spoutConfiguration)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func startWebServer() {
 	conf := config.New(os.Getenv("PORT"), os.Getenv("ENV"))
 
-	l := log.New()
 	e := echo.New()
 	e.HideBanner = true
 	app := conf.Bootstrap()
@@ -43,12 +82,20 @@ func startWebServer() {
 	e.Use(middleware.Secure())
 	e.Use(middleware.Recover())
 	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "${method} ${uri} ${status} ${latency_human} ${error}\n",
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:    true,
+		LogStatus: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			logger.Info("request", zap.String("URI", v.URI), zap.Int("status", v.Status), zap.String("method", v.Method), zap.Duration("latency", v.Latency))
+			return nil
+		},
 	}))
+	/*	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "${method} ${uri} ${status} ${latency_human} ${error}\n",
+	}))*/
 	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20))) // 20 request/sec rate limit
 
-	registerHandler(e, l, app.Db)
+	registerHandler(e, app.Db)
 
 	// Graceful shutdown
 	go func() {
@@ -69,13 +116,10 @@ func startWebServer() {
 
 }
 
-func readServersToStart() (SpoutServers, error) {
-
-	fmt.Println("I'm in")
-
+func readServersToStart() (SpoutConfiguration, error) {
 	wd, err := os.Getwd()
 	if err != nil {
-		return SpoutServers{}, err
+		return SpoutConfiguration{}, err
 	}
 	path := filepath.Join(wd, "internal", "config", "spout-servers.json")
 
@@ -85,13 +129,20 @@ func readServersToStart() (SpoutServers, error) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("Successfully Opened spout-servers.json")
-	defer jsonFile.Close()
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	var spoutServers SpoutServers
+	fmt.Println("Successfully opened spout-servers.json")
+
+	defer func(jsonFile *os.File) {
+		err := jsonFile.Close()
+		if err != nil {
+
+		}
+	}(jsonFile)
+
+	byteValue, _ := io.ReadAll(jsonFile)
+	var spoutServers SpoutConfiguration
 	err = json.Unmarshal(byteValue, &spoutServers)
 	if err != nil {
-		return SpoutServers{}, err
+		return SpoutConfiguration{}, err
 	}
 	return spoutServers, nil
 }
@@ -146,7 +197,7 @@ func createSpoutNetwork() types.NetworkCreateResponse {
 	}
 	defer cli.Close()
 
-	spoutNetwork, err := cli.NetworkCreate(ctx, "spout-network", types.NetworkCreate{Driver: "bridge"})
+	spoutNetwork, err := cli.NetworkCreate(ctx, "spoutnetwork", types.NetworkCreate{Driver: "bridge"})
 	if err != nil {
 		panic(err)
 	}
@@ -250,6 +301,18 @@ func startContainers() {
 
 }
 
-func registerHandler(r *echo.Echo, l log.Logger, db *dbcontext.DB) {
+func registerHandler(r *echo.Echo, db *dbcontext.DB) {
 	web.RegisterHandlers(r)
+}
+
+func printBanner() {
+	fmt.Println()
+	fmt.Println("     =()=                                                    ")
+	fmt.Println(" ,/'\\_||_           _____                   __  __  _________")
+	fmt.Println(" ( (___  `.        / ___/____  ____  __  __/ /_/  |/  / ____/")
+	fmt.Println(" `\\./  `=='        \\__ \\/ __ \\/ __ \\/ / / / __/ /|_/ / /     ")
+	fmt.Println("        |||       ___/ / /_/ / /_/ / /_/ / /_/ /  / / /___   ")
+	fmt.Println("        |||      /____/ .___/\\____/\\__,_/\\__/_/  /_/\\____/   ")
+	fmt.Println("        |||          /_/                            0.0.1    ")
+	fmt.Println()
 }

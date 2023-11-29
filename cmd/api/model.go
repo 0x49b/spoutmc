@@ -1,8 +1,14 @@
 package main
 
-type SpoutServers struct {
-	Servers []SpoutServer `json:"server"`
+type SpoutConfiguration struct {
+	ContainerNetwork SpoutContainerNetwork `json:"container-network,omitempty"`
+	Servers          []SpoutServer         `json:"servers,omitempty"`
 }
+type SpoutContainerNetwork struct {
+	Name   string `json:"name,omitempty"`
+	Driver string `json:"driver,omitempty"`
+}
+
 type SpoutServerEnv struct {
 	Eula                 string `json:"EULA"`
 	Type                 string `json:"TYPE"`
