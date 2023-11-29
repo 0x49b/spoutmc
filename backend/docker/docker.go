@@ -96,6 +96,7 @@ func StartContainer(s models.SpoutServer) {
 	PullImage(s.Image)
 
 	if !containerExists(s.Name) {
+		logger.Info(fmt.Sprintf("Creating container %s", s.Name))
 		exposedPorts, containerPortBinding := MapExposedPorts(s.Ports)
 		spoutNetwork := getSpoutNetwork()
 

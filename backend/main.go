@@ -155,14 +155,10 @@ func registerShutdown(ctx context.Context, timeout time.Duration, ops map[string
 	wait := make(chan struct{})
 	go func() {
 		s := make(chan os.Signal, 1)
-
-		// add any other syscalls that you want to be notified with
 		signal.Notify(s, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 		<-s
 
 		logger.Info("shutting down initiated")
-
-		// set timeout for the ops to be done to prevent system hang
 		timeoutFunc := time.AfterFunc(timeout, func() {
 			logger.Info(fmt.Sprintf("timeout %d ms has been elapsed, force exit", timeout.Milliseconds()))
 			os.Exit(0)
@@ -171,8 +167,6 @@ func registerShutdown(ctx context.Context, timeout time.Duration, ops map[string
 		defer timeoutFunc.Stop()
 
 		var wg sync.WaitGroup
-
-		// Do the operations asynchronously to save time
 		for key, op := range ops {
 			wg.Add(1)
 			innerOp := op

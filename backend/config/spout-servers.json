@@ -17,8 +17,8 @@
       },
       "volumes": [
         {
-          "hostpath": "/Users/florianthievent/workspace/private/spoutmc/testservers/data/proxy",
-          "containerpath": "/data"
+          "hostpath": "/Users/florianthievent/workspace/private/spoutmc/testservers/data/spoutproxy2",
+          "containerpath": "/server"
         }
       ]
     },
@@ -40,7 +40,13 @@
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",
         "TZ": "Europe/Zurich"
-      }
+      },
+      "volumes": [
+        {
+          "hostpath": "/Users/florianthievent/workspace/private/spoutmc/testservers/data/spoutlobby",
+          "containerpath": "/data"
+        }
+      ]
     }
   ]
 }
