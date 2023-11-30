@@ -37,7 +37,6 @@ func main() {
 			return webserver.ShutdownServer(e)
 		},
 	})
-
 	<-wait
 }
 
@@ -176,7 +175,7 @@ func registerShutdown(ctx context.Context, timeout time.Duration, ops map[string
 
 				logger.Info(fmt.Sprintf("cleaning up: %s", innerKey))
 				if err := innerOp(ctx); err != nil {
-					zap.Error(err)
+					logger.Error(err.Error())
 					return
 				}
 
