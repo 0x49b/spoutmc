@@ -19,7 +19,8 @@ https://pkg.go.dev/github.com/docker/docker/client#pkg-overview
 https://docker-minecraft-server.readthedocs.io/en/latest/  
 https://towardsdatascience.com/use-environment-variable-in-your-next-golang-project-39e17c3aaa66  
 https://betterstack.com/community/guides/logging/go/zap/  
-https://www.jsonschemavalidator.net/
+https://www.jsonschemavalidator.net/  
+https://github.com/docker/cli/blob/master/cli/command/container/attach.go
 
 ### Quickstart (Linux/MacOS/Windows)
 

@@ -38,14 +38,15 @@ func Start() *echo.Echo {
 	}))
 
 	registerHandler(e, app.Db)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
 	if err := e.Shutdown(ctx); err != nil {
 		e.Logger.Fatal(err)
 	}
 
 	return e
-
 }
 
 func registerHandler(r *echo.Echo, db *dbcontext.DB) {

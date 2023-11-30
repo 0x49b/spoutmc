@@ -1,27 +1,16 @@
-package database
+package dbcontext
 
 import (
 	"errors"
-	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"os"
-	"spoutmc/backend/log"
 )
 
+// Database connection wrapped
 type DB struct {
 	db *gorm.DB
 }
 
-var logger = log.New()
-
-func Start() *DB {
-	// todo need the DSN from config file
-	dsn := "user:pass@tcp(127.0.0.1:3306)/dbname?charset=utf8mb4&parseTime=True&loc=Local"
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
-	}
+func New(db *gorm.DB) *DB {
 	return &DB{db}
 }
 

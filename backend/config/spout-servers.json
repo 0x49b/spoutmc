@@ -12,8 +12,8 @@
         "containerPort": "25577"
       },
       "env": {
-        "TYPE": "VELOCITY",
-        "TZ": "Europe/Zurich"
+        "TZ": "Europe/Zurich",
+        "LOG_PINGS": "FALSE"
       },
       "volumes": [
         {
@@ -25,10 +25,6 @@
     {
       "name": "spoutlobby",
       "image": "itzg/minecraft-server",
-      "ports": {
-        "hostPort": "30066",
-        "containerPort": "25565"
-      },
       "env": {
         "EULA": "TRUE",
         "TYPE": "PAPER",
