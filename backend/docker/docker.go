@@ -164,13 +164,14 @@ func StartContainer(s models.SpoutServer) {
 }
 
 func ShutdownContainers() error {
-	logger.Info("initialized container shutdown")
+
 	containers, err := getNetworkContainers()
 	if err != nil {
 		return err
 	}
 
 	for _, c := range containers {
+		logger.Info(fmt.Sprintf("shutting down container %s", c.Names[0]))
 		err := cli.ContainerStop(ctx, c.ID, container.StopOptions{})
 		if err != nil {
 			return err
