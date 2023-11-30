@@ -14,3 +14,4 @@ bundler/
 *.gz
 /testservers/data/lobby/*
 /testservers/velocity/
+/.msql_password

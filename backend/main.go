@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"spoutmc/backend/database"
 	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
@@ -27,6 +28,7 @@ func main() {
 	printBanner()
 	logger.Info("Starting SpoutNetwork")
 	go startSpout()
+	go database.Start()
 	e := webserver.Start()
 
 	wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
@@ -35,6 +37,9 @@ func main() {
 		},
 		"webserver": func(ctx context.Context) error {
 			return webserver.ShutdownServer(e)
+		},
+		"database": func(ctx context.Context) error {
+			return database.Shutdown()
 		},
 	})
 	<-wait

@@ -63,7 +63,7 @@ func CreateSpoutNetwork(networkName string) types.NetworkResource {
 	return types.NetworkResource{}
 }
 
-func getSpoutNetwork() types.NetworkResource {
+func GetSpoutNetwork() types.NetworkResource {
 	networkList, _ := cli.NetworkList(ctx, types.NetworkListOptions{})
 	networkName := "spoutnetwork" // todo get this from config
 	for _, n := range networkList {
@@ -96,7 +96,7 @@ func containerExists(containerName string) bool {
 	return len(containerList) > 0
 }
 
-func getContainer(containerName string) types.Container {
+func GetContainer(containerName string) types.Container {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("name", containerName)
 
@@ -111,7 +111,7 @@ func StartContainer(s models.SpoutServer) {
 	if !containerExists(s.Name) {
 		logger.Info(fmt.Sprintf("Creating container %s", s.Name))
 		exposedPorts, containerPortBinding := MapExposedPorts(s.Ports)
-		spoutNetwork := getSpoutNetwork()
+		spoutNetwork := GetSpoutNetwork()
 
 		spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 			Image:        s.Image,
@@ -136,6 +136,7 @@ func StartContainer(s models.SpoutServer) {
 				panic(err)
 			}
 		case <-statusCh:
+			logger.Info(fmt.Sprintf("container %s created", s.Name))
 		}
 
 		if err := cli.ContainerStart(ctx, spoutContainer.ID, types.ContainerStartOptions{}); err != nil {
@@ -146,7 +147,7 @@ func StartContainer(s models.SpoutServer) {
 		//todo check for configuration switch here if it should restart
 
 		logger.Info(fmt.Sprintf("re/start container %s", s.Name))
-		startContainer := getContainer(s.Name)
+		startContainer := GetContainer(s.Name)
 
 		if startContainer.State == "exited" {
 			err := cli.ContainerStart(ctx, startContainer.ID, types.ContainerStartOptions{})
