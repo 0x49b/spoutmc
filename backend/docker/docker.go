@@ -151,12 +151,12 @@ func StartContainer(s models.SpoutServer) {
 		if startContainer.State == "exited" {
 			err := cli.ContainerStart(ctx, startContainer.ID, types.ContainerStartOptions{})
 			if err != nil {
-				zap.Error(err)
+				logger.Error(err.Error())
 			}
 		} else {
 			err := cli.ContainerRestart(ctx, startContainer.ID, container.StopOptions{})
 			if err != nil {
-				zap.Error(err)
+				logger.Error(err.Error())
 			}
 		}
 	}
