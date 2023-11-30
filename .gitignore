@@ -15,3 +15,5 @@ bundler/
 /testservers/data/lobby/*
 /testservers/velocity/
 /.msql_password
+
+dist/

@@ -9,7 +9,7 @@ cmd = "nodemon -e js,jsx,json,yml,yaml --exec \"yarn run dev\""
 [build]
 args_bin = []
 bin = "./tmp/main"
-cmd = "go build -o ./tmp/main ./cmd/api/main.go"
+cmd = "go build -o ./tmp/main ./backend/main.go"
 delay = 1000
 exclude_dir = ["assets", "tmp", "vendor", "testdata", "web/node_modules"]
 exclude_file = []

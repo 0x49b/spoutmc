@@ -27,17 +27,17 @@ var logger = log.New()
 func main() {
 	printBanner()
 	logger.Info("Starting SpoutNetwork")
-	go startSpout()
 	go database.Start()
-	e := webserver.Start()
+	go startSpout()
+	webserver.Start()
 
 	wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
 		"containers": func(ctx context.Context) error {
 			return docker.ShutdownContainers()
 		},
-		"webserver": func(ctx context.Context) error {
-			return webserver.ShutdownServer(e)
-		},
+		/*		"webserver": func(ctx context.Context) error {
+				return webserver.ShutdownServer(e)
+			},*/
 		"database": func(ctx context.Context) error {
 			return database.Shutdown()
 		},

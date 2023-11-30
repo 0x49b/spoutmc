@@ -28,9 +28,7 @@ var databaseContainerImage = "mysql"
 var logger = log.New()
 
 func Start() {
-
 	docker.PullImage(databaseContainerImage)
-
 	if checkHasDatabaseContainer() {
 		restartDatabaseContainer()
 	} else {
@@ -79,8 +77,7 @@ func writeDBPassword(password string) {
 
 	file, err := os.Create(path)
 	if err != nil {
-		fmt.Println("Error creating file:", err)
-		return
+		logger.Error("", zap.Error(err))
 	}
 	defer file.Close() // Ensure the file is closed when the function returns.
 
@@ -90,14 +87,13 @@ func writeDBPassword(password string) {
 	// Write data to the file
 	_, err = file.Write(data)
 	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
+		logger.Error("", zap.Error(err))
 	}
 	logger.Info(fmt.Sprintf("Find your DB Password in %s. Do not forget to delete the file from the filesystem", path))
 }
 
 func createDatabaseContainer() {
-	logger.Info(fmt.Sprintf("Creating database container %s"))
+	logger.Info(fmt.Sprintf("Creating database container %s", databaseContainerName))
 	rootPassword := utils.RandomString(25)
 	writeDBPassword(rootPassword)
 
