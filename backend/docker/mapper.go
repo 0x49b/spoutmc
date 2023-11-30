@@ -12,7 +12,9 @@ func MapExposedPorts(p models.SpoutServerPorts) (nat.PortSet, nat.PortMap) {
 
 	if (models.SpoutServerPorts{}) != p {
 
-		exposedPorts = map[nat.Port]struct{}{nat.Port(p.ContainerPort + "/tcp"): {}}
+		exposedPorts = map[nat.Port]struct{}{
+			nat.Port(p.ContainerPort + "/tcp"): {},
+		}
 		hostBinding = nat.PortBinding{
 			HostIP:   "0.0.0.0",
 			HostPort: p.HostPort,

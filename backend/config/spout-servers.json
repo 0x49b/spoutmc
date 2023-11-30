@@ -17,7 +17,7 @@
       },
       "volumes": [
         {
-          "hostpath": "/Users/florianthievent/workspace/private/spoutmc/testservers/data/spoutproxy2",
+          "hostpath": "/Users/florianthievent/workspace/private/spoutmc/testservers/data/spoutproxy",
           "containerpath": "/server"
         }
       ]
@@ -31,7 +31,7 @@
       },
       "env": {
         "EULA": "TRUE",
-        "TYPE": "SPIGOT",
+        "TYPE": "PAPER",
         "ONLINE_MODE": "FALSE",
         "ENFORCE_SECURE_PROFILE": "FALSE",
         "MAX_MEMORY": "4G",

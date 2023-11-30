@@ -29,7 +29,7 @@ func main() {
 	go startSpout()
 	e := webserver.Start()
 
-	wait := registerShutdown(context.Background(), 2*time.Second, map[string]operation{
+	wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
 		"containers": func(ctx context.Context) error {
 			return docker.ShutdownContainers()
 		},

@@ -75,6 +75,19 @@ func getSpoutNetwork() types.NetworkResource {
 	return CreateSpoutNetwork(networkName)
 }
 
+func getNetworkContainers() ([]types.Container, error) {
+	containerFilter := filters.NewArgs()
+	containerFilter.Add("label", "io.spout.network=true")
+
+	list, err := cli.ContainerList(ctx, types.ContainerListOptions{All: true, Filters: containerFilter})
+	if err != nil {
+		return []types.Container{}, err
+	}
+
+	return list, nil
+}
+
+// todo check this and the below function, it's against DRY
 func containerExists(containerName string) bool {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("name", containerName)
@@ -87,7 +100,7 @@ func getContainer(containerName string) types.Container {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("name", containerName)
 
-	containerList, _ := cli.ContainerList(ctx, types.ContainerListOptions{Filters: containerFilter})
+	containerList, _ := cli.ContainerList(ctx, types.ContainerListOptions{All: true, Filters: containerFilter})
 	return containerList[0]
 }
 
@@ -105,6 +118,7 @@ func StartContainer(s models.SpoutServer) {
 			Hostname:     s.Name,
 			Env:          MapEnvironmentVariables(s.Env),
 			ExposedPorts: exposedPorts,
+			Labels:       map[string]string{"io.spout.servername": s.Name, "io.spout.network": "true"},
 		}, &container.HostConfig{
 			Binds:        MapVolumeBindings(s.Volumes),
 			PortBindings: containerPortBinding,
@@ -131,11 +145,19 @@ func StartContainer(s models.SpoutServer) {
 
 		//todo check for configuration switch here if it should restart
 
-		logger.Info(fmt.Sprintf("restart container %s", s.Name))
-		restartContainer := getContainer(s.Name)
-		err := cli.ContainerRestart(ctx, restartContainer.ID, container.StopOptions{})
-		if err != nil {
-			zap.Error(err)
+		logger.Info(fmt.Sprintf("re/start container %s", s.Name))
+		startContainer := getContainer(s.Name)
+
+		if startContainer.State == "exited" {
+			err := cli.ContainerStart(ctx, startContainer.ID, types.ContainerStartOptions{})
+			if err != nil {
+				zap.Error(err)
+			}
+		} else {
+			err := cli.ContainerRestart(ctx, startContainer.ID, container.StopOptions{})
+			if err != nil {
+				zap.Error(err)
+			}
 		}
 	}
 
@@ -143,5 +165,17 @@ func StartContainer(s models.SpoutServer) {
 
 func ShutdownContainers() error {
 	logger.Info("initialized container shutdown")
+	containers, err := getNetworkContainers()
+	if err != nil {
+		return err
+	}
+
+	for _, c := range containers {
+		err := cli.ContainerStop(ctx, c.ID, container.StopOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
