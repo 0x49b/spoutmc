@@ -52,6 +52,7 @@ func startSpout() {
 		os.Exit(1)
 	}
 
+	docker.CreateSpoutNetwork("spoutnetwork") // todo get this from config
 	startContainers()
 }
 
@@ -126,7 +127,6 @@ func startContainers() {
 	}
 
 	for _, s := range spoutServers.Servers {
-
 		docker.StartContainer(s)
 	}
 

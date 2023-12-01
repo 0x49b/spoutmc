@@ -1,7 +1,7 @@
 enforce_secure_profile: false
 listeners:
 - query_port: 25577
-  motd: '&1Another Bungee server'
+  motd: Another Bungee server
   tab_list: GLOBAL_PING
   query_enabled: false
   proxy_protocol: false
@@ -47,6 +47,10 @@ disabled_commands:
 - disabledcommandhere
 servers:
   lobby:
-    motd: '&1Just another BungeeCord - Forced Host'
-    address: spoutlobby:25565
+    motd: spoutlobby
+    address: spoutlobby:25566
+    restricted: false
+  skyblock:
+    motd: spoutskyblock
+    address: spoutskyblock:25567
     restricted: false
