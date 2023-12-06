@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/client"
 	"go.uber.org/zap"
 	"io"
-	"slices"
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
 	"spoutmc/backend/watchdog"
@@ -32,48 +31,6 @@ func PullImage(imageName string) {
 	if _, err := io.ReadAll(pull); err != nil {
 		logger.Error("Cannot pull image", zap.Error(err))
 	}
-}
-
-func CreateSpoutNetwork(networkName string) types.NetworkResource {
-
-	networkList, err := cli.NetworkList(ctx, types.NetworkListOptions{})
-	if err != nil {
-		return types.NetworkResource{}
-	}
-
-	var availableNetworks []string
-
-	for _, n := range networkList {
-		availableNetworks = append(availableNetworks, n.Name)
-	}
-
-	if !slices.Contains(availableNetworks, networkName) {
-		spoutNetwork, err := cli.NetworkCreate(ctx, networkName, types.NetworkCreate{Driver: "bridge"})
-		if err != nil {
-			logger.Error("Cannot create network", zap.Error(err))
-		}
-		return types.NetworkResource{ID: spoutNetwork.ID, Name: networkName}
-	} else {
-		for _, n := range networkList {
-			if networkName == n.Name {
-				return n
-			}
-		}
-	}
-
-	return types.NetworkResource{}
-}
-
-func GetSpoutNetwork() types.NetworkResource {
-	networkList, _ := cli.NetworkList(ctx, types.NetworkListOptions{})
-	networkName := "spoutnetwork" // todo get this from config
-	for _, n := range networkList {
-		if networkName == n.Name {
-			return n
-		}
-	}
-
-	return CreateSpoutNetwork(networkName)
 }
 
 func getNetworkContainers() ([]types.Container, error) {
@@ -186,6 +143,5 @@ func ShutdownContainers() error {
 			return err
 		}
 	}
-
 	return nil
 }
