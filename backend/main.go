@@ -15,6 +15,7 @@ import (
 	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
+	"spoutmc/backend/watchdog"
 	"spoutmc/backend/webserver"
 	"sync"
 	"syscall"
@@ -29,6 +30,7 @@ func main() {
 	logger.Info("Starting SpoutNetwork")
 	go database.Start()
 	go startSpout()
+	go watchdog.Start()
 	webserver.Start()
 
 	wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
@@ -40,6 +42,9 @@ func main() {
 			},*/
 		"database": func(ctx context.Context) error {
 			return database.Shutdown()
+		},
+		"watchdog": func(ctx context.Context) error {
+			return watchdog.Shutdown()
 		},
 	})
 	<-wait
