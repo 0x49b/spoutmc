@@ -13,6 +13,7 @@ import (
 	"slices"
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
+	"spoutmc/backend/watchdog"
 )
 
 // ALways run Docker commands in Background Context
@@ -142,6 +143,10 @@ func StartContainer(s models.SpoutServer) {
 		if err := cli.ContainerStart(ctx, spoutContainer.ID, types.ContainerStartOptions{}); err != nil {
 			logger.Error("Cannot start container", zap.Error(err))
 		}
+
+		// Add the container to the Watchdog
+		watchdog.AddToWatchdog(spoutContainer.ID)
+
 	} else {
 
 		//todo check for configuration switch here if it should restart
@@ -160,6 +165,9 @@ func StartContainer(s models.SpoutServer) {
 				logger.Error(err.Error())
 			}
 		}
+
+		// Add Container to Watchdog
+		watchdog.AddToWatchdog(startContainer.ID)
 	}
 
 }
