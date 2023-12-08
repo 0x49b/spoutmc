@@ -1,7 +1,11 @@
 package docker
 
 import (
+	"fmt"
 	"github.com/docker/go-connections/nat"
+	"go.uber.org/zap"
+	"os"
+	"path/filepath"
 	"spoutmc/backend/models"
 )
 
@@ -27,10 +31,23 @@ func MapExposedPorts(p models.SpoutServerPorts) (nat.PortSet, nat.PortMap) {
 	return exposedPorts, containerPortBinding
 }
 
+func createHostPath(hostpath []string) string {
+	wd, err := os.Getwd()
+
+	if err != nil {
+		logger.Error("Could not get cwd", zap.Error(err))
+		return ""
+	}
+
+	return filepath.Join(append([]string{wd}, hostpath...)...)
+}
+
 func MapVolumeBindings(volumes []models.SpoutServerVolumes) []string {
 	var spoutVolumes []string
+
 	for _, v := range volumes {
-		spoutVolumes = append(spoutVolumes, v.Hostpath+":"+v.Containerpath)
+		logger.Info(fmt.Sprintf("Testing new path creation --> %s", createHostPath(v.Hostpath)))
+		spoutVolumes = append(spoutVolumes, createHostPath(v.Hostpath)+":"+v.Containerpath)
 	}
 	return spoutVolumes
 }

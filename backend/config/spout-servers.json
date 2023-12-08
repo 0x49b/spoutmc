@@ -17,7 +17,11 @@
       },
       "volumes": [
         {
-          "hostpath": "D:\\development\\spoutmc\\testservers\\data\\spoutproxy",
+          "hostpath": [
+            "testservers",
+            "data",
+            "spoutproxy"
+          ],
           "containerpath": "/server"
         }
       ]
@@ -43,7 +47,11 @@
       },
       "volumes": [
         {
-          "hostpath": "D:\\development\\spoutmc\\testservers\\data\\spoutlobby",
+          "hostpath": [
+            "testservers",
+            "data",
+            "spoutlobby"
+          ],
           "containerpath": "/data"
         }
       ]
@@ -69,7 +77,11 @@
       },
       "volumes": [
         {
-          "hostpath": "D:\\development\\spoutmc\\testservers\\data\\spoutskyblock",
+          "hostpath": [
+            "testservers",
+            "data",
+            "spoutskyblock"
+          ],
           "containerpath": "/data"
         }
       ]

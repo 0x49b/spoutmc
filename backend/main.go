@@ -37,9 +37,9 @@ func main() {
 		"containers": func(ctx context.Context) error {
 			return docker.ShutdownContainers()
 		},
-		/*		"webserver": func(ctx context.Context) error {
-				return webserver.ShutdownServer(e)
-			},*/
+		"webserver": func(ctx context.Context) error {
+			return webserver.Shutdown()
+		},
 		"database": func(ctx context.Context) error {
 			return database.Shutdown()
 		},

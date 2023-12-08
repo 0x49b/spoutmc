@@ -10,3 +10,16 @@ func RandomString(length int) string {
 	}
 	return string(b)
 }
+
+// Remove Item from slice
+func Remove(slice []string, itemToRemove string) []string {
+	var updatedSlice []string
+
+	for _, item := range slice {
+		if item != itemToRemove {
+			updatedSlice = append(updatedSlice, item)
+		}
+	}
+
+	return updatedSlice
+}

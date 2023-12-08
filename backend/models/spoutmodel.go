@@ -23,8 +23,8 @@ type SpoutServerEnv struct {
 }
 
 type SpoutServerVolumes struct {
-	Hostpath      string `json:"hostpath"`
-	Containerpath string `json:"containerpath"`
+	Hostpath      []string `json:"hostpath"`
+	Containerpath string   `json:"containerpath"`
 }
 
 type SpoutServerPorts struct {

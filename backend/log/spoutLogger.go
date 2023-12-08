@@ -8,6 +8,7 @@ import (
 )
 
 func New() *zap.Logger {
+
 	stdout := zapcore.AddSync(os.Stdout)
 	file := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "logs/app.log",
@@ -29,5 +30,6 @@ func New() *zap.Logger {
 		zapcore.NewCore(fileEncoder, file, level),
 	)
 
-	return zap.New(core)
+	spoutLogger := zap.New(core)
+	return spoutLogger
 }

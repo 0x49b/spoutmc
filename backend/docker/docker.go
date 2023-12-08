@@ -18,6 +18,7 @@ import (
 // ALways run Docker commands in Background Context
 var ctx = context.Background()
 var cli, _ = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+
 var logger = log.New()
 
 func PullImage(imageName string) {
@@ -84,6 +85,7 @@ func StartContainer(s models.SpoutServer) {
 			EndpointsConfig: map[string]*network.EndpointSettings{spoutNetwork.ID: {NetworkID: spoutNetwork.ID}}},
 			nil, s.Name)
 		if err != nil {
+			logger.Error("Error creating container", zap.Error(err))
 			panic(err)
 		}
 
