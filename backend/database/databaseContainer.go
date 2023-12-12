@@ -89,7 +89,10 @@ func checkHasDatabaseContainer() bool {
 }
 
 func restartDatabaseContainer() string {
-	databaseContainer := docker.GetContainer(databaseContainerName)
+	databaseContainer, err := docker.GetContainer(databaseContainerName)
+	if err != nil {
+		logger.Error(err.Error())
+	}
 
 	if databaseContainer.State == "exited" {
 		err := cli.ContainerStart(ctx, databaseContainer.ID, types.ContainerStartOptions{})
@@ -200,9 +203,12 @@ func createDatabaseContainer() string {
 
 func Shutdown() error {
 
-	databaseContainer := docker.GetContainer(databaseContainerName)
+	databaseContainer, err := docker.GetContainer(databaseContainerName)
+	if err != nil {
+		logger.Error(err.Error())
+	}
 
-	err := cli.ContainerStop(ctx, databaseContainer.ID, container.StopOptions{})
+	err = cli.ContainerStop(ctx, databaseContainer.ID, container.StopOptions{})
 	if err != nil {
 		logger.Error(err.Error())
 	}

@@ -69,7 +69,6 @@
         "ONLINE_MODE": "FALSE",
         "ENFORCE_SECURE_PROFILE": "FALSE",
         "MAX_MEMORY": "4G",
-        "VERSION": "1.20.2",
         "GUI": "FALSE",
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",

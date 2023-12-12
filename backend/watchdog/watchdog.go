@@ -73,7 +73,6 @@ func runWatchdog() {
 }
 
 func startContainer(containerId string) {
-
 	logger.Info(fmt.Sprintf("[WatchDog] try starting container %s", containerId))
 	err := cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{})
 	if err != nil {

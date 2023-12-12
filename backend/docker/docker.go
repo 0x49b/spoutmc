@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -34,7 +35,7 @@ func PullImage(imageName string) {
 	}
 }
 
-func getNetworkContainers() ([]types.Container, error) {
+func GetNetworkContainers() ([]types.Container, error) {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("label", "io.spout.network=true")
 
@@ -55,12 +56,29 @@ func containerExists(containerName string) bool {
 	return len(containerList) > 0
 }
 
-func GetContainer(containerName string) types.Container {
+func GetContainer(containerName string) (types.Container, error) {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("name", containerName)
 
-	containerList, _ := cli.ContainerList(ctx, types.ContainerListOptions{All: true, Filters: containerFilter})
-	return containerList[0]
+	containerList, err := cli.ContainerList(ctx, types.ContainerListOptions{All: true, Filters: containerFilter})
+
+	if err != nil {
+		return types.Container{}, err
+	}
+
+	if len(containerList) < 1 {
+		return types.Container{}, errors.New(fmt.Sprintf("Cannot find container for name %s", containerName))
+	}
+
+	return containerList[0], nil
+}
+
+func GetContainerById(containerId string) (types.ContainerJSON, error) {
+	requestedContainer, err := cli.ContainerInspect(ctx, containerId)
+	if err != nil {
+		return types.ContainerJSON{}, err
+	}
+	return requestedContainer, nil
 }
 
 func StartContainer(s models.SpoutServer) {
@@ -111,7 +129,10 @@ func StartContainer(s models.SpoutServer) {
 		//todo check for configuration switch here if it should restart
 
 		logger.Info(fmt.Sprintf("re/start container %s", s.Name))
-		startContainer := GetContainer(s.Name)
+		startContainer, err := GetContainer(s.Name)
+		if err != nil {
+			logger.Error(err.Error())
+		}
 
 		if startContainer.State == "exited" {
 			err := cli.ContainerStart(ctx, startContainer.ID, types.ContainerStartOptions{})
@@ -133,7 +154,7 @@ func StartContainer(s models.SpoutServer) {
 
 func ShutdownContainers() error {
 
-	containers, err := getNetworkContainers()
+	containers, err := GetNetworkContainers()
 	if err != nil {
 		return err
 	}

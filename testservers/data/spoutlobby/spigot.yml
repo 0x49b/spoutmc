@@ -57,6 +57,7 @@ commands:
   silent-commandblock-console: false
 world-settings:
   default:
+    seed-trialchambers: 94251327
     below-zero-generation-in-existing-chunks: true
     merge-radius:
       item: 2.5

@@ -8,6 +8,7 @@ require (
 	github.com/glebarez/sqlite v1.10.0
 	github.com/gofiber/fiber/v2 v2.51.0
 	github.com/labstack/echo/v4 v4.11.3
+	github.com/soypat/rebed v0.2.3
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20231206192017-f3f8817b8deb
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
