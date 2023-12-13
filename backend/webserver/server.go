@@ -1,38 +1,86 @@
 package webserver
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"context"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
 	"net/http"
+	"os"
+	"os/signal"
+	"spoutmc/backend/config"
+	"spoutmc/backend/dbcontext"
 	"spoutmc/backend/log"
-	"spoutmc/backend/webserver/routes"
+	v1Container "spoutmc/backend/webserver/api/v1"
 	"spoutmc/web"
+	"time"
 )
 
 var logger = log.New()
 
-func Start() {
+func Start() *echo.Echo {
 
-	app := fiber.New(fiber.Config{
-		AppName:               "SpoutWebserver",
-		DisableStartupMessage: true,
-	})
+	logger.Info("Starting Webserver")
 
-	app.Use("/", filesystem.New(filesystem.Config{
-		Root:       http.FS(web.GetEmbedFS()),
-		PathPrefix: "static",
-		Browse:     true,
+	conf := config.New(os.Getenv("3000"), os.Getenv("ENV"))
+
+	e := echo.New()
+	e.HideBanner = true
+	app := conf.Bootstrap()
+
+	e.Pre(middleware.RemoveTrailingSlash())
+
+	e.Use(middleware.CORS())
+	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{Timeout: 10 * time.Second}))
+	e.Use(middleware.Secure())
+	e.Use(middleware.Recover())
+	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:    true,
+		LogStatus: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			logger.Info("request", zap.String("URI", v.URI), zap.Int("status", v.Status), zap.String("method", v.Method), zap.Duration("latency", v.Latency))
+			return nil
+		},
 	}))
 
-	api := app.Group("/api")
-	v1 := api.Group("/v1")
-	routes.SetupContainerRoutes(v1)
+	// Frontend Handler
+	registerHandler(e, app.Db)
 
-	logger.Fatal("Cannot start", zap.Error(app.Listen(":8080")))
+	apiGroup := e.Group("/api")
+	v1 := apiGroup.Group("/v1")
+	v1Container.RegisterContainerAPI(v1)
+
+	go func() {
+		logger.Info("Webserver started")
+		if err := e.Start(":3000"); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("shutting down the server")
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
+	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		logger.Fatal("", zap.Error(err))
+	}
+
+	return e
 }
 
-func Shutdown() error {
-	logger.Info("Webserver initiated shutdown procedure")
+func registerHandler(r *echo.Echo, db *dbcontext.DB) {
+	web.RegisterHandlers(r)
+}
+
+func Shutdown(e *echo.Echo) error {
+	err := e.Shutdown(context.Background())
+	if err != nil {
+		return err
+	}
 	return nil
 }

@@ -55,35 +55,6 @@
           "containerpath": "/data"
         }
       ]
-    },
-    {
-      "name": "spoutskyblock",
-      "image": "itzg/minecraft-server",
-      "ports": {
-        "hostPort": "25567",
-        "containerPort": "25565"
-      },
-      "env": {
-        "EULA": "TRUE",
-        "TYPE": "SPIGOT",
-        "ONLINE_MODE": "FALSE",
-        "ENFORCE_SECURE_PROFILE": "FALSE",
-        "MAX_MEMORY": "4G",
-        "GUI": "FALSE",
-        "CONSOLE": "FALSE",
-        "LOG_TIMESTAMP": "TRUE",
-        "TZ": "Europe/Zurich"
-      },
-      "volumes": [
-        {
-          "hostpath": [
-            "testservers",
-            "data",
-            "spoutskyblock"
-          ],
-          "containerpath": "/data"
-        }
-      ]
     }
   ]
 }

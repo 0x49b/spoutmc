@@ -17,13 +17,16 @@ var containerIds = []string{}
 var ctx = context.Background()
 var cli, _ = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 var logger = log.New()
+var stopped = false
 
 func Start() {
+	stopped = false
 	runWatchdog()
 }
 
 func Shutdown() error {
 	logger.Info("Should now end watchdog")
+	stopped = true
 	return nil
 }
 
@@ -38,38 +41,44 @@ func RemoveFromWatchdog(containerId string) {
 }
 
 func runWatchdog() {
+loop:
 	for {
-		for _, container := range containerIds {
-			containerInfo, err := cli.ContainerInspect(ctx, container)
-			if err != nil {
-				logger.Error("", zap.Error(err))
-			}
+		if !stopped {
 
-			logger.Debug(fmt.Sprintf("[WatchDog] Container %s in State %s", containerInfo.Name, containerInfo.State.Status))
-
-			// States: Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
-			if containerInfo.State.Status != "running" {
-
-				logger.Error(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Name, containerInfo.State.Status))
-
-				switch containerInfo.State.Status {
-				case "exited":
-				case "dead":
-					startContainer(containerInfo.ID)
-					break
-				case "paused":
+			for _, container := range containerIds {
+				containerInfo, err := cli.ContainerInspect(ctx, container)
+				if err != nil {
+					logger.Error("", zap.Error(err))
 				}
 
-				if containerInfo.State.Status == "exited" || containerInfo.State.Status == "dead" {
-					startContainer(containerInfo.ID)
+				logger.Debug(fmt.Sprintf("[WatchDog] Container %s in State %s", containerInfo.Name, containerInfo.State.Status))
+
+				// States: Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
+				if containerInfo.State.Status != "running" {
+
+					logger.Error(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Name, containerInfo.State.Status))
+
+					switch containerInfo.State.Status {
+					case "exited":
+					case "dead":
+						startContainer(containerInfo.ID)
+						break
+					case "paused":
+					}
+
+					if containerInfo.State.Status == "exited" || containerInfo.State.Status == "dead" {
+						startContainer(containerInfo.ID)
+					}
 				}
 			}
+		} else {
+			break loop
 		}
 
 		// Sleep Time before Watchdog checks container
 		time.Sleep(15 * time.Second)
-	}
 
+	}
 }
 
 func startContainer(containerId string) {

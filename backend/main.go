@@ -31,14 +31,14 @@ func main() {
 	go database.Start()
 	go startSpout()
 	go watchdog.Start()
-	webserver.Start()
+	c := webserver.Start()
 
 	wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
 		"containers": func(ctx context.Context) error {
 			return docker.ShutdownContainers()
 		},
 		"webserver": func(ctx context.Context) error {
-			return webserver.Shutdown()
+			return webserver.Shutdown(c)
 		},
 		"database": func(ctx context.Context) error {
 			return database.Shutdown()
