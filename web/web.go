@@ -2,28 +2,20 @@ package web
 
 import (
 	"embed"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"net/http"
-	"spoutmc/backend/log"
+
+	"github.com/labstack/echo/v4"
 )
 
 var (
-	logger = log.New()
-
 	//go:embed all:dist
-	embedDirStatic embed.FS
+	dist embed.FS
+	//go:embed dist/index.html
+	indexHTML     embed.FS
+	distDirFS     = echo.MustSubFS(dist, "dist")
+	distIndexHtml = echo.MustSubFS(indexHTML, "dist")
 )
 
-func GetEmbedFS() embed.FS {
-	return embedDirStatic
-}
-
-func RegisterFrontend(app *fiber.App) {
-
-	app.Use("/", filesystem.New(filesystem.Config{
-		Root:  http.FS(embedDirStatic),
-		Index: "index.html",
-	}))
-
+func RegisterHandlers(r *echo.Echo) {
+	r.FileFS("/", "index.html", distIndexHtml)
+	r.StaticFS("/", distDirFS)
 }
