@@ -9,7 +9,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.51.0
 	github.com/labstack/echo/v4 v4.11.3
 	go.uber.org/zap v1.26.0
-	golang.org/x/exp v0.0.0-20231206192017-f3f8817b8deb
+	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/gorm v1.25.5
