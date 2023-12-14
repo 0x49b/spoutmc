@@ -1,16 +1,13 @@
-import { NgDompurifySanitizer } from "@tinkoff/ng-dompurify";
-import { TuiRootModule, TuiDialogModule, TuiAlertModule, TUI_SANITIZER } from "@taiga-ui/core";
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterOutlet } from '@angular/router';
+import {Component} from '@angular/core';
+import {CommonModule, NgOptimizedImage} from '@angular/common';
+import {SidenavComponent} from "./modules/sidenav/sidenav.component";
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, TuiRootModule, TuiDialogModule, TuiAlertModule],
+  imports: [CommonModule, NgOptimizedImage, SidenavComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.css',
-    providers: [{provide: TUI_SANITIZER, useClass: NgDompurifySanitizer}]
+  styleUrl: './app.component.css'
 })
 export class AppComponent {
   title = 'web';
