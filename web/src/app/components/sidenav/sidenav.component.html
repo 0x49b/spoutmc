@@ -1,0 +1,100 @@
+<!--mat-toolbar color="primary">
+  <button
+    type="button"
+    aria-label="Toggle sidenav"
+    mat-icon-button
+    (click)="snav.open()">
+    <mat-icon>menu</mat-icon>
+  </button>
+</mat-toolbar>
+<mat-sidenav-container-->
+
+
+<!--mat-sidenav opened=true mode="push" #snav>
+  <mat-nav-list>
+    <mat-list-item>
+      <h4 matLine routerLink="/welcome"
+          routerLinkActive="active-link">Home</h4>
+    </mat-list-item>
+    <mat-list-item>
+      <h4 matLine routerLink="/books" routerLinkActive="active-link">Books</h4>
+    </mat-list-item>
+  </mat-nav-list>
+</mat-sidenav>
+<mat-sidenav-content>
+
+
+  <router-outlet></router-outlet>
+
+</mat-sidenav-content>
+</mat-sidenav-container-->
+
+<mat-toolbar color="primary">
+  <button
+    type="button"
+    aria-label="Toggle sidenav"
+    mat-icon-button
+    (click)="drawer.toggle()"
+  >
+    <mat-icon>menu</mat-icon>
+  </button>
+
+  <img ngSrc="../assets/tap.png" height=40 width="40" alt="">
+  <span class="spout-toolbar-title">SpoutMC
+    <sub class="spout-toolbar-title-version">0.0.1</sub>
+  </span>
+
+  <span class="mat-toolbar-spacer"></span>
+  <div fxShow="true" fxHide.lt-md="true">
+    <button mat-button [matMenuTriggerFor]="menu">
+      /* Username placeholder */
+    </button>
+
+    <mat-menu #menu="matMenu">
+      <button mat-menu-item>
+        <mat-icon aria-hidden="false" aria-label="Example home icon" fontIcon="face"></mat-icon>
+        Profile
+      </button>
+      <button mat-menu-item>
+        <mat-icon aria-hidden="false" aria-label="Example home icon" fontIcon="logout"></mat-icon>
+        Logout
+      </button>
+    </mat-menu>
+  </div>
+
+</mat-toolbar>
+
+<mat-sidenav-container>
+  <mat-drawer-container>
+    <mat-drawer #drawer mode="side" opened="true">
+
+      <mat-list role="list">
+        <mat-list-item class="left">
+          <a mat-button routerLink="/">
+            <mat-icon aria-hidden="false" aria-label="home-icon" fontIcon="home"></mat-icon>
+            Home
+          </a>
+        </mat-list-item>
+        <mat-list-item class="left">
+          <a mat-button routerLink="/server">
+            <mat-icon aria-hidden="false" aria-label="home-icon" fontIcon="dns"></mat-icon>
+            Server
+          </a>
+        </mat-list-item>
+        <mat-list-item class="left">
+          <a mat-button routerLink="/books">
+            <mat-icon aria-hidden="false" aria-label="home-icon" fontIcon="book"></mat-icon>
+            Books
+          </a>
+        </mat-list-item>
+      </mat-list>
+
+
+    </mat-drawer>
+    <mat-drawer-content>
+
+      <router-outlet></router-outlet>
+
+    </mat-drawer-content>
+  </mat-drawer-container>
+</mat-sidenav-container>
