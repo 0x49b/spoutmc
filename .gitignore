@@ -9,7 +9,6 @@ world/
 world_nether/
 world_the_end/
 proxy.log*
-modules/
 bundler/
 *.gz
 /testservers/data/lobby/*
