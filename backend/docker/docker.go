@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/client"
 	"go.uber.org/zap"
 	"io"
+	"os"
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
 	"spoutmc/backend/watchdog"
@@ -21,6 +23,45 @@ var ctx = context.Background()
 var cli, _ = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 
 var logger = log.New()
+
+func StreamLogsFromContainer(containerName string) {
+
+	cid, err := GetContainer(containerName)
+	if err != nil {
+		return
+	}
+
+	i, err := cli.ContainerLogs(context.Background(), cid.ID, types.ContainerLogsOptions{
+
+		ShowStderr: true,
+		ShowStdout: true,
+		Timestamps: false,
+		Follow:     true,
+		Tail:       "40",
+	})
+	if err != nil {
+		logger.Error("", zap.Error(err))
+	}
+	hdr := make([]byte, 8)
+	for {
+		_, err := i.Read(hdr)
+		if err != nil {
+			logger.Error("", zap.Error(err))
+		}
+		var w io.Writer
+		switch hdr[0] {
+		case 1:
+			w = os.Stdout
+		default:
+			w = os.Stderr
+		}
+		count := binary.BigEndian.Uint32(hdr[4:])
+		dat := make([]byte, count)
+		_, err = i.Read(dat)
+		fmt.Fprint(w, string(dat))
+	}
+
+}
 
 func PullImage(imageName string) {
 
@@ -91,6 +132,9 @@ func StartContainer(s models.SpoutServer) {
 		spoutNetwork := GetSpoutNetwork()
 
 		spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
+			Tty:          true,
+			AttachStdout: true,
+			AttachStderr: true,
 			Image:        s.Image,
 			Hostname:     s.Name,
 			Env:          MapEnvironmentVariables(s.Env),

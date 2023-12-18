@@ -1,6 +1,6 @@
 import {Component} from '@angular/core';
 import {CommonModule, NgOptimizedImage} from '@angular/common';
-import {SidenavComponent} from "./modules/sidenav/sidenav.component";
+import {SidenavComponent} from "./components/sidenav/sidenav.component";
 
 @Component({
   selector: 'app-root',
