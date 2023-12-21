@@ -1,6 +1,9 @@
 package models
 
+import "gorm.io/gorm"
+
 type SpoutConfiguration struct {
+	gorm.Model
 	ContainerNetwork SpoutContainerNetwork `json:"container-network,omitempty"`
 	Servers          []SpoutServer         `json:"servers,omitempty"`
 }

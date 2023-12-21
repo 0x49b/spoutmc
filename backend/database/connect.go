@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"spoutmc/backend/models"
 )
 
 func ConnectDBThenMigrate() {
@@ -24,8 +25,16 @@ func ConnectDBThenMigrate() {
 
 func migrateDatabase() {
 	err := DB.AutoMigrate(&Product{})
+
 	if err != nil {
 		logger.Error("", zap.Error(err))
 	}
+
+	err = DB.AutoMigrate(&models.SpoutConfiguration{})
+
+	if err != nil {
+		logger.Error("", zap.Error(err))
+	}
+
 	logger.Info("Applied migrations to Database")
 }

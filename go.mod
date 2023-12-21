@@ -6,10 +6,11 @@ require (
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-connections v0.4.1-0.20231110212414-fa09c952e3ea
 	github.com/glebarez/sqlite v1.10.0
-	github.com/gorilla/websocket v1.5.1
 	github.com/labstack/echo/v4 v4.11.4
+	github.com/twistedasylummc/minime v0.0.4
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20231219180239-dc181d75b848
+	golang.org/x/net v0.19.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/gorm v1.25.5
@@ -42,7 +43,6 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
