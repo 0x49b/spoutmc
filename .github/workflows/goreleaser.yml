@@ -30,16 +30,16 @@ jobs:
           delete_tag_pattern: nightly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: 'Delete nightly containers older than a week'
-        uses: snok/container-retention-policy@v1
-        with:
-          image-names: conduit
-          cut-off: 1 week ago UTC
-          account-type: org
-          org-name: ConduitIO
-          keep-at-least: 5
-          token: ${{ secrets.GITHUB_TOKEN }}
-          filter-tags: '*-nightly*'
+      #- name: 'Delete nightly containers older than a week'
+      #  uses: snok/container-retention-policy@v1
+      #  with:
+      #    image-names: conduit
+      #    cut-off: 1 week ago UTC
+      #    account-type: org
+      #    org-name: ConduitIO
+      #    keep-at-least: 5
+      #    token: ${{ secrets.GITHUB_TOKEN }}
+      #    filter-tags: '*-nightly*'
       - uses: actions/checkout@v4
       - name: Use Node.js
         uses: actions/setup-node@v3
