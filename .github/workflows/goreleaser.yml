@@ -65,11 +65,10 @@ jobs:
         with:
           version: latest
           args: release --clean
-          workdir: myfolder
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload assets
         uses: actions/upload-artifact@v3
         with:
-          name: myapp
-          path: myfolder/dist/*
+          name: spoutmc
+          path: /dist/*
