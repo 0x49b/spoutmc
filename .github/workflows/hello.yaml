@@ -1,0 +1,16 @@
+name: hello
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Hello Action
+        uses: ./ci
+        with:
+          who-to-greet: 'Mona the Octocat'
