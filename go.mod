@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/labstack/echo/v4 v4.11.4
 	go.uber.org/zap v1.26.0
-	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611
+	golang.org/x/exp v0.0.0-20231219180239-dc181d75b848
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/gorm v1.25.5
