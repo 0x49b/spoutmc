@@ -28,9 +28,9 @@ var logger = log.New()
 func main() {
 	printBanner()
 	logger.Info("Starting SpoutNetwork")
-	go database.Start()
-	go startSpout()
-	go watchdog.Start()
+	// go database.Start()
+	// go startSpout()
+	// go watchdog.Start()
 	c := webserver.Start()
 
 	wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
