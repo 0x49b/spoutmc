@@ -3,11 +3,11 @@ name: goreleaser
 
 on:
   workflow_dispatch:
-  schedule:
+  #schedule:
     # * is a special character in YAML, so you have to quote this string
     # doing builds Tue-Sat, so we have changes from Fri
     # available already on Sat
-    - cron: '0 0 * * *'
+    #- cron: '0 0 * * *'
   push:
     # run only against tags
     tags:
