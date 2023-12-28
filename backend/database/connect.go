@@ -24,17 +24,23 @@ func ConnectDBThenMigrate() {
 }
 
 func migrateDatabase() {
-	err := DB.AutoMigrate(&Product{})
 
-	if err != nil {
-		logger.Error("", zap.Error(err))
+	modelList := []interface{}{
+		&Product{},
+		&models.Task{},
+		&models.Projects{},
+		/*&models.SpoutContainerNetwork{},
+		&models.SpoutServerPorts{},
+		&models.SpoutServerVolumes{},
+		&models.SpoutServerEnv{},
+		&models.SpoutServer{},
+		&models.SpoutConfiguration{}*/}
+
+	for _, m := range modelList {
+		err := DB.AutoMigrate(m)
+		if err != nil {
+			logger.Error("", zap.Error(err))
+		}
 	}
-
-	err = DB.AutoMigrate(&models.SpoutConfiguration{})
-
-	if err != nil {
-		logger.Error("", zap.Error(err))
-	}
-
 	logger.Info("Applied migrations to Database")
 }

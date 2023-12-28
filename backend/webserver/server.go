@@ -30,11 +30,10 @@ func Start() *echo.Echo {
 
 	e.Pre(middleware.RemoveTrailingSlash())
 
-	e.Use(middleware.CORS())
-	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{Timeout: 10 * time.Second}))
-	e.Use(middleware.Secure())
-	e.Use(middleware.Recover())
 	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+	e.Use(middleware.Secure())
 	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))
 	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
