@@ -32,7 +32,6 @@ func StreamLogsFromContainer(containerName string) {
 	}
 
 	i, err := cli.ContainerLogs(context.Background(), cid.ID, types.ContainerLogsOptions{
-
 		ShowStderr: true,
 		ShowStdout: true,
 		Timestamps: false,

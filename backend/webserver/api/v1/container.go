@@ -1,33 +1,171 @@
 package v1
 
 import (
+	"bufio"
+	"context"
 	"fmt"
+	"github.com/docker/docker/api/types"
+	dcl "github.com/docker/docker/client"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
 	"spoutmc/backend/webserver/api/v1/model"
+	"time"
+	"unicode/utf8"
 )
 
 var logger = log.New()
 var upgrader = websocket.Upgrader{}
+var inout chan []byte
+var output chan []byte
 
 func RegisterContainerAPI(v1Group *echo.Group) {
 	g := v1Group.Group("/container")
 	g.GET("", getContainerList)
 	g.GET("/name/:name", getContainerByName)
 	g.GET("/id/:id", getContainerById)
-	g.GET("/logs/:name", streamLogs)
+	g.GET("/logs/:name", echoLogs)
+}
+
+// c echo.Context
+// w http.ResponseWriter, r *http.Request
+func echoLogs(c echo.Context) error {
+	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+	if err != nil {
+		logger.Error("", zap.Error(err))
+		return err
+	}
+	defer conn.Close()
+
+	cli, err := dcl.NewEnvClient()
+	if err != nil {
+		logger.Error("", zap.Error(err))
+		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		return err
+	}
+
+	ctx := context.Background()
+	execConfig := types.ExecConfig{
+		AttachStderr: true,
+		AttachStdin:  true,
+		AttachStdout: true,
+		Cmd:          []string{"/bin/sh"},
+		Tty:          false,
+		Detach:       false,
+	}
+
+	//set target container
+	exec, err := cli.ContainerExecCreate(ctx, c.Param("name"), execConfig)
+	if err != nil {
+		logger.Error("", zap.Error(err))
+		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		return err
+	}
+	execAttachConfig := types.ExecStartCheck{
+		Detach: false,
+		Tty:    false,
+	}
+	containerConn, err := cli.ContainerExecAttach(ctx, exec.ID, execAttachConfig)
+	if err != nil {
+		logger.Error("", zap.Error(err))
+		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		return err
+	}
+	defer containerConn.Close()
+
+	bufin := bufio.NewReader(containerConn.Reader)
+
+	// Write to docker container
+	go func(w io.WriteCloser) {
+		for {
+			data, ok := <-inout
+			//log.Println("Received to send to docker", data)
+			logger.Info("Received to send to docker")
+			if !ok {
+				fmt.Println("!ok")
+				w.Close()
+			}
+
+			w.Write(append(data, '\n'))
+		}
+	}(containerConn.Conn)
+
+	// Received of Container Docker
+	go func() {
+		for {
+			buffer := make([]byte, 4096, 4096)
+			c, err := bufin.Read(buffer)
+			if err != nil {
+				fmt.Println(err)
+			}
+			//c, err := containerConn.Reader.Read(buffer)
+			if c > 0 {
+				output <- buffer[:c]
+			}
+			if c == 0 {
+				output <- []byte{' '}
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	for {
+		conn.CloseHandler()
+		mt, message, err := conn.ReadMessage()
+		fmt.Println(mt)
+		if err != nil {
+			fmt.Println("read:", err)
+			break
+		} else {
+			fmt.Printf("recv: %s\n", message)
+			inout <- message
+			select {
+			case data := <-output:
+				stringData := string(data[:])
+				if !utf8.ValidString(stringData) {
+					v := make([]rune, 0, len(stringData))
+					for i, r := range stringData {
+						if r == utf8.RuneError {
+							_, size := utf8.DecodeRuneInString(stringData[i:])
+							if size == 1 {
+								continue
+							}
+						}
+						v = append(v, r)
+					}
+					stringData = string(v)
+				}
+				err = conn.WriteMessage(mt, []byte(stringData))
+				if err != nil {
+					fmt.Println("write:", err)
+				}
+
+			case <-time.After(time.Second * 1):
+				fmt.Println("Timeout")
+			}
+		}
+	}
+
+	return nil
 }
 
 func streamLogs(c echo.Context) error {
+
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		return err
 	}
 	defer ws.Close()
+
+	if c.Param("name") != "" {
+		go docker.StreamLogsFromContainer(c.Param("name"))
+	}
 
 	for {
 		// Write
