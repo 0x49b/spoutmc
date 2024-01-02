@@ -1,39 +1,84 @@
 import {Component, OnInit} from '@angular/core';
 import {HttpClient} from "@angular/common/http";
+import {MCServer} from "../../model/server";
+import {MatTableModule} from "@angular/material/table";
+import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
+import {MatInputModule} from "@angular/material/input";
+import {MatSelectModule} from "@angular/material/select";
+import {MatIconModule} from "@angular/material/icon";
+import {MatButtonModule} from "@angular/material/button";
+import {RouterLink} from "@angular/router";
 
 
-
-
-export interface MCServer {
-  name: string[],
-  state: string
+export interface ReloadTimes {
+  value: number,
+  viewValue: string
 }
 
 @Component({
   selector: 'app-server',
   standalone: true,
-  imports: [],
+  imports: [
+    MatTableModule,
+    MatProgressSpinnerModule,
+    MatInputModule,
+    MatSelectModule,
+    MatIconModule,
+    MatButtonModule,
+    RouterLink
+  ],
   templateUrl: './server.component.html',
   styleUrl: './server.component.css'
 })
 export class ServerComponent implements OnInit {
 
-  displayedColumns: string[] = ['name', 'state']
-  dataSource: MCServer = []
+  loading = false
+  displayedColumns: string[] = ['Names', 'Id', 'State', 'Action']
+  dataSource: MCServer[] = []
+  reloadInterval: any = null
+  reload: number = 30
+  reloadTimes: ReloadTimes[] = [
+    {value: 5, viewValue: '5 Seconds'},
+    {value: 10, viewValue: '10 Seconds'},
+    {value: 20, viewValue: '20 Seconds'},
+    {value: 30, viewValue: '30 Seconds'},
+    {value: 45, viewValue: '45 Seconds'},
+    {value: 60, viewValue: '1 Minute'},
+    {value: 0, viewValue: 'never'},
 
+  ];
 
   constructor(private http: HttpClient) {
   }
 
   ngOnInit() {
+    this.loading = true
+    this.loadServerData()
+    this.initializeInterval()
+    console.log(this.reload)
+  }
 
-  this.http.get<MCServer>("http://localhost:3000/api/v1/container").subscribe(
+  initializeInterval() {
+    if (this.reload > 0) {
+      this.reloadInterval = setInterval(() => {
+        this.loadServerData()
+      }, this.reload * 1000)
+    }
+  }
+
+  loadServerData() {
+    console.log("tick at " + new Date())
+    this.http.get<MCServer[]>("http://localhost:3000/api/v1/container").subscribe(
       data => {
         console.log(data)
         this.dataSource = data
+        this.loading = false
       }
     )
   }
 
-
+  setNewInterval() {
+    clearInterval(this.reloadInterval)
+    this.initializeInterval()
+  }
 }
