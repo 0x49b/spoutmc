@@ -211,3 +211,24 @@ func ShutdownContainers() error {
 	}
 	return nil
 }
+
+func StopContainerById(containerId string) {
+	watchdog.RemoveFromWatchdog(containerId)
+	if err := cli.ContainerStop(ctx, containerId, container.StopOptions{}); err != nil {
+		logger.Error("Cannot stop container", zap.Error(err))
+	}
+
+}
+
+func StartContainerById(containerId string) {
+	if err := cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{}); err != nil {
+		logger.Error("Cannot start container", zap.Error(err))
+	}
+	watchdog.AddToWatchdog(containerId)
+}
+
+func RestartContainerById(containerId string) {
+	if err := cli.ContainerRestart(ctx, containerId, container.StopOptions{}); err != nil {
+		logger.Error("Cannot start container", zap.Error(err))
+	}
+}

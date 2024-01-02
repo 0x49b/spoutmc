@@ -29,6 +29,51 @@ func RegisterContainerAPI(v1Group *echo.Group) {
 	g.GET("/name/:name", getContainerByName)
 	g.GET("/id/:id", getContainerById)
 	g.GET("/logs/:name", echoLogs)
+
+	g.GET("/start/:id", startContainerById)
+	g.GET("/stop/:id", stopContainerById)
+	g.GET("/restart/:id", restartContainerById)
+}
+
+func startContainerById(c echo.Context) error {
+	docker.StartContainerById(c.Param("id"))
+
+	container, err := docker.GetContainerById(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Cannot find container with name %s", c.Param("name")),
+			})
+	}
+	return c.JSON(http.StatusOK, container)
+}
+
+func stopContainerById(c echo.Context) error {
+	docker.StopContainerById(c.Param("id"))
+
+	container, err := docker.GetContainerById(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Cannot find container with name %s", c.Param("name")),
+			})
+	}
+	return c.JSON(http.StatusOK, container)
+
+}
+
+func restartContainerById(c echo.Context) error {
+	docker.RestartContainerById(c.Param("id"))
+
+	container, err := docker.GetContainerById(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Cannot find container with name %s", c.Param("name")),
+			})
+	}
+	return c.JSON(http.StatusOK, container)
+
 }
 
 // c echo.Context

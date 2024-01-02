@@ -33,10 +33,11 @@ export interface ReloadTimes {
 export class ServerComponent implements OnInit {
 
   loading = false
-  displayedColumns: string[] = ['Names', 'Id', 'State', 'Action']
+  actionLoading = false
+  displayedColumns: string[] = ['Names', 'State', 'Action']
   dataSource: MCServer[] = []
   reloadInterval: any = null
-  reload: number = 30
+  reload: number = 5
   reloadTimes: ReloadTimes[] = [
     {value: 5, viewValue: '5 Seconds'},
     {value: 10, viewValue: '10 Seconds'},
@@ -55,7 +56,6 @@ export class ServerComponent implements OnInit {
     this.loading = true
     this.loadServerData()
     this.initializeInterval()
-    console.log(this.reload)
   }
 
   initializeInterval() {
@@ -67,10 +67,8 @@ export class ServerComponent implements OnInit {
   }
 
   loadServerData() {
-    console.log("tick at " + new Date())
     this.http.get<MCServer[]>("http://localhost:3000/api/v1/container").subscribe(
       data => {
-        console.log(data)
         this.dataSource = data
         this.loading = false
       }
@@ -80,5 +78,49 @@ export class ServerComponent implements OnInit {
   setNewInterval() {
     clearInterval(this.reloadInterval)
     this.initializeInterval()
+  }
+
+  stopContainer(containerId: string) {
+    this.actionLoading = true
+    this.http.get<MCServer>("http://localhost:3000/api/v1/container/stop/" + containerId).subscribe(
+      data => {
+        this.dataSource.forEach((server, i) => {
+          if (server.Id == containerId) {
+            this.dataSource[i] = data;
+            this.actionLoading = false
+          }
+        })
+
+      }
+    )
+  }
+
+  startContainer(containerId: string) {
+    this.actionLoading = true
+    this.http.get<MCServer>("http://localhost:3000/api/v1/container/start/" + containerId).subscribe(
+      data => {
+        this.dataSource.forEach((server, i) => {
+          if (server.Id == containerId) {
+            this.dataSource[i] = data;
+            this.actionLoading = false
+          }
+        })
+      }
+    )
+  }
+
+  restartContainer(containerId: string) {
+    this.actionLoading = true
+    this.http.get<MCServer>("http://localhost:3000/api/v1/container/restart/" + containerId).subscribe(
+      data => {
+        console.log(data)
+        this.dataSource.forEach((server, i) => {
+          if (server.Id == containerId) {
+            this.dataSource[i] = data;
+            this.actionLoading = false
+          }
+        })
+      }
+    )
   }
 }
