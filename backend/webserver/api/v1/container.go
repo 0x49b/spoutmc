@@ -41,7 +41,7 @@ func echoLogs(c echo.Context) error {
 	}
 	defer conn.Close()
 
-	cli, err := dcl.NewEnvClient()
+	cli, err := dcl.NewClientWithOpts()
 	if err != nil {
 		logger.Error("", zap.Error(err))
 		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
@@ -54,7 +54,7 @@ func echoLogs(c echo.Context) error {
 		AttachStdin:  true,
 		AttachStdout: true,
 		Cmd:          []string{"/bin/sh"},
-		Tty:          false,
+		Tty:          true,
 		Detach:       false,
 	}
 

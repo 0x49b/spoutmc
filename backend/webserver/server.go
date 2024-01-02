@@ -32,7 +32,9 @@ func Start() *echo.Echo {
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"http://localhost:3000", "http://localhost:4200"},
+	}))
 	e.Use(middleware.Secure())
 	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))
 	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))

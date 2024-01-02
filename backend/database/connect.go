@@ -39,7 +39,7 @@ func migrateDatabase() {
 	for _, m := range modelList {
 		err := DB.AutoMigrate(m)
 		if err != nil {
-			logger.Error("", zap.Error(err))
+			logger.Error("BOB SAGET", zap.Error(err))
 		}
 	}
 	logger.Info("Applied migrations to Database")
