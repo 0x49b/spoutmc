@@ -1,12 +1,9 @@
 <h2>Server</h2>
 <br/>
 
-
-@if (loading) {
-  <mat-spinner [diameter]="35"></mat-spinner>
-} @else {
-
-  <mat-form-field>
+<mat-toolbar>
+  <span>
+      <mat-form-field>
     <mat-label>Reload</mat-label>
     <mat-select [(value)]="reload" (selectionChange)="setNewInterval()">
       @for (r of reloadTimes; track r) {
@@ -14,7 +11,21 @@
       }
     </mat-select>
   </mat-form-field>
+  </span>
+  <span class="toolbar-spacer"></span>
+  <span>
+  <button mat-raised-button (click)="openNewServerDialog()">
+    <mat-icon aria-hidden="false" aria-label="add server" fontIcon="add"></mat-icon>
+    Add Server
+  </button>
+  </span>
+</mat-toolbar>
 
+
+
+@if (loading) {
+  <mat-spinner [diameter]="35"></mat-spinner>
+} @else {
   <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
     <ng-container matColumnDef="Names">
       <th mat-header-cell *matHeaderCellDef>Name</th>
@@ -53,6 +64,10 @@
 
         <button mat-flat-button (click)="restartContainer(element.Id)">
           <mat-icon aria-hidden="false" aria-label="restart server" fontIcon="refresh"></mat-icon>
+        </button>
+
+        <button mat-flat-button (click)="removeContainer(element.Id)">
+          <mat-icon aria-hidden="false" aria-label="restart server" fontIcon="delete"></mat-icon>
         </button>
 
       </td>

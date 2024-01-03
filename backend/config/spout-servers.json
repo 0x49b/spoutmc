@@ -7,13 +7,15 @@
     {
       "name": "spoutproxy",
       "image": "itzg/bungeecord",
+      "proxy": true,
       "ports": {
         "hostPort": "25565",
         "containerPort": "25577"
       },
       "env": {
         "TZ": "Europe/Zurich",
-        "TYPE": "VELOCITY"
+        "TYPE": "VELOCITY",
+        "MAX_MEMORY": "1G"
       },
       "volumes": [
         {
@@ -29,9 +31,10 @@
     {
       "name": "spoutlobby",
       "image": "itzg/minecraft-server",
+      "lobby": true,
       "env": {
         "EULA": "TRUE",
-        "TYPE": "VANILLA",
+        "TYPE": "PAPER",
         "ONLINE_MODE": "FALSE",
         "ENFORCE_SECURE_PROFILE": "FALSE",
         "MAX_MEMORY": "4G",
@@ -57,10 +60,10 @@
       "image": "itzg/minecraft-server",
       "env": {
         "EULA": "TRUE",
-        "TYPE": "VANILLA",
+        "TYPE": "PAPER",
         "ONLINE_MODE": "FALSE",
         "ENFORCE_SECURE_PROFILE": "FALSE",
-        "MAX_MEMORY": "4G",
+        "MAX_MEMORY": "8G",
         "VERSION": "1.20.4",
         "GUI": "FALSE",
         "CONSOLE": "FALSE",

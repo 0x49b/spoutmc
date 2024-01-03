@@ -1,5 +1,5 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
-import {HttpClient} from "@angular/common/http";
+import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {MCServer} from "../../model/server";
 import {MatTableModule} from "@angular/material/table";
 import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
@@ -8,6 +8,9 @@ import {MatSelectModule} from "@angular/material/select";
 import {MatIconModule} from "@angular/material/icon";
 import {MatButtonModule} from "@angular/material/button";
 import {RouterLink} from "@angular/router";
+import {MatToolbarModule} from "@angular/material/toolbar";
+import {MatDialog} from "@angular/material/dialog";
+import {ServerNewDialogComponent} from "./server-new-dialog/server-new-dialog.component";
 
 
 export interface ReloadTimes {
@@ -25,7 +28,8 @@ export interface ReloadTimes {
     MatSelectModule,
     MatIconModule,
     MatButtonModule,
-    RouterLink
+    RouterLink,
+    MatToolbarModule
   ],
   templateUrl: './server.component.html',
   styleUrl: './server.component.css'
@@ -48,7 +52,7 @@ export class ServerComponent implements OnInit, OnDestroy {
     {value: 0, viewValue: 'never'},
   ];
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, public dialog: MatDialog) {
   }
 
   ngOnInit() {
@@ -125,5 +129,34 @@ export class ServerComponent implements OnInit, OnDestroy {
         })
       }
     )
+  }
+
+  openNewServerDialog() {
+    const dialogRef = this.dialog.open(ServerNewDialogComponent, {
+      data: {name: ""}
+    })
+    dialogRef.afterClosed().subscribe(result => {
+      if (result !== undefined) {
+        console.log(result)
+        this.createNewServer(result)
+      }
+    })
+  }
+
+  createNewServer(name: string) {
+    const headers = new HttpHeaders({'Content-Type': 'application/json'});
+    this.http.post<any>("http://localhost:3000/api/v1/container/create",
+      JSON.stringify({servername: name}),
+      {headers}
+    ).subscribe(
+      data => {
+        console.log(data)
+      })
+  }
+
+  removeContainer(containerId: string) {
+    this.http.delete<any>("http://localhost:3000/api/v1/container/id/" + containerId).subscribe(data => {
+      console.log(data)
+    })
   }
 }

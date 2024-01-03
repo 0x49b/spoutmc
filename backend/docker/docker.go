@@ -15,7 +15,6 @@ import (
 	"os"
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
-	"spoutmc/backend/watchdog"
 )
 
 // ALways run Docker commands in Background Context
@@ -136,17 +135,6 @@ func getHostNetworkId() (types.NetworkResource, error) {
 	return types.NetworkResource{}, nil
 }
 
-func readDirectoryForServer(mountPath string) {
-	entries, err := os.ReadDir(mountPath)
-	if err != nil {
-		logger.Error("", zap.Error(err))
-	}
-
-	for _, e := range entries {
-		logger.Info(e.Name())
-	}
-}
-
 func StartContainer(s models.SpoutServer) {
 
 	// Pull Image for Container
@@ -165,6 +153,19 @@ func StartContainer(s models.SpoutServer) {
 		endpoints[spoutNetwork.ID] = &network.EndpointSettings{EndpointID: spoutNetwork.ID}
 		endpoints[hostNetwork.ID] = &network.EndpointSettings{EndpointID: hostNetwork.ID}
 
+		var containerLabels map[string]string
+		containerLabels = make(map[string]string)
+
+		containerLabels["io.spout.servername"] = s.Name
+		containerLabels["io.spout.network"] = "true"
+
+		if s.Proxy {
+			containerLabels["io.spout.proxy"] = "true"
+		}
+		if s.Lobby {
+			containerLabels["io.spout.lobby"] = "true"
+		}
+
 		spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 			Tty:          true,
 			AttachStdout: true,
@@ -173,7 +174,7 @@ func StartContainer(s models.SpoutServer) {
 			Hostname:     s.Name,
 			Env:          MapEnvironmentVariables(s.Env),
 			ExposedPorts: exposedPorts,
-			Labels:       map[string]string{"io.spout.servername": s.Name, "io.spout.network": "true"},
+			Labels:       containerLabels,
 		}, &container.HostConfig{
 			Binds:        MapVolumeBindings(s.Volumes),
 			PortBindings: containerPortBinding,
@@ -198,10 +199,6 @@ func StartContainer(s models.SpoutServer) {
 		if err := cli.ContainerStart(ctx, spoutContainer.ID, types.ContainerStartOptions{}); err != nil {
 			logger.Error("Cannot start container", zap.Error(err))
 		}
-
-		// Add the container to the Watchdog
-		watchdog.AddToWatchdog(spoutContainer.ID)
-
 	} else {
 
 		//todo check for configuration switch here if it should restart
@@ -223,10 +220,6 @@ func StartContainer(s models.SpoutServer) {
 				logger.Error(err.Error())
 			}
 		}
-
-		// Add Container to Watchdog
-		watchdog.AddToWatchdog(startContainer.ID)
-
 	}
 
 }
@@ -249,7 +242,6 @@ func ShutdownContainers() error {
 }
 
 func StopContainerById(containerId string) {
-	watchdog.RemoveFromWatchdog(containerId)
 	if err := cli.ContainerStop(ctx, containerId, container.StopOptions{}); err != nil {
 		logger.Error("Cannot stop container", zap.Error(err))
 	}
@@ -260,11 +252,46 @@ func StartContainerById(containerId string) {
 	if err := cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{}); err != nil {
 		logger.Error("Cannot start container", zap.Error(err))
 	}
-	watchdog.AddToWatchdog(containerId)
 }
 
 func RestartContainerById(containerId string) {
 	if err := cli.ContainerRestart(ctx, containerId, container.StopOptions{}); err != nil {
 		logger.Error("Cannot start container", zap.Error(err))
 	}
+}
+
+func filterForContainerLabel(label string) (types.Container, error) {
+	networkContainer, err := GetNetworkContainers()
+	if err != nil {
+		return types.Container{}, err
+	}
+
+	for _, nc := range networkContainer {
+		containerDetails, err := cli.ContainerInspect(ctx, nc.ID)
+		if err != nil {
+			return types.Container{}, err
+		}
+		_, check := containerDetails.Config.Labels[label]
+
+		if check {
+			return nc, nil
+		}
+	}
+	return types.Container{}, errors.New(fmt.Sprintf("no Container found for label %s", label))
+}
+
+func GetProxyContainer() (types.Container, error) {
+	proxyContainer, err := filterForContainerLabel("io.spout.proxy")
+	if err != nil {
+		return types.Container{}, nil
+	}
+	return proxyContainer, nil
+}
+
+func GetLobbyContainer() (types.Container, error) {
+	lobbyContainer, err := filterForContainerLabel("io.spout.lobby")
+	if err != nil {
+		return types.Container{}, nil
+	}
+	return lobbyContainer, nil
 }

@@ -20,6 +20,8 @@ type SpoutServer struct {
 	SpoutConfigurationID uint                 `json:"spout-configuration-id,omitempty" gorm:"index"`
 	Name                 string               `json:"name"`
 	Image                string               `json:"image"`
+	Proxy                bool                 `json:"proxy,omitempty"`
+	Lobby                bool                 `json:"lobby,omitempty"`
 	EnvID                uint                 `json:"env-id,omitempty" gorm:"index"`
 	Env                  SpoutServerEnv       `json:"env,omitempty" gorm:"foreignKey:EnvID"`
 	PortsID              uint                 `json:"ports-id,omitempty" gorm:"index"`

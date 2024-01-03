@@ -17,7 +17,6 @@ import (
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
 	"spoutmc/backend/utils"
-	"spoutmc/backend/watchdog"
 	"time"
 )
 
@@ -46,8 +45,6 @@ func Start() {
 	} else {
 		containerId = createDatabaseContainer()
 	}
-
-	watchdog.AddToWatchdog(containerId)
 	go connectAndMigrate(containerId)
 }
 

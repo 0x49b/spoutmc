@@ -1,8 +1,23 @@
-<p>server-edit works!</p>
-
-<p>{{ serverId }}</p>
+<h3>{{ serverDetails?.Name }}</h3>
+<hr/>
 
 <h4>Banned Players</h4>
 <pre>
   {{ bannedPlayers }}
 </pre>
+
+<h4>OP Players</h4>
+<pre>
+  {{ opPlayers }}
+</pre>
+
+<br/>
+<hr/>
+
+<form class="example-form" [formGroup]="commandForm" (ngSubmit)="onSubmit()">
+  <mat-form-field class="example-full-width">
+    <mat-label>Send Command to server</mat-label>
+    <input matInput formControlName="command">
+  </mat-form-field>
+  <button type="submit" mat-raised-button>send</button>
+</form>

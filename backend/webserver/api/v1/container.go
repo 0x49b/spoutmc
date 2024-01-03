@@ -24,6 +24,14 @@ var upgrader = websocket.Upgrader{}
 var inout chan []byte
 var output chan []byte
 
+type CommandRequest struct {
+	Command string `json:"command"`
+}
+
+type NewServerRequest struct {
+	ServerName string `json:"servername"`
+}
+
 func RegisterContainerAPI(v1Group *echo.Group) {
 	g := v1Group.Group("/container")
 	g.GET("", getContainerList)
@@ -36,6 +44,89 @@ func RegisterContainerAPI(v1Group *echo.Group) {
 	g.GET("/restart/:id", restartContainerById)
 
 	g.GET("/bannedPlayers/:id", listBannedPlayers)
+	g.GET("/opPlayers/:id", listOpPlayers)
+
+	g.POST("/command/:id", executeCommand)
+	g.POST("/create", createNewServer)
+
+	g.DELETE("/id/:id", removeServer)
+}
+
+func removeServer(c echo.Context) error {
+	containerId := c.Param("id")
+
+	removedContainer, err := docker.DeleteContainer(containerId)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Could not delete container %s", err),
+			})
+	}
+
+	return c.JSON(http.StatusOK, removedContainer)
+}
+
+func createNewServer(c echo.Context) error {
+
+	var requestBody NewServerRequest
+	if err := c.Bind(&requestBody); err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Bad JSON Format"),
+			})
+	}
+
+	serverName := requestBody.ServerName
+	newContainer, err := docker.CreateContainer(serverName)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Could not create new Server %s", serverName),
+			})
+	}
+
+	return c.JSON(http.StatusOK, newContainer)
+}
+
+func executeCommand(c echo.Context) error {
+
+	var requestBody CommandRequest
+
+	if err := c.Bind(&requestBody); err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Bad JSON Format"),
+			})
+	}
+
+	containerId := c.Param("id")
+	command := requestBody.Command
+
+	logger.Info(fmt.Sprintf("Sending command [%s] to container %s ", command, containerId))
+	execCommand, err := docker.ExecCommand(containerId, command)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: "Something went wrong",
+			})
+	}
+
+	if execCommand != 0 {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Something went wrong, Exit Code was %d", execCommand),
+			})
+	}
+
+	container, err := docker.GetContainerById(containerId)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: "Something went wrong",
+			})
+	}
+
+	return c.JSON(http.StatusOK, container)
 }
 
 func listBannedPlayers(c echo.Context) error {
@@ -55,7 +146,25 @@ func listBannedPlayers(c echo.Context) error {
 			})
 	}
 	return c.JSON(http.StatusOK, string(bannedPlayersFile))
+}
 
+func listOpPlayers(c echo.Context) error {
+	cont, err := docker.GetContainerById(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Cannot find container with name %s", c.Param("name")),
+			})
+	}
+	path := fmt.Sprintf("%s%c%s", cont.Mounts[0].Source, os.PathSeparator, "ops.json")
+	opsFile, err := os.ReadFile(path)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Cannot find ops.json at %s", path),
+			})
+	}
+	return c.JSON(http.StatusOK, string(opsFile))
 }
 
 func startContainerById(c echo.Context) error {
@@ -154,7 +263,6 @@ func echoLogs(c echo.Context) error {
 			//log.Println("Received to send to docker", data)
 			logger.Info("Received to send to docker")
 			if !ok {
-				fmt.Println("!ok")
 				w.Close()
 			}
 

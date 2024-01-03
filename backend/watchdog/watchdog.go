@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"go.uber.org/zap"
+	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
 	"spoutmc/backend/utils"
 	"time"
@@ -44,9 +45,13 @@ func runWatchdog() {
 loop:
 	for {
 		if !stopped {
+			networkContainer, err := docker.GetNetworkContainers()
+			if err != nil {
+				logger.Error("[Watchdog] Cannot find any Containers")
+			}
 
-			for _, container := range containerIds {
-				containerInfo, err := cli.ContainerInspect(ctx, container)
+			for _, container := range networkContainer {
+				containerInfo, err := cli.ContainerInspect(ctx, container.ID)
 				if err != nil {
 					logger.Error("", zap.Error(err))
 				}
