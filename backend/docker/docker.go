@@ -121,7 +121,34 @@ func GetContainerById(containerId string) (types.ContainerJSON, error) {
 	return requestedContainer, nil
 }
 
+func getHostNetworkId() (types.NetworkResource, error) {
+	networks, err := cli.NetworkList(ctx, types.NetworkListOptions{})
+	if err != nil {
+		return types.NetworkResource{}, err
+	}
+
+	for _, n := range networks {
+		if n.Name == "bridge" {
+			return n, nil
+		}
+	}
+
+	return types.NetworkResource{}, nil
+}
+
+func readDirectoryForServer(mountPath string) {
+	entries, err := os.ReadDir(mountPath)
+	if err != nil {
+		logger.Error("", zap.Error(err))
+	}
+
+	for _, e := range entries {
+		logger.Info(e.Name())
+	}
+}
+
 func StartContainer(s models.SpoutServer) {
+
 	// Pull Image for Container
 	PullImage(s.Image)
 
@@ -129,6 +156,14 @@ func StartContainer(s models.SpoutServer) {
 		logger.Info(fmt.Sprintf("Creating container %s", s.Name))
 		exposedPorts, containerPortBinding := MapExposedPorts(s.Ports)
 		spoutNetwork := GetSpoutNetwork()
+		hostNetwork, err := getHostNetworkId()
+		if err != nil {
+			logger.Error("", zap.Error(err))
+		}
+
+		endpoints := make(map[string]*network.EndpointSettings, 2)
+		endpoints[spoutNetwork.ID] = &network.EndpointSettings{EndpointID: spoutNetwork.ID}
+		endpoints[hostNetwork.ID] = &network.EndpointSettings{EndpointID: hostNetwork.ID}
 
 		spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 			Tty:          true,
@@ -191,6 +226,7 @@ func StartContainer(s models.SpoutServer) {
 
 		// Add Container to Watchdog
 		watchdog.AddToWatchdog(startContainer.ID)
+
 	}
 
 }

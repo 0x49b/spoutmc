@@ -1,4 +1,4 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnDestroy, OnInit} from '@angular/core';
 import {HttpClient} from "@angular/common/http";
 import {MCServer} from "../../model/server";
 import {MatTableModule} from "@angular/material/table";
@@ -30,7 +30,7 @@ export interface ReloadTimes {
   templateUrl: './server.component.html',
   styleUrl: './server.component.css'
 })
-export class ServerComponent implements OnInit {
+export class ServerComponent implements OnInit, OnDestroy {
 
   loading = false
   actionLoading = false
@@ -56,6 +56,10 @@ export class ServerComponent implements OnInit {
     this.loading = true
     this.loadServerData()
     this.initializeInterval()
+  }
+
+  ngOnDestroy() {
+    clearInterval(this.reloadInterval)
   }
 
   initializeInterval() {

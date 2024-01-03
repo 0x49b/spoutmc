@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"net/http"
+	"os"
 	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
 	"spoutmc/backend/webserver/api/v1/model"
@@ -33,6 +34,28 @@ func RegisterContainerAPI(v1Group *echo.Group) {
 	g.GET("/start/:id", startContainerById)
 	g.GET("/stop/:id", stopContainerById)
 	g.GET("/restart/:id", restartContainerById)
+
+	g.GET("/bannedPlayers/:id", listBannedPlayers)
+}
+
+func listBannedPlayers(c echo.Context) error {
+	cont, err := docker.GetContainerById(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Cannot find container with name %s", c.Param("name")),
+			})
+	}
+	path := fmt.Sprintf("%s%c%s", cont.Mounts[0].Source, os.PathSeparator, "banned-players.json")
+	bannedPlayersFile, err := os.ReadFile(path)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError,
+			&model.APIError{
+				E: fmt.Sprintf("Cannot find banned-players.json at %s", path),
+			})
+	}
+	return c.JSON(http.StatusOK, string(bannedPlayersFile))
+
 }
 
 func startContainerById(c echo.Context) error {

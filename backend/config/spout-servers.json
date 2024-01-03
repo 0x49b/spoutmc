@@ -13,7 +13,7 @@
       },
       "env": {
         "TZ": "Europe/Zurich",
-        "LOG_PINGS": "FALSE"
+        "TYPE": "VELOCITY"
       },
       "volumes": [
         {
@@ -29,17 +29,13 @@
     {
       "name": "spoutlobby",
       "image": "itzg/minecraft-server",
-      "ports": {
-        "hostPort": "25566",
-        "containerPort": "25565"
-      },
       "env": {
         "EULA": "TRUE",
-        "TYPE": "PAPER",
+        "TYPE": "VANILLA",
         "ONLINE_MODE": "FALSE",
         "ENFORCE_SECURE_PROFILE": "FALSE",
         "MAX_MEMORY": "4G",
-        "VERSION": "1.20.2",
+        "VERSION": "1.20.4",
         "GUI": "FALSE",
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",
