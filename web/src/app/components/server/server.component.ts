@@ -46,7 +46,6 @@ export class ServerComponent implements OnInit, OnDestroy {
     {value: 45, viewValue: '45 Seconds'},
     {value: 60, viewValue: '1 Minute'},
     {value: 0, viewValue: 'never'},
-
   ];
 
   constructor(private http: HttpClient) {

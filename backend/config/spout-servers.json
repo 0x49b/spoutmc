@@ -51,6 +51,32 @@
           "containerpath": "/data"
         }
       ]
+    },
+    {
+      "name": "spoutskyblock",
+      "image": "itzg/minecraft-server",
+      "env": {
+        "EULA": "TRUE",
+        "TYPE": "VANILLA",
+        "ONLINE_MODE": "FALSE",
+        "ENFORCE_SECURE_PROFILE": "FALSE",
+        "MAX_MEMORY": "4G",
+        "VERSION": "1.20.4",
+        "GUI": "FALSE",
+        "CONSOLE": "FALSE",
+        "LOG_TIMESTAMP": "TRUE",
+        "TZ": "Europe/Zurich"
+      },
+      "volumes": [
+        {
+          "hostpath": [
+            "testservers",
+            "data",
+            "spoutskyblock"
+          ],
+          "containerpath": "/data"
+        }
+      ]
     }
   ]
 }

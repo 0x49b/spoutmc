@@ -22,4 +22,5 @@ https://betterstack.com/community/guides/logging/go/zap/
 https://www.jsonschemavalidator.net/  
 https://github.com/docker/cli/blob/master/cli/command/container/attach.go  
 https://ourcodeworld.com/articles/read/1293/how-to-retrieve-the-skin-of-a-minecraft-user-from-mojang-using-python-3  
-https://github.com/lus/mojango
+https://github.com/lus/mojango  
+https://papermc.io/software/velocity
