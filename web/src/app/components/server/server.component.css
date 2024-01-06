@@ -1,3 +1,31 @@
-.toolbar-spacer{
-  flex: 1 1 auto;
+.toolbar-spacer {
+  flex : 1 1 auto;
+}
+
+.mr-5 {
+  margin-right : 0.313rem;
+}
+
+.mr-10 {
+  margin-right : 0.625rem;
+}
+
+.mr-20 {
+  margin-right : 1.25rem;
+}
+
+.mr-30 {
+  margin-right : 1.875rem;
+}
+
+.btn-custom-icon {
+  position: relative;
+  top: 5px;
+}
+
+.header-container{
+  display: grid;
+  width: 100px;
+  grid-template-columns: 1fr 1fr;
+  grid-column-gap: 20px;
 }

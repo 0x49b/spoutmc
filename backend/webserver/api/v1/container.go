@@ -14,6 +14,7 @@ import (
 	"os"
 	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
+	"spoutmc/backend/watchdog"
 	"spoutmc/backend/webserver/api/v1/model"
 	"time"
 	"unicode/utf8"
@@ -35,6 +36,7 @@ type NewServerRequest struct {
 func RegisterContainerAPI(v1Group *echo.Group) {
 	g := v1Group.Group("/container")
 	g.GET("", getContainerList)
+	g.GET("/withDetails", getContainerListWithDetails)
 	g.GET("/name/:name", getContainerByName)
 	g.GET("/id/:id", getContainerById)
 	g.GET("/logs/:name", echoLogs)
@@ -50,6 +52,25 @@ func RegisterContainerAPI(v1Group *echo.Group) {
 	g.POST("/create", createNewServer)
 
 	g.DELETE("/id/:id", removeServer)
+}
+
+func getContainerListWithDetails(c echo.Context) error {
+
+	var containerListWithDetails []types.ContainerJSON
+	containerList, err := docker.GetNetworkContainers()
+	if err != nil {
+		logger.Error("Cannot load containerlist", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, &model.APIError{E: err.Error()})
+	}
+	for _, c := range containerList {
+		containerDetails, err := docker.GetContainerById(c.ID)
+		if err != nil {
+			return err
+		}
+		containerListWithDetails = append(containerListWithDetails, containerDetails)
+	}
+
+	return c.JSON(http.StatusOK, containerListWithDetails)
 }
 
 func removeServer(c echo.Context) error {
@@ -77,7 +98,7 @@ func createNewServer(c echo.Context) error {
 	}
 
 	serverName := requestBody.ServerName
-	newContainer, err := docker.CreateContainer(serverName)
+	newContainer, err := docker.CreateContainer(serverName, false, false) // to do add proxy and lobby flag
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError,
 			&model.APIError{
@@ -168,21 +189,25 @@ func listOpPlayers(c echo.Context) error {
 }
 
 func startContainerById(c echo.Context) error {
-	docker.StartContainerById(c.Param("id"))
 
-	container, err := docker.GetContainerById(c.Param("id"))
+	containerId := c.Param("id")
+	container, err := docker.GetContainerById(containerId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError,
 			&model.APIError{
 				E: fmt.Sprintf("Cannot find container with name %s", c.Param("name")),
 			})
 	}
+
+	watchdog.RemoveFromExcludeWatchdog(containerId)
 	return c.JSON(http.StatusOK, container)
 }
 
 func stopContainerById(c echo.Context) error {
-	docker.StopContainerById(c.Param("id"))
+	containerId := c.Param("id")
+	watchdog.ExcludeFromToWatchdog(containerId)
 
+	docker.StopContainerById(containerId)
 	container, err := docker.GetContainerById(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError,
@@ -191,21 +216,22 @@ func stopContainerById(c echo.Context) error {
 			})
 	}
 	return c.JSON(http.StatusOK, container)
-
 }
 
 func restartContainerById(c echo.Context) error {
-	docker.RestartContainerById(c.Param("id"))
+	containerId := c.Param("id")
+	docker.RestartContainerById(containerId)
 
-	container, err := docker.GetContainerById(c.Param("id"))
+	container, err := docker.GetContainerById(containerId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError,
 			&model.APIError{
 				E: fmt.Sprintf("Cannot find container with name %s", c.Param("name")),
 			})
 	}
-	return c.JSON(http.StatusOK, container)
 
+	watchdog.RemoveFromExcludeWatchdog(containerId)
+	return c.JSON(http.StatusOK, container)
 }
 
 // c echo.Context

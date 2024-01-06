@@ -31,12 +31,12 @@ func Shutdown() error {
 	return nil
 }
 
-func AddToWatchdog(containerId string) {
+func ExcludeFromToWatchdog(containerId string) {
 	containerIds = append(containerIds, containerId)
 	logger.Debug(fmt.Sprintf("[WatchDog] added %s", containerId))
 }
 
-func RemoveFromWatchdog(containerId string) {
+func RemoveFromExcludeWatchdog(containerId string) {
 	containerIds = utils.Remove(containerIds, containerId)
 	logger.Debug(fmt.Sprintf("[WatchDog] removed %s", containerId))
 }
@@ -61,19 +61,23 @@ loop:
 				// States: Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
 				if containerInfo.State.Status != "running" {
 
-					logger.Error(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Name, containerInfo.State.Status))
+					// only restart container if not stoppeb by user
+					if !utils.CheckInStringSlice(containerIds, containerInfo.ID) {
+						logger.Error(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Name, containerInfo.State.Status))
 
-					switch containerInfo.State.Status {
-					case "exited":
-					case "dead":
-						startContainer(containerInfo.ID)
-						break
-					case "paused":
+						switch containerInfo.State.Status {
+						case "exited":
+						case "dead":
+							startContainer(containerInfo.ID)
+							break
+						case "paused":
+						}
+
+						if containerInfo.State.Status == "exited" || containerInfo.State.Status == "dead" {
+							startContainer(containerInfo.ID)
+						}
 					}
 
-					if containerInfo.State.Status == "exited" || containerInfo.State.Status == "dead" {
-						startContainer(containerInfo.ID)
-					}
 				}
 			}
 		} else {

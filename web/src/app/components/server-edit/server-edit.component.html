@@ -1,15 +1,77 @@
+<!--
 <h3>{{ serverDetails?.Name }}</h3>
 <hr/>
 
 <h4>Banned Players</h4>
-<pre>
-  {{ bannedPlayers }}
-</pre>
 
+@if (bannedPlayers.length > 0) {
+  <table mat-table [dataSource]="bannedPlayers" class="mat-elevation-z1">
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>Name</th>
+      <td mat-cell *matCellDef="let element"> {{ element.name }}</td>
+    </ng-container>
+    <ng-container matColumnDef="uuid">
+      <th mat-header-cell *matHeaderCellDef>UUID</th>
+      <td mat-cell *matCellDef="let element"> {{ element.uuid }}</td>
+    </ng-container>
+    <ng-container matColumnDef="created">
+      <th mat-header-cell *matHeaderCellDef>Created</th>
+      <td mat-cell *matCellDef="let element"> {{ element.created }}</td>
+    </ng-container>
+    <ng-container matColumnDef="source">
+      <th mat-header-cell *matHeaderCellDef>Source</th>
+      <td mat-cell *matCellDef="let element"> {{ element.source }}</td>
+    </ng-container>
+    <ng-container matColumnDef="expires">
+      <th mat-header-cell *matHeaderCellDef>Expires</th>
+      <td mat-cell *matCellDef="let element"> {{ element.expires }}</td>
+    </ng-container>
+    <ng-container matColumnDef="reason">
+      <th mat-header-cell *matHeaderCellDef>Reason</th>
+      <td mat-cell *matCellDef="let element"> {{ element.reason }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="action">
+      <th mat-header-cell *matHeaderCellDef>Action</th>
+      <td mat-cell *matCellDef="let element"></td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="bannedPlayersColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: bannedPlayersColumns;"></tr>
+  </table>
+} @else {
+  <span>No banned Players on this Server</span>
+}
 <h4>OP Players</h4>
-<pre>
-  {{ opPlayers }}
-</pre>
+
+@if (opPlayers.length > 0) {
+  <table mat-table [dataSource]="opPlayers" class="mat-elevation-z1">
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>Name</th>
+      <td mat-cell *matCellDef="let element"> {{ element.name }}</td>
+    </ng-container>
+    <ng-container matColumnDef="uuid">
+      <th mat-header-cell *matHeaderCellDef>UUID</th>
+      <td mat-cell *matCellDef="let element"> {{ element.uuid }}</td>
+    </ng-container>
+    <ng-container matColumnDef="level">
+      <th mat-header-cell *matHeaderCellDef>Level</th>
+      <td mat-cell *matCellDef="let element"> {{ element.level }}</td>
+    </ng-container>
+    <ng-container matColumnDef="bypassesPlayerLimit">
+      <th mat-header-cell *matHeaderCellDef>Bypass Player Limit</th>
+      <td mat-cell *matCellDef="let element"> {{ element.bypassesPlayerLimit }}</td>
+    </ng-container>
+    <ng-container matColumnDef="action">
+      <th mat-header-cell *matHeaderCellDef>Action</th>
+      <td mat-cell *matCellDef="let element"></td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="opPlayersColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: opPlayersColumns;"></tr>
+  </table>
+} @else {
+  <span>No OP Players on this Server</span>
+}
 
 <br/>
 <hr/>
@@ -21,3 +83,4 @@
   </mat-form-field>
   <button type="submit" mat-raised-button>send</button>
 </form>
+-->

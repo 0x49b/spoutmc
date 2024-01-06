@@ -1,100 +1,71 @@
-<!--mat-toolbar color="primary">
-  <button
-    type="button"
-    aria-label="Toggle sidenav"
-    mat-icon-button
-    (click)="snav.open()">
-    <mat-icon>menu</mat-icon>
-  </button>
-</mat-toolbar>
-<mat-sidenav-container-->
+<div class="main-container">
+  <header class="header-6">
+    <div class="branding">
+      <a routerLink="/" class="nav-link">
+        <img ngSrc="../assets/tap.png" height=40 width="40" alt="">
+        <span class="title">SpoutMC
+          <sub class="spout-toolbar-title-version">0.0.1</sub>
+        </span>
+      </a>
+    </div>
+    <div class="header-actions">
+      <clr-dropdown>
+        <button class="nav-text" clrDropdownTrigger aria-label="open user profile">
+          john.doe&#64;spoutmc.io
+          <cds-icon shape="angle" direction="down"></cds-icon>
+        </button>
+        <clr-dropdown-menu *clrIfOpen clrPosition="bottom-right">
+          <a href="..." clrDropdownItem>Preferences</a>
+          <a href="..." clrDropdownItem>Log out</a>
+        </clr-dropdown-menu>
+      </clr-dropdown>
+    </div>
+  </header>
 
 
-<!--mat-sidenav opened=true mode="push" #snav>
-  <mat-nav-list>
-    <mat-list-item>
-      <h4 matLine routerLink="/welcome"
-          routerLinkActive="active-link">Home</h4>
-    </mat-list-item>
-    <mat-list-item>
-      <h4 matLine routerLink="/books" routerLinkActive="active-link">Books</h4>
-    </mat-list-item>
-  </mat-nav-list>
-</mat-sidenav>
-<mat-sidenav-content>
 
 
-  <router-outlet></router-outlet>
+  <div class="content-container">
+    <clr-vertical-nav [clrVerticalNavCollapsible]="demoCollapsible">
 
-</mat-sidenav-content>
-</mat-sidenav-container-->
+      <a clrVerticalNavLink routerLinkActive="active" routerLink="/dashboard">
+        <building-storefront-outline-icon class="spout-nav-icon spout-vertical-icon"></building-storefront-outline-icon>
+        Dashboard
+      </a>
 
-<mat-toolbar color="primary">
-  <button
-    type="button"
-    aria-label="Toggle sidenav"
-    mat-icon-button
-    (click)="drawer.toggle()"
-  >
-    <mat-icon>menu</mat-icon>
-  </button>
+      <a clrVerticalNavLink routerLinkActive="active" routerLink="/server">
+        <square-3-stack-3-d-outline-icon class="spout-nav-icon spout-vertical-icon"></square-3-stack-3-d-outline-icon>
+        Server
+      </a>
 
-  <img ngSrc="../assets/tap.png" height=40 width="40" alt="">
-  <span class="spout-toolbar-title">SpoutMC
-    <sub class="spout-toolbar-title-version">0.0.1</sub>
-  </span>
-
-  <span class="mat-toolbar-spacer"></span>
-  <div fxShow="true" fxHide.lt-md="true">
-    <button mat-button [matMenuTriggerFor]="menu">
-      /* Username placeholder */
-    </button>
-
-    <mat-menu #menu="matMenu">
-      <button mat-menu-item>
-        <mat-icon aria-hidden="false" aria-label="Example home icon" fontIcon="face"></mat-icon>
-        Profile
-      </button>
-      <button mat-menu-item>
-        <mat-icon aria-hidden="false" aria-label="Example home icon" fontIcon="logout"></mat-icon>
-        Logout
-      </button>
-    </mat-menu>
-  </div>
-
-</mat-toolbar>
-
-<mat-sidenav-container>
-  <mat-drawer-container>
-    <mat-drawer #drawer mode="side" opened="true">
-
-      <mat-list role="list">
-        <mat-list-item class="left">
-          <a mat-button routerLink="/">
-            <mat-icon aria-hidden="false" aria-label="home-icon" fontIcon="home"></mat-icon>
-            Home
+      <clr-vertical-nav-group
+        routerLinkActive="active">
+        <user-group-outline-icon class="spout-nav-icon"></user-group-outline-icon>
+        Player
+        <clr-vertical-nav-group-children>
+          <a clrVerticalNavLink
+             routerLink="/player"
+             routerLinkActive="active">
+            Playerlist
           </a>
-        </mat-list-item>
-        <mat-list-item class="left">
-          <a mat-button routerLink="/server">
-            <mat-icon aria-hidden="false" aria-label="home-icon" fontIcon="dns"></mat-icon>
-            Server
+          <a clrVerticalNavLink
+             routerLink="/banlist"
+             routerLinkActive="active">
+            Ban List
           </a>
-        </mat-list-item>
-        <mat-list-item class="left">
-          <a mat-button routerLink="/books">
-            <mat-icon aria-hidden="false" aria-label="home-icon" fontIcon="book"></mat-icon>
-            Books
-          </a>
-        </mat-list-item>
-      </mat-list>
+        </clr-vertical-nav-group-children>
+      </clr-vertical-nav-group>
 
+      <!--
+      <a clrVerticalNavLink routerLinkActive="active" routerLink="./credit">
+        <cds-icon shape="certificate" clrVerticalNavIcon></cds-icon>
+        Credit
+      </a>
+      -->
 
-    </mat-drawer>
-    <mat-drawer-content>
-
+    </clr-vertical-nav>
+    <div class="content-area">
       <router-outlet></router-outlet>
-
-    </mat-drawer-content>
-  </mat-drawer-container>
-</mat-sidenav-container>
+    </div>
+  </div>
+</div>

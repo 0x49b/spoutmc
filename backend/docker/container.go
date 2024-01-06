@@ -14,18 +14,11 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"go.uber.org/zap"
-	"path/filepath"
 	"spoutmc/backend/models"
 )
 
 func addToProxyConfig(newServerName string) {
-
-	getwd, err := os.Getwd()
-	if err != nil {
-		return
-	}
-
-	velocityFilepath := filepath.Join(getwd, "testservers", "data", "spoutproxy", "velocity.toml")
+	velocityFilepath := GetProxyConfigFilePath()
 
 	// Open the file
 	file, err := os.Open(velocityFilepath)
@@ -64,8 +57,6 @@ func addToProxyConfig(newServerName string) {
 		}
 
 	}
-
-	logger.Info(fmt.Sprintf("ServerStartLine %d -> ServerEndLine %d", serverStartLine, serverEndLine))
 
 	containers, err := GetNetworkContainers()
 	if err != nil {
@@ -111,11 +102,6 @@ func addToProxyConfig(newServerName string) {
 	}
 
 	lines = compactConfig(lines)
-
-	for _, k := range lines {
-		fmt.Println(k)
-	}
-
 	err = writeToVelocityConfig(lines, velocityFilepath)
 	if err != nil {
 		logger.Error("", zap.Error(err))
@@ -125,36 +111,22 @@ func addToProxyConfig(newServerName string) {
 
 func removeFromConfig(serverName string) {
 	var result []string
-
 	needle := fmt.Sprintf("%s=\"%s:25565\"", serverName, serverName)
 
-	getwd, err := os.Getwd()
-	if err != nil {
-		logger.Error("", zap.Error(err))
-	}
-
-	velocityFilepath := filepath.Join(getwd, "testservers", "data", "spoutproxy", "velocity.toml")
-
 	// Open the file
-	file, err := os.Open(velocityFilepath)
+	file, err := os.Open(GetProxyConfigFilePath())
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		logger.Error("", zap.Error(err))
 	}
 	defer file.Close()
 
-	// Create a scanner to read the file line by line
 	scanner := bufio.NewScanner(file)
-
 	var lines []string
-
-	// Iterate over each line in the file
 	for scanner.Scan() {
 		line := scanner.Text()
 		lines = append(lines, line)
 	}
-
-	// Check for scanner errors
 	if err := scanner.Err(); err != nil {
 		fmt.Println("Error reading file:", err)
 	}
@@ -165,7 +137,7 @@ func removeFromConfig(serverName string) {
 		}
 	}
 
-	err = writeToVelocityConfig(result, velocityFilepath)
+	err = writeToVelocityConfig(result, GetProxyConfigFilePath())
 	if err != nil {
 		logger.Error("", zap.Error(err))
 	}
@@ -173,7 +145,6 @@ func removeFromConfig(serverName string) {
 
 func compactConfig(slice []string) []string {
 	var result []string
-
 	for _, str := range slice {
 		if str != "" {
 			result = append(result, str)
@@ -211,19 +182,13 @@ func writeToVelocityConfig(lines []string, filename string) error {
 }
 
 func insertAndShift(slice []string, index int, value string) []string {
-	// Ensure that the index is within bounds
 	if index < 0 || index > len(slice) {
 		fmt.Println("Index out of bounds")
 		return slice
 	}
-
-	// Expand the slice by one element
 	slice = append(slice, "")
-
-	// Shift the elements to make room for the new element
 	copy(slice[index+1:], slice[index:])
 	slice[index] = value
-
 	return slice
 }
 
@@ -232,7 +197,6 @@ func RestartProxy() {
 	if err != nil {
 		logger.Error("", zap.Error(err))
 	}
-
 	err = cli.ContainerRestart(ctx, proxyContainer.ID, container.StopOptions{})
 	if err != nil {
 		logger.Error("", zap.Error(err))
@@ -251,29 +215,24 @@ func DeleteContainer(containerId string) (types.ContainerJSON, error) {
 
 	removeContainer, err := GetContainerById(containerId)
 	removeFromConfig(removeContainer.Config.Hostname)
-
 	if err != nil {
 		logger.Error("", zap.Error(err))
 		return types.ContainerJSON{}, err
 	}
-
 	err = cli.ContainerRemove(ctx, containerId, types.ContainerRemoveOptions{Force: true})
 	if err != nil {
 		logger.Error("", zap.Error(err))
 		return types.ContainerJSON{}, err
 	}
 	logger.Info(fmt.Sprintf("removed server %s", removeContainer.Config.Hostname))
-
 	RestartProxy()
-
 	for _, v := range removeContainer.Mounts {
 		removeDataDirectory(v.Source)
 	}
-
 	return removeContainer, nil
 }
 
-func CreateContainer(serverName string) (container.CreateResponse, error) {
+func CreateContainer(serverName string, proxy bool, lobby bool) (container.CreateResponse, error) {
 
 	serverName = strings.ToLower(serverName)
 
@@ -291,14 +250,30 @@ func CreateContainer(serverName string) (container.CreateResponse, error) {
 	endpoints[spoutNetwork.ID] = &network.EndpointSettings{EndpointID: spoutNetwork.ID}
 	endpoints[hostNetwork.ID] = &network.EndpointSettings{EndpointID: hostNetwork.ID}
 
+	containerImage := "itzg/minecraft-server"
+
+	var containerLabels map[string]string
+	containerLabels = make(map[string]string)
+
+	containerLabels["io.spout.servername"] = serverName
+	containerLabels["io.spout.network"] = "true"
+
+	if proxy {
+		containerLabels["io.spout.proxy"] = "true"
+		containerImage = "itzg/bungeecord"
+	}
+	if lobby {
+		containerLabels["io.spout.lobby"] = "true"
+	}
+
 	spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
-		Image:        "itzg/minecraft-server",
+		Image:        containerImage,
 		Hostname:     serverName,
 		Env:          MapEnvironmentVariables(models.SpoutServerEnv{Eula: "TRUE", Type: "PAPER", OnlineMode: "FALSE", EnforceSecureProfile: "FALSE", MaxMemory: "4G", Version: "1.20.4", Gui: "FALSE", Console: "FALSE", LogTimestamp: "TRUE", Tz: "Europ/Zurich"}),
-		Labels:       map[string]string{"io.spout.servername": serverName, "io.spout.network": "true"},
+		Labels:       containerLabels,
 	}, &container.HostConfig{
 		Binds: MapVolumeBindings([]models.SpoutServerVolumes{{Hostpath: []string{"testservers", "data", serverName}, Containerpath: "/data"}}),
 	}, &network.NetworkingConfig{

@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"os"
+	"path/filepath"
 	"spoutmc/backend/log"
 	"spoutmc/backend/models"
 )
@@ -260,6 +261,38 @@ func RestartContainerById(containerId string) {
 	}
 }
 
+func GetProxyContainer() (types.Container, error) {
+	proxyContainer, err := filterForContainerLabel("io.spout.proxy")
+	if err != nil {
+		return types.Container{}, err
+	}
+	return proxyContainer, nil
+}
+
+func GetLobbyContainer() (types.Container, error) {
+	lobbyContainer, err := filterForContainerLabel("io.spout.lobby")
+	if err != nil {
+		return types.Container{}, err
+	}
+	return lobbyContainer, nil
+}
+
+func GetProxyVolumeMount() string {
+	proxyContainer, err := GetProxyContainer()
+	if err != nil {
+		return ""
+	}
+	proxyContainerInspect, err := cli.ContainerInspect(ctx, proxyContainer.ID)
+	if err != nil {
+		return ""
+	}
+	return proxyContainerInspect.Mounts[0].Source
+}
+
+func GetProxyConfigFilePath() string {
+	return filepath.Join(GetProxyVolumeMount(), "velocity.toml")
+}
+
 func filterForContainerLabel(label string) (types.Container, error) {
 	networkContainer, err := GetNetworkContainers()
 	if err != nil {
@@ -278,20 +311,4 @@ func filterForContainerLabel(label string) (types.Container, error) {
 		}
 	}
 	return types.Container{}, errors.New(fmt.Sprintf("no Container found for label %s", label))
-}
-
-func GetProxyContainer() (types.Container, error) {
-	proxyContainer, err := filterForContainerLabel("io.spout.proxy")
-	if err != nil {
-		return types.Container{}, nil
-	}
-	return proxyContainer, nil
-}
-
-func GetLobbyContainer() (types.Container, error) {
-	lobbyContainer, err := filterForContainerLabel("io.spout.lobby")
-	if err != nil {
-		return types.Container{}, nil
-	}
-	return lobbyContainer, nil
 }

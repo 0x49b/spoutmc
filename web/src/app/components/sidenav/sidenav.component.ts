@@ -1,29 +1,26 @@
 import {Component} from '@angular/core';
-import {MatSidenavModule} from "@angular/material/sidenav";
-import {MatToolbarModule} from "@angular/material/toolbar";
-import {MatIconModule} from "@angular/material/icon";
-import {MatButtonModule} from "@angular/material/button";
-import {RouterLink, RouterOutlet} from "@angular/router";
-import {MatListModule} from "@angular/material/list";
-import {BooleanInput} from "@angular/cdk/coercion";
+import {RouterLink, RouterLinkActive, RouterOutlet} from "@angular/router";
 import {NgOptimizedImage} from "@angular/common";
-import {MatMenuModule} from "@angular/material/menu";
+import {ClrDropdownModule, ClrVerticalNavModule} from "@clr/angular";
+import {NgIcon} from "@ng-icons/core";
+import {NgHeroiconsModule} from "@dimaslz/ng-heroicons";
 
 @Component({
   selector: 'app-sidenav',
   standalone: true,
   imports: [
-    MatSidenavModule,
-    MatToolbarModule,
-    MatIconModule,
-    MatButtonModule,
     RouterOutlet,
-    MatListModule,
     RouterLink,
     NgOptimizedImage,
-    MatMenuModule
+    ClrVerticalNavModule,
+    ClrDropdownModule,
+    NgIcon,
+    NgHeroiconsModule,
+    RouterLinkActive
   ],
   templateUrl: './sidenav.component.html',
   styleUrl: './sidenav.component.css'
 })
-export class SidenavComponent {}
+export class SidenavComponent {
+  demoCollapsible = false
+}

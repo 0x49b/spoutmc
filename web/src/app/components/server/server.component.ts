@@ -1,17 +1,13 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
-import {HttpClient, HttpHeaders} from "@angular/common/http";
+import {HttpClient} from "@angular/common/http";
 import {MCServer} from "../../model/server";
-import {MatTableModule} from "@angular/material/table";
-import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
-import {MatInputModule} from "@angular/material/input";
-import {MatSelectModule} from "@angular/material/select";
-import {MatIconModule} from "@angular/material/icon";
-import {MatButtonModule} from "@angular/material/button";
-import {RouterLink} from "@angular/router";
-import {MatToolbarModule} from "@angular/material/toolbar";
-import {MatDialog} from "@angular/material/dialog";
-import {ServerNewDialogComponent} from "./server-new-dialog/server-new-dialog.component";
-
+import {Router, RouterLink} from "@angular/router";
+import {ClrDatagridModule, ClrSelectModule} from "@clr/angular";
+import {MCServerDetail} from "../../model/serverDetail";
+import {LoaderComponent} from "../util/loader/loader.component";
+import {FormsModule} from "@angular/forms";
+import {CdsIconModule} from "@cds/angular";
+import {OutlineIconsModule} from "@dimaslz/ng-heroicons";
 
 export interface ReloadTimes {
   value: number,
@@ -22,14 +18,13 @@ export interface ReloadTimes {
   selector: 'app-server',
   standalone: true,
   imports: [
-    MatTableModule,
-    MatProgressSpinnerModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatButtonModule,
     RouterLink,
-    MatToolbarModule
+    ClrDatagridModule,
+    LoaderComponent,
+    FormsModule,
+    ClrSelectModule,
+    CdsIconModule,
+    OutlineIconsModule
   ],
   templateUrl: './server.component.html',
   styleUrl: './server.component.css'
@@ -39,9 +34,10 @@ export class ServerComponent implements OnInit, OnDestroy {
   loading = false
   actionLoading = false
   displayedColumns: string[] = ['Names', 'State', 'Action']
-  dataSource: MCServer[] = []
+  dataSource: MCServerDetail[] = []
   reloadInterval: any = null
   reload: number = 5
+  RELOAD_STORAGE_KEY = "reloadTime"
   reloadTimes: ReloadTimes[] = [
     {value: 5, viewValue: '5 Seconds'},
     {value: 10, viewValue: '10 Seconds'},
@@ -49,10 +45,11 @@ export class ServerComponent implements OnInit, OnDestroy {
     {value: 30, viewValue: '30 Seconds'},
     {value: 45, viewValue: '45 Seconds'},
     {value: 60, viewValue: '1 Minute'},
-    {value: 0, viewValue: 'never'},
+    {value: -1, viewValue: 'never'},
   ];
 
-  constructor(private http: HttpClient, public dialog: MatDialog) {
+  constructor(private http: HttpClient, private router: Router) {
+    this.reload = parseInt(this.readReloadTime())
   }
 
   ngOnInit() {
@@ -66,6 +63,7 @@ export class ServerComponent implements OnInit, OnDestroy {
   }
 
   initializeInterval() {
+    window.localStorage.setItem(this.RELOAD_STORAGE_KEY, this.reload.toString())
     if (this.reload > 0) {
       this.reloadInterval = setInterval(() => {
         this.loadServerData()
@@ -73,18 +71,24 @@ export class ServerComponent implements OnInit, OnDestroy {
     }
   }
 
+  setNewInterval() {
+    clearInterval(this.reloadInterval)
+    this.initializeInterval()
+  }
+
+  readReloadTime() {
+    return window.localStorage.getItem(this.RELOAD_STORAGE_KEY) || "5";
+  }
+
+
   loadServerData() {
-    this.http.get<MCServer[]>("http://localhost:3000/api/v1/container").subscribe(
+    this.http.get<MCServerDetail[]>("http://localhost:3000/api/v1/container/withDetails").subscribe(
       data => {
+        this.dataSource = []
         this.dataSource = data
         this.loading = false
       }
     )
-  }
-
-  setNewInterval() {
-    clearInterval(this.reloadInterval)
-    this.initializeInterval()
   }
 
   stopContainer(containerId: string) {
@@ -93,7 +97,7 @@ export class ServerComponent implements OnInit, OnDestroy {
       data => {
         this.dataSource.forEach((server, i) => {
           if (server.Id == containerId) {
-            this.dataSource[i] = data;
+            //this.dataSource[i] = data;
             this.actionLoading = false
           }
         })
@@ -108,7 +112,7 @@ export class ServerComponent implements OnInit, OnDestroy {
       data => {
         this.dataSource.forEach((server, i) => {
           if (server.Id == containerId) {
-            this.dataSource[i] = data;
+            //this.dataSource[i] = data;
             this.actionLoading = false
           }
         })
@@ -123,7 +127,7 @@ export class ServerComponent implements OnInit, OnDestroy {
         console.log(data)
         this.dataSource.forEach((server, i) => {
           if (server.Id == containerId) {
-            this.dataSource[i] = data;
+            //this.dataSource[i] = data;
             this.actionLoading = false
           }
         })
@@ -132,27 +136,9 @@ export class ServerComponent implements OnInit, OnDestroy {
   }
 
   openNewServerDialog() {
-    const dialogRef = this.dialog.open(ServerNewDialogComponent, {
-      data: {name: ""}
-    })
-    dialogRef.afterClosed().subscribe(result => {
-      if (result !== undefined) {
-        console.log(result)
-        this.createNewServer(result)
-      }
-    })
+    this.router.navigateByUrl('/server/new')
   }
 
-  createNewServer(name: string) {
-    const headers = new HttpHeaders({'Content-Type': 'application/json'});
-    this.http.post<any>("http://localhost:3000/api/v1/container/create",
-      JSON.stringify({servername: name}),
-      {headers}
-    ).subscribe(
-      data => {
-        console.log(data)
-      })
-  }
 
   removeContainer(containerId: string) {
     this.http.delete<any>("http://localhost:3000/api/v1/container/id/" + containerId).subscribe(data => {
