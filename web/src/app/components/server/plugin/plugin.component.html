@@ -1,0 +1,14 @@
+<h3>Plugins</h3>
+
+<clr-tabs>
+
+  @for (server of serverList; track server; let first = $first) {
+
+    <clr-tab>
+      <button clrTabLink id="link-{{server.Id}}">{{ server.Config.Hostname }}</button>
+      <clr-tab-content id="content-{{server.Id}}" *clrIfActive="first">
+        {{ server.Config.Hostname }} Content
+      </clr-tab-content>
+    </clr-tab>
+  }
+</clr-tabs>

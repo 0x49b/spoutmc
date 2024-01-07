@@ -1,13 +1,23 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
-import {HttpClient} from "@angular/common/http";
-import {MCServer} from "../../model/server";
-import {Router, RouterLink} from "@angular/router";
-import {ClrDatagridModule, ClrSelectModule} from "@clr/angular";
+import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
+import {RouterLink} from "@angular/router";
+import {
+  ClrDatagridModule,
+  ClrInputModule,
+  ClrModal,
+  ClrModalModule,
+  ClrRadioModule,
+  ClrSelectModule,
+  ClrWizard,
+  ClrWizardModule
+} from "@clr/angular";
 import {MCServerDetail} from "../../model/serverDetail";
 import {LoaderComponent} from "../util/loader/loader.component";
-import {FormsModule} from "@angular/forms";
+import {FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators} from "@angular/forms";
 import {CdsIconModule} from "@cds/angular";
 import {OutlineIconsModule} from "@dimaslz/ng-heroicons";
+import {RestService} from "../../services/rest/rest.service";
+import {ContainerCommand} from "../../model/containerCommand";
+import {ServerType} from "../../model/serverType";
 
 export interface ReloadTimes {
   value: number,
@@ -24,7 +34,12 @@ export interface ReloadTimes {
     FormsModule,
     ClrSelectModule,
     CdsIconModule,
-    OutlineIconsModule
+    OutlineIconsModule,
+    ClrModalModule,
+    ClrWizardModule,
+    ReactiveFormsModule,
+    ClrInputModule,
+    ClrRadioModule
   ],
   templateUrl: './server.component.html',
   styleUrl: './server.component.css'
@@ -48,7 +63,21 @@ export class ServerComponent implements OnInit, OnDestroy {
     {value: -1, viewValue: 'never'},
   ];
 
-  constructor(private http: HttpClient, private router: Router) {
+  @ViewChild("dialogConfirmation") confirmationDialog?: ClrModal;
+  dialogOpen = false
+  dialogCommand: ContainerCommand = {
+    title: "", body: "", callback: () => {
+    }
+  }
+
+  @ViewChild("wizardNewServer") wizardMedium?: ClrWizard;
+  mdOpen = false
+  newServerGeneralForm = new FormGroup({
+    servername: new FormControl('', [Validators.required, Validators.minLength(4)]),
+    servertype: new FormControl(ServerType.GAME),
+  })
+
+  constructor(private restService: RestService) {
     this.reload = parseInt(this.readReloadTime())
   }
 
@@ -82,67 +111,109 @@ export class ServerComponent implements OnInit, OnDestroy {
 
 
   loadServerData() {
-    this.http.get<MCServerDetail[]>("http://localhost:3000/api/v1/container/withDetails").subscribe(
-      data => {
+    this.restService.getAllServersWithDetails().subscribe({
+      next: data => {
         this.dataSource = []
         this.dataSource = data
         this.loading = false
+      }, error: err => {
       }
-    )
+    })
   }
+
 
   stopContainer(containerId: string) {
     this.actionLoading = true
-    this.http.get<MCServer>("http://localhost:3000/api/v1/container/stop/" + containerId).subscribe(
-      data => {
-        this.dataSource.forEach((server, i) => {
-          if (server.Id == containerId) {
-            //this.dataSource[i] = data;
+    let stopCommand: ContainerCommand = {
+      title: "Confirmation",
+      body: "Do you want to stop this Server?",
+      callback: () => this.restService.stopContainer(containerId).subscribe(
+        {
+          next: data => {
             this.actionLoading = false
+            this.loadServerData()
+          },
+          error: err => {
           }
         })
+    }
 
-      }
-    )
+    this.showDialog(stopCommand)
+
   }
 
   startContainer(containerId: string) {
     this.actionLoading = true
-    this.http.get<MCServer>("http://localhost:3000/api/v1/container/start/" + containerId).subscribe(
-      data => {
-        this.dataSource.forEach((server, i) => {
-          if (server.Id == containerId) {
-            //this.dataSource[i] = data;
+    let startCommand: ContainerCommand = {
+      title: "Confirmation",
+      body: "Do you want start this Server?",
+      callback: () => this.restService.startContainer(containerId).subscribe(
+        {
+          next: data => {
             this.actionLoading = false
+            this.loadServerData()
+          },
+          error: err => {
           }
         })
-      }
-    )
+    }
+
+    this.showDialog(startCommand)
+
   }
 
   restartContainer(containerId: string) {
     this.actionLoading = true
-    this.http.get<MCServer>("http://localhost:3000/api/v1/container/restart/" + containerId).subscribe(
-      data => {
-        console.log(data)
-        this.dataSource.forEach((server, i) => {
-          if (server.Id == containerId) {
-            //this.dataSource[i] = data;
+    let restartCommand: ContainerCommand = {
+      title: "Confirmation",
+      body: "Do you want restart this Server?",
+      callback: () => this.restService.restartContainer(containerId).subscribe(
+        {
+          next: data => {
             this.actionLoading = false
+            this.loadServerData()
+          },
+          error: err => {
           }
         })
-      }
-    )
-  }
-
-  openNewServerDialog() {
-    this.router.navigateByUrl('/server/new')
+    }
+    this.showDialog(restartCommand)
   }
 
 
   removeContainer(containerId: string) {
-    this.http.delete<any>("http://localhost:3000/api/v1/container/id/" + containerId).subscribe(data => {
-      console.log(data)
-    })
+    let removeCommand: ContainerCommand = {
+      title: "Confirmation",
+      body: "Do you want to remove this Server?",
+      callback: () => this.restService.deleteContainer(containerId).subscribe()
+    }
+    this.showDialog(removeCommand)
   }
+
+  showDialog(command: ContainerCommand) {
+    this.dialogCommand = command
+    this.confirmationDialog?.open()
+  }
+
+  dialogOnConfirmation(command: () => void) {
+    command()
+    this.confirmationDialog?.close()
+  }
+
+
+  showNewServerWizard() {
+    this.wizardMedium?.open()
+  }
+
+  newServerWizardFinish() {
+    let serverName = this.newServerGeneralForm.get('servername')?.value
+    if (serverName != undefined) {
+      this.restService.createNewServer(serverName).subscribe({
+        next: data => this.loadServerData(),
+        error: err => {
+        }
+      })
+    }
+  }
+
 }

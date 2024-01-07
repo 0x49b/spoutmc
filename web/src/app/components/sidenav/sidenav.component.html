@@ -23,8 +23,6 @@
   </header>
 
 
-
-
   <div class="content-container">
     <clr-vertical-nav [clrVerticalNavCollapsible]="demoCollapsible">
 
@@ -33,10 +31,23 @@
         Dashboard
       </a>
 
-      <a clrVerticalNavLink routerLinkActive="active" routerLink="/server">
+      <clr-vertical-nav-group
+        routerLinkActive="active">
         <square-3-stack-3-d-outline-icon class="spout-nav-icon spout-vertical-icon"></square-3-stack-3-d-outline-icon>
         Server
-      </a>
+        <clr-vertical-nav-group-children>
+          <a clrVerticalNavLink
+             routerLink="/server"
+             routerLinkActive="active">
+            Serverlist
+          </a>
+          <a clrVerticalNavLink
+             routerLink="/plugins"
+             routerLinkActive="active">
+            Server Plugins
+          </a>
+        </clr-vertical-nav-group-children>
+      </clr-vertical-nav-group>
 
       <clr-vertical-nav-group
         routerLinkActive="active">
