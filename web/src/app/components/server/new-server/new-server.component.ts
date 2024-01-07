@@ -1,7 +1,7 @@
 import {Component} from '@angular/core';
 import {FormBuilder, FormControl, ReactiveFormsModule, Validators} from "@angular/forms";
-import {HttpHeaders} from "@angular/common/http";
 import {Router} from "@angular/router";
+import {RestService} from "../../../services/rest/rest.service";
 
 @Component({
   selector: 'app-new-server',
@@ -20,7 +20,9 @@ export class NewServerComponent {
     lobby: false
   })
 
-  constructor(private formBuilder: FormBuilder, private router: Router) {
+  constructor(private formBuilder: FormBuilder,
+              private router: Router,
+              private restService: RestService) {
   }
 
 
@@ -29,14 +31,9 @@ export class NewServerComponent {
   }
 
   createNewServer(name: string) {
-    const headers = new HttpHeaders({'Content-Type': 'application/json'});
-    /* this.http.post<any>("http://localhost:3000/api/v1/container/create",
-       JSON.stringify({servername: name}),
-       {headers}
-     ).subscribe(
-       data => {
-         console.log(data)
-       })*/
+    this.restService.createNewServer(name).subscribe(data => {
+      console.log(data)
+    })
   }
 
   cancel() {

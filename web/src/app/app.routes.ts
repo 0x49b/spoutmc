@@ -6,6 +6,7 @@ import {ServerEditComponent} from "./components/server-edit/server-edit.componen
 import {NewServerComponent} from "./components/server/new-server/new-server.component";
 import {PlayerComponent} from "./components/player/player.component";
 import {PlayerbanlistComponent} from "./components/player/banlist/playerbanlist.component";
+import {PluginComponent} from "./components/server/plugin/plugin.component";
 
 export const routes: Routes = [
   {
@@ -21,6 +22,11 @@ export const routes: Routes = [
     title: 'server-details',
     path: 'server/edit/:serverId',
     component: ServerEditComponent,
+  },
+  {
+    title: 'server-plugins',
+    path: 'plugins',
+    component: PluginComponent,
   },
   {
     title: 'new-server',

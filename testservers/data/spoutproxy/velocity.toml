@@ -57,8 +57,8 @@ ping-passthrough = "DISABLED"
 # If not enabled (default is true) player IP addresses will be replaced by <ip address withheld> in logs
 enable-player-address-logging = true
 [servers]
-skyblock="skyblock:25565"
 spoutlobby="spoutlobby:25565"
+skyblock="skyblock:25565"
 try = ["spoutlobby"]
 [forced-hosts]
 # Configure your forced hosts here.
