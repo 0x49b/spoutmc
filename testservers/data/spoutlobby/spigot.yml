@@ -170,6 +170,8 @@ world-settings:
       glowberry-modifier: 100
       pitcherplant-modifier: 100
     verbose: false
+  faweregentempworld:
+    verbose: false
 players:
   disable-saving: false
 config-version: 12

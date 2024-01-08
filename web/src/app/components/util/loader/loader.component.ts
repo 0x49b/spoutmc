@@ -16,6 +16,7 @@ import {Component} from '@angular/core';
   }
   .spinner-inline-custom{
     margin-right:0.625rem;
+    }
   `
 })
 export class LoaderComponent {

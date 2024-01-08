@@ -2,6 +2,7 @@ import {Injectable} from '@angular/core';
 import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {Observable} from "rxjs";
 import {MCServerDetail} from "../../model/serverDetail";
+import {PluginServerList} from "../../model/plugins";
 
 @Injectable({
   providedIn: 'root'
@@ -42,6 +43,10 @@ export class RestService {
 
   deleteContainer(containerId: string): Observable<any> {
     return this.http.delete<any>(this.baseUrl + "/container/id/" + containerId)
+  }
+
+  getPlugins(): Observable<PluginServerList[]> {
+    return this.http.get<PluginServerList[]>(this.baseUrl + "/container/plugins")
   }
 
 }

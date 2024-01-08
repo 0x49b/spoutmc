@@ -12,8 +12,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
+	"spoutmc/backend/utils"
 	"spoutmc/backend/watchdog"
 	"spoutmc/backend/webserver/api/v1/model"
 	"time"
@@ -52,6 +54,64 @@ func RegisterContainerAPI(v1Group *echo.Group) {
 	g.POST("/create", createNewServer)
 
 	g.DELETE("/id/:id", removeServer)
+
+	g.GET("/plugins", listPlugins)
+	g.GET("/plugins/:id", listPluginsForContainer)
+}
+
+type PluginsList struct {
+	Name    string        `json:"name"`
+	Id      string        `json:"id"`
+	Plugins []*utils.File `json:"plugins"`
+}
+
+func listPlugins(c echo.Context) error {
+	var pluginList []PluginsList
+
+	networkContainers, err := docker.GetNetworkContainers()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, &model.APIError{E: err.Error()})
+	}
+
+	for _, nc := range networkContainers {
+
+		containerDetails, err := docker.GetContainerById(nc.ID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, &model.APIError{E: err.Error()})
+		}
+
+		containerPath := containerDetails.Mounts[0].Source
+		dirPath := filepath.Join(containerPath, "plugins")
+
+		plugins := utils.FileToJSON(dirPath)
+
+		pluginList = append(pluginList, PluginsList{
+			Name:    containerDetails.Config.Hostname,
+			Id:      containerDetails.ID,
+			Plugins: plugins.Children,
+		})
+
+	}
+	return c.JSON(http.StatusOK, pluginList)
+}
+
+func listPluginsForContainer(c echo.Context) error {
+	containerId := c.Param("id")
+	containerDetail, err := docker.GetContainerById(containerId)
+	if err != nil {
+		logger.Error("Cannot load containerdetails", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, &model.APIError{E: err.Error()})
+	}
+
+	containerPath := containerDetail.Mounts[0].Source
+	dirPath := filepath.Join(containerPath, "plugins")
+
+	plugins := utils.FileToJSON(dirPath)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, &model.APIError{E: err.Error()})
+	}
+	return c.JSON(http.StatusOK, plugins)
 }
 
 func getContainerListWithDetails(c echo.Context) error {

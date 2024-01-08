@@ -1,34 +1,43 @@
 import {Component, OnInit} from '@angular/core';
-import {ClrTabsModule} from "@clr/angular";
+import {ClrTabsModule, ClrTreeViewModule} from "@clr/angular";
 import {RestService} from "../../../services/rest/rest.service";
-import {MCServerDetail} from "../../../model/serverDetail";
-import { Title } from '@angular/platform-browser';
+import {Title} from '@angular/platform-browser';
+import {PluginServerList} from "../../../model/plugins";
+import {OutlineIconsModule} from "@dimaslz/ng-heroicons";
+import {FiletreeComponent} from "../../util/filetree/filetree.component";
+import {getChildren} from "@cds/core/internal";
 
 @Component({
   selector: 'app-plugin',
   standalone: true,
   imports: [
-    ClrTabsModule
+    ClrTabsModule,
+    ClrTreeViewModule,
+    OutlineIconsModule,
+    FiletreeComponent
   ],
   templateUrl: './plugin.component.html',
   styleUrl: './plugin.component.css'
 })
 export class PluginComponent implements OnInit {
 
-  serverList: MCServerDetail[] = []
-
+  pluginServerLists: PluginServerList[] = []
 
   constructor(private restService: RestService, private titleService: Title) {
   }
 
+
   ngOnInit() {
     this.titleService.setTitle("Server Plugins")
-    this.restService.getAllServersWithDetails().subscribe({
-      next: data => this.serverList = data,
+
+    this.restService.getPlugins().subscribe({
+      next: data => {
+        this.pluginServerLists = data
+      },
       error: err => {
       }
     })
 
-  }
 
+  }
 }
