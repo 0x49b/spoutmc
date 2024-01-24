@@ -58,7 +58,7 @@ ping-passthrough = "DISABLED"
 enable-player-address-logging = true
 [servers]
 spoutlobby="spoutlobby:25565"
-skyblock="skyblock:25565"
+smoock="smoock:25565"
 try = ["spoutlobby"]
 [forced-hosts]
 # Configure your forced hosts here.

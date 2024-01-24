@@ -19,13 +19,30 @@
 }
 
 .btn-custom-icon {
-  position: relative;
-  top: 5px;
+  position : relative;
+  top      : 5px;
 }
 
-.header-container{
-  display: grid;
-  width: 100px;
-  grid-template-columns: 1fr 1fr;
-  grid-column-gap: 20px;
+.header-container {
+  display               : grid;
+  width                 : 100px;
+  grid-template-columns : 1fr 1fr;
+  grid-column-gap       : 20px;
+}
+
+.color-square {
+  display        : inline-block;
+  vertical-align : text-bottom;
+  height         : var(--cds-global-space-7);
+  width          : var(--cds-global-space-7);
+  border         : var(--cds-alias-object-border-width-100) solid var(--cds-global-color-construction-1000);
+  border-radius  : 0.2rem;
+}
+
+.color-square.exited {
+  background-color : var(--cds-alias-status-danger);
+}
+
+.color-square.running {
+  background-color : var(--cds-alias-status-success);
 }

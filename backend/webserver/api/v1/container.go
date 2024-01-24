@@ -259,7 +259,7 @@ func startContainerById(c echo.Context) error {
 			})
 	}
 
-	watchdog.RemoveFromExcludeWatchdog(containerId)
+	watchdog.IncludeToWatchdog(containerId)
 	return c.JSON(http.StatusOK, container)
 }
 
@@ -290,7 +290,7 @@ func restartContainerById(c echo.Context) error {
 			})
 	}
 
-	watchdog.RemoveFromExcludeWatchdog(containerId)
+	watchdog.IncludeToWatchdog(containerId)
 	return c.JSON(http.StatusOK, container)
 }
 

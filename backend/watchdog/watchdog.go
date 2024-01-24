@@ -36,7 +36,7 @@ func ExcludeFromToWatchdog(containerId string) {
 	logger.Debug(fmt.Sprintf("[WatchDog] added %s", containerId))
 }
 
-func RemoveFromExcludeWatchdog(containerId string) {
+func IncludeToWatchdog(containerId string) {
 	containerIds = utils.Remove(containerIds, containerId)
 	logger.Debug(fmt.Sprintf("[WatchDog] removed %s", containerId))
 }
@@ -56,25 +56,25 @@ loop:
 					logger.Error("", zap.Error(err))
 				}
 
-				logger.Debug(fmt.Sprintf("[WatchDog] Container %s in State %s", containerInfo.Name, containerInfo.State.Status))
+				logger.Debug(fmt.Sprintf("[WatchDog] Container %s in State %s", containerInfo.Config.Hostname, containerInfo.State.Status))
 
 				// States: Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
 				if containerInfo.State.Status != "running" {
 
 					// only restart container if not stoppeb by user
 					if !utils.CheckInStringSlice(containerIds, containerInfo.ID) {
-						logger.Error(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Name, containerInfo.State.Status))
+						logger.Error(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Config.Hostname, containerInfo.State.Status))
 
 						switch containerInfo.State.Status {
 						case "exited":
 						case "dead":
-							startContainer(containerInfo.ID)
+							startContainer(containerInfo.ID, containerInfo.Config.Hostname)
 							break
 						case "paused":
 						}
 
 						if containerInfo.State.Status == "exited" || containerInfo.State.Status == "dead" {
-							startContainer(containerInfo.ID)
+							startContainer(containerInfo.ID, containerInfo.Config.Hostname)
 						}
 					}
 
@@ -90,11 +90,11 @@ loop:
 	}
 }
 
-func startContainer(containerId string) {
-	logger.Info(fmt.Sprintf("[WatchDog] try starting container %s", containerId))
+func startContainer(containerId string, containerName string) {
+	logger.Info(fmt.Sprintf("[WatchDog] try starting container %s", containerName))
 	err := cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{})
 	if err != nil {
 		logger.Error("[WatchDog] Could not start container !!!")
 	}
-	logger.Info(fmt.Sprintf("[WatchDog] started container %s", containerId))
+	logger.Info(fmt.Sprintf("[WatchDog] started container %s", containerName))
 }

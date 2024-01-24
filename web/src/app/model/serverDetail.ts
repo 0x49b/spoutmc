@@ -123,7 +123,8 @@ export interface LogConfig {
   Config: Config
 }
 
-export interface Config {}
+export interface Config {
+}
 
 export interface RestartPolicy {
   Name: string
@@ -178,7 +179,8 @@ export interface ExposedPorts {
   "25565/tcp": N25565Tcp
 }
 
-export interface N25565Tcp {}
+export interface N25565Tcp {
+}
 
 export interface Healthcheck {
   Test: string[]
@@ -191,21 +193,16 @@ export interface Volumes {
   "/data": Data2
 }
 
-export interface Data2 {}
+export interface Data2 {
+}
 
-export interface Labels {
+export interface GenericLabel {
+  [key: string]: string | undefined;
+}
+
+export interface Labels extends GenericLabel {
   "io.spout.network": string
   "io.spout.servername": string
-  "org.opencontainers.image.authors": string
-  "org.opencontainers.image.created": string
-  "org.opencontainers.image.description": string
-  "org.opencontainers.image.licenses": string
-  "org.opencontainers.image.ref.name": string
-  "org.opencontainers.image.revision": string
-  "org.opencontainers.image.source": string
-  "org.opencontainers.image.title": string
-  "org.opencontainers.image.url": string
-  "org.opencontainers.image.version": string
 }
 
 export interface NetworkSettings {

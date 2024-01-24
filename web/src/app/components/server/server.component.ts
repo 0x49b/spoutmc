@@ -48,7 +48,6 @@ export class ServerComponent implements OnInit, OnDestroy {
 
   loading = false
   actionLoading = false
-  displayedColumns: string[] = ['Names', 'State', 'Action']
   dataSource: MCServerDetail[] = []
   reloadInterval: any = null
   reload: number = 5
@@ -62,6 +61,10 @@ export class ServerComponent implements OnInit, OnDestroy {
     {value: 60, viewValue: '1 Minute'},
     {value: -1, viewValue: 'never'},
   ];
+
+  // Todo on load check if lobby and proxy exists, in the labels
+  proxyServerExists: boolean = false
+  lobbyServerExists: boolean = false
 
   @ViewChild("dialogConfirmation") confirmationDialog?: ClrModal;
   dialogOpen = false
@@ -115,10 +118,27 @@ export class ServerComponent implements OnInit, OnDestroy {
       next: data => {
         this.dataSource = []
         this.dataSource = data
+        this.checkProxyServer(data)
+        this.checkLobbyServer(data)
         this.loading = false
       }, error: err => {
       }
     })
+  }
+
+  checkForLabel(servers: MCServerDetail[], label: string): boolean {
+    servers.forEach(s => {
+      return !!s.Config.Labels[label] || false
+    })
+    return false
+  }
+
+  checkProxyServer(servers: MCServerDetail[]) {
+    this.proxyServerExists = this.checkForLabel(servers, "io.spout.proxy")
+  }
+
+  checkLobbyServer(servers: MCServerDetail[]) {
+    this.lobbyServerExists = this.checkForLabel(servers, "io.spout.lobby")
   }
 
 
@@ -188,6 +208,15 @@ export class ServerComponent implements OnInit, OnDestroy {
       callback: () => this.restService.deleteContainer(containerId).subscribe()
     }
     this.showDialog(removeCommand)
+  }
+
+  resetContainer(containerId: string) {
+    let resetCommand: ContainerCommand = {
+      title: "Reset Confirmation",
+      body: "A Server Reset will stop the server, remove all .jar Files for the Server and then start the server. Plugins are not affected. ",
+      callback: () => console.log("Reset that thing " + containerId) //Todo need some real magic dust here
+    }
+    this.showDialog(resetCommand)
   }
 
   showDialog(command: ContainerCommand) {

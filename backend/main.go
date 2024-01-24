@@ -58,7 +58,7 @@ func startSpout() {
 	}
 
 	docker.CreateSpoutNetwork("spoutnetwork") // todo get this from config
-	//startContainers()                         // Todo only do a restart if really needed. On Start of SpoutMC, the WatchDog checks for exited containers and restarts them [label needed]
+	startContainers()                         // Todo only do a restart if really needed. On Start of SpoutMC, the WatchDog checks for exited containers and restarts them [label needed]
 }
 
 func readConfiguration() error {
