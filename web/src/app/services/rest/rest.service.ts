@@ -49,4 +49,8 @@ export class RestService {
     return this.http.get<PluginServerList[]>(this.baseUrl + "/container/plugins")
   }
 
+  resetContainer(containerId: string): Observable<MCServerDetail> {
+    return this.http.get<MCServerDetail>(this.baseUrl + "/container/reset/" + containerId)
+  }
+
 }

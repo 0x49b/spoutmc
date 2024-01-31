@@ -214,7 +214,7 @@ export class ServerComponent implements OnInit, OnDestroy {
     let resetCommand: ContainerCommand = {
       title: "Reset Confirmation",
       body: "A Server Reset will stop the server, remove all .jar Files for the Server and then start the server. Plugins are not affected. ",
-      callback: () => console.log("Reset that thing " + containerId) //Todo need some real magic dust here
+      callback: () => this.restService.resetContainer(containerId).subscribe()
     }
     this.showDialog(resetCommand)
   }

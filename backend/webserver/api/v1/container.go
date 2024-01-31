@@ -57,6 +57,36 @@ func RegisterContainerAPI(v1Group *echo.Group) {
 
 	g.GET("/plugins", listPlugins)
 	g.GET("/plugins/:id", listPluginsForContainer)
+
+	g.GET("/reset/:id", resetContainer)
+}
+
+func resetContainer(c echo.Context) error {
+
+	containerId := c.Param("id")
+	logger.Info(fmt.Sprintf("Reset ordered for %s", containerId))
+
+	container, err := docker.GetContainerById(containerId)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, &model.APIError{E: err.Error()})
+	}
+
+	watchdog.ExcludeFromToWatchdog(containerId)
+	docker.StopContainerById(containerId)
+
+	dirPath := filepath.Join(container.Mounts[0].Source, "*.jar")
+
+	files, err := filepath.Glob(dirPath)
+
+	for _, f := range files {
+		logger.Info(fmt.Sprintf("Removing --> %s", f))
+		if err := os.Remove(f); err != nil {
+			panic(err)
+		}
+	}
+
+	watchdog.IncludeToWatchdog(containerId)
+	return c.JSON(http.StatusOK, "")
 }
 
 type PluginsList struct {

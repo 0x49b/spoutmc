@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
+	"spoutmc/backend/plugins"
 	"spoutmc/backend/utils"
 	"time"
 )
@@ -92,9 +93,25 @@ loop:
 
 func startContainer(containerId string, containerName string) {
 	logger.Info(fmt.Sprintf("[WatchDog] try starting container %s", containerName))
+	checkForServerTapPlugin(containerId)
 	err := cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{})
 	if err != nil {
 		logger.Error("[WatchDog] Could not start container !!!")
 	}
 	logger.Info(fmt.Sprintf("[WatchDog] started container %s", containerName))
+}
+
+func checkForServerTapPlugin(containerId string) {
+
+	c, _ := docker.GetContainerById(containerId)
+	proxy, _ := docker.GetProxyContainer()
+
+	// Do this plugin check only if it's not the proxy container
+	if c.ID != proxy.ID {
+		p, _ := plugins.CheckForServerTap(c.Mounts[0].Source)
+
+		if !p {
+			plugins.DownloadServerTap(c.Mounts[0].Source)
+		}
+	}
 }

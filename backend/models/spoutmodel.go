@@ -31,16 +31,18 @@ type SpoutServer struct {
 
 type SpoutServerEnv struct {
 	gorm.Model
-	Eula                 string `json:"EULA"`
-	Type                 string `json:"TYPE"`
-	OnlineMode           string `json:"ONLINE_MODE"`
-	EnforceSecureProfile string `json:"ENFORCE_SECURE_PROFILE"`
-	MaxMemory            string `json:"MAX_MEMORY"`
-	Version              string `json:"VERSION"`
-	Gui                  string `json:"GUI"`
-	Console              string `json:"CONSOLE"`
-	LogTimestamp         string `json:"LOG_TIMESTAMP"`
-	Tz                   string `json:"TZ"`
+	Eula                 string   `json:"EULA"`
+	Type                 string   `json:"TYPE"`
+	OnlineMode           string   `json:"ONLINE_MODE"`
+	EnforceSecureProfile string   `json:"ENFORCE_SECURE_PROFILE"`
+	MaxMemory            string   `json:"MAX_MEMORY"`
+	Version              string   `json:"VERSION"`
+	Gui                  string   `json:"GUI"`
+	Console              string   `json:"CONSOLE"`
+	LogTimestamp         string   `json:"LOG_TIMESTAMP"`
+	Tz                   string   `json:"TZ"`
+	Plugins              []string `json:"PLUGINS,omitempty"`
+	SpigetIds            string   `json:"SPIGET_RESOURCES,omitempty"`
 }
 
 type SpoutServerVolumes struct {

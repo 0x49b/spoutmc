@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"spoutmc/backend/models"
+	"strings"
 )
 
 func MapExposedPorts(p models.SpoutServerPorts) (nat.PortSet, nat.PortMap) {
@@ -81,6 +82,14 @@ func MapEnvironmentVariables(s models.SpoutServerEnv) []string {
 	}
 	if s.Tz != "" {
 		containerEnv = append(containerEnv, "TZ="+s.Tz)
+	}
+
+	if s.Plugins != nil {
+		containerEnv = append(containerEnv, "PLUGINS="+strings.Join(s.Plugins, ","))
+	}
+
+	if s.SpigetIds != "" {
+		containerEnv = append(containerEnv, "SPIGET_RESOURCES="+s.SpigetIds)
 	}
 
 	return containerEnv

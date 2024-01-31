@@ -167,13 +167,16 @@ func StartContainer(s models.SpoutServer) {
 			containerLabels["io.spout.lobby"] = "true"
 		}
 
+		envVars := MapEnvironmentVariables(s.Env)
+		envVars = append(envVars, "PLUGINS=https://github.com/servertap-io/servertap/releases/download/v0.6.1/ServerTap-0.6.1.jar")
+
 		spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 			Tty:          true,
 			AttachStdout: true,
 			AttachStderr: true,
 			Image:        s.Image,
 			Hostname:     s.Name,
-			Env:          MapEnvironmentVariables(s.Env),
+			Env:          envVars,
 			ExposedPorts: exposedPorts,
 			Labels:       containerLabels,
 		}, &container.HostConfig{
@@ -227,6 +230,8 @@ func StartContainer(s models.SpoutServer) {
 
 func ShutdownContainers() error {
 
+	fmt.Println("In Shutdown Containers")
+
 	containers, err := GetNetworkContainers()
 	if err != nil {
 		return err
@@ -243,7 +248,7 @@ func ShutdownContainers() error {
 }
 
 func StopContainerById(containerId string) {
-	if err := cli.ContainerStop(ctx, containerId, container.StopOptions{}); err != nil {
+	if err := cli.ContainerStop(ctx, containerId, container.StopOptions{Signal: "SIGKILL"}); err != nil {
 		logger.Error("Cannot stop container", zap.Error(err))
 	}
 

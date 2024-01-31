@@ -266,16 +266,20 @@ func CreateContainer(serverName string, proxy bool, lobby bool) (container.Creat
 		containerLabels["io.spout.lobby"] = "true"
 	}
 
+	exposedPorts, containerPortBinding := MapExposedPorts(models.SpoutServerPorts{ContainerPort: "4567", HostPort: "4567"})
+
 	spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 		Image:        containerImage,
 		Hostname:     serverName,
-		Env:          MapEnvironmentVariables(models.SpoutServerEnv{Eula: "TRUE", Type: "PAPER", OnlineMode: "FALSE", EnforceSecureProfile: "FALSE", MaxMemory: "4G", Version: "1.20.4", Gui: "FALSE", Console: "FALSE", LogTimestamp: "TRUE", Tz: "Europ/Zurich"}),
+		Env:          MapEnvironmentVariables(models.SpoutServerEnv{Eula: "TRUE", Type: "PAPER", OnlineMode: "FALSE", EnforceSecureProfile: "FALSE", MaxMemory: "4G", Version: "1.20.4", Gui: "FALSE", Console: "FALSE", LogTimestamp: "TRUE", Tz: "Europe/Zurich", Plugins: []string{"https://github.com/servertap-io/servertap/releases/download/v0.6.1/ServerTap-0.6.1.jar"}, SpigetIds: "6245"}),
 		Labels:       containerLabels,
+		ExposedPorts: exposedPorts,
 	}, &container.HostConfig{
-		Binds: MapVolumeBindings([]models.SpoutServerVolumes{{Hostpath: []string{"testservers", "data", serverName}, Containerpath: "/data"}}),
+		Binds:        MapVolumeBindings([]models.SpoutServerVolumes{{Hostpath: []string{"testservers", "data", serverName}, Containerpath: "/data"}}),
+		PortBindings: containerPortBinding,
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{spoutNetwork.ID: {NetworkID: spoutNetwork.ID}}},
 		nil, serverName)
