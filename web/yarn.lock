@@ -1601,9 +1601,9 @@
     call-bind "^1.0.2"
 
 "@ng-icons/core@^26.3.0":
-  version "26.3.0"
-  resolved "https://registry.yarnpkg.com/@ng-icons/core/-/core-26.3.0.tgz#bcd8d5b201e47e5a43895cdc4591364b800396cf"
-  integrity sha512-4gUGz8yShbMX/4S2B4DzcQHrZ1+t29NqmYS70LScN0XMgiFmbg3uUW/Sc14fPiwmhHVNrKSMmX248U61uBZzGw==
+  version "26.5.0"
+  resolved "https://registry.yarnpkg.com/@ng-icons/core/-/core-26.5.0.tgz#05458d05f42ad0d7b3caf81f569c8b5915d0b348"
+  integrity sha512-QaincZw6O22pNuI/7lwM1fVeEFANRNAHNi+TYwCn2bAt7v91Fzj7g44J1cyOoApdqkanSWZUWbuyzznPFimOEw==
   dependencies:
     tslib "^2.2.0"
 
