@@ -12,6 +12,7 @@ import (
 	"spoutmc/backend/dbcontext"
 	"spoutmc/backend/log"
 	v1Container "spoutmc/backend/webserver/api/v1"
+	v1Ws "spoutmc/backend/webserver/ws/v1"
 	"spoutmc/web"
 	"time"
 )
@@ -47,12 +48,18 @@ func Start() *echo.Echo {
 		},
 	}))
 
-	// Frontend Handler
+	// Frontend deliver Page
 	registerHandler(e, app.Db)
 
+	// Frontend Handler REST based
 	apiGroup := e.Group("/api")
 	v1 := apiGroup.Group("/v1")
 	v1Container.RegisterContainerAPI(v1)
+
+	// FrontendHandler WS based
+	wsGroup := e.Group("/ws")
+	v1ws := wsGroup.Group("/v1")
+	v1Ws.RegisterWS(v1ws)
 
 	go func() {
 		logger.Info("Webserver started")

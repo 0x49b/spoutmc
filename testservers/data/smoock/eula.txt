@@ -1,4 +1,0 @@
-# Generated via Docker
-# Wed 24 Jan 2024 05:25:29 PM Europ
-eula=true
-

@@ -1,41 +1,39 @@
 import {Injectable} from '@angular/core';
-import {map, Observable} from "rxjs";
-import {webSocket, WebSocketSubject} from 'rxjs/webSocket';
+import {io, Socket} from 'socket.io-client';
+import {Observable} from "rxjs";
 
 
 @Injectable({
   providedIn: 'root'
 })
 export class WebsocketService {
-  public socket$!: WebSocketSubject<any>;
-  private todoArr: string[] = [];
+
+  private socket: Socket;
 
   constructor() {
+    this.socket = io("ws://localhost:3000", {'path': '/ws/v1/'})
+    console.log(this.socket.io)
   }
 
-  connect() {
-    this.socket$ = webSocket('ws://localhost:3000'); // Replace with your WebSocket server URL
+  connect(): void {
+    this.socket.connect()
   }
 
   disconnect() {
-    this.socket$.complete();
+    this.socket.disconnect()
   }
 
-  isConnected(): boolean {
-    return (this.socket$ === null ? false : !this.socket$.closed);
+  sendMessage(message: any) {
+    this.socket.emit('message', message)
   }
 
-  onMessage(): Observable<any> {
-    return this.socket$!.asObservable().pipe(
-      map(message => message)
-    );
+  receiveMessage(): Observable<string> {
+    return new Observable<string>((observer) => {
+      this.socket.on('message', (data: string) => {
+        observer.next(data)
+      })
+    })
   }
 
-  send(message: any) {
-    this.socket$.next(message);
-  }
 
-  getTodoArr(): string[] {
-    return this.todoArr;
-  }
 }

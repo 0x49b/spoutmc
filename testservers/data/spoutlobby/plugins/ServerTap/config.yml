@@ -1,4 +1,4 @@
-port: 4567
+port: 4568
 debug: false
 useKeyAuth: true
 key: 'change_me'

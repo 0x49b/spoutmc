@@ -232,6 +232,15 @@ func DeleteContainer(containerId string) (types.ContainerJSON, error) {
 	return removeContainer, nil
 }
 
+func GetContainerStats(containerId string) types.ContainerStats {
+	stats, err := cli.ContainerStats(ctx, containerId, false)
+	if err != nil {
+		logger.Error("", zap.Error(err))
+	}
+
+	return stats
+}
+
 func CreateContainer(serverName string, proxy bool, lobby bool) (container.CreateResponse, error) {
 
 	serverName = strings.ToLower(serverName)

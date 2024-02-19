@@ -2,6 +2,7 @@ import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {RouterLink} from "@angular/router";
 import {
   ClrDatagridModule,
+  ClrDropdownModule,
   ClrInputModule,
   ClrModal,
   ClrModalModule,
@@ -18,6 +19,7 @@ import {OutlineIconsModule} from "@dimaslz/ng-heroicons";
 import {RestService} from "../../services/rest/rest.service";
 import {ContainerCommand} from "../../model/containerCommand";
 import {ServerType} from "../../model/serverType";
+import {WebsocketService} from "../../services/websocket/websocket.service";
 
 export interface ReloadTimes {
   value: number,
@@ -39,7 +41,8 @@ export interface ReloadTimes {
     ClrWizardModule,
     ReactiveFormsModule,
     ClrInputModule,
-    ClrRadioModule
+    ClrRadioModule,
+    ClrDropdownModule
   ],
   templateUrl: './server.component.html',
   styleUrl: './server.component.css'
@@ -51,6 +54,7 @@ export class ServerComponent implements OnInit, OnDestroy {
   dataSource: MCServerDetail[] = []
   reloadInterval: any = null
   reload: number = 5
+  selected: MCServerDetail[] = []
   RELOAD_STORAGE_KEY = "reloadTime"
   reloadTimes: ReloadTimes[] = [
     {value: 5, viewValue: '5 Seconds'},
@@ -80,14 +84,26 @@ export class ServerComponent implements OnInit, OnDestroy {
     servertype: new FormControl(ServerType.GAME),
   })
 
-  constructor(private restService: RestService) {
+  constructor(private restService: RestService, private wsService: WebsocketService) {
     this.reload = parseInt(this.readReloadTime())
   }
 
   ngOnInit() {
+
+    this.wsService.connect();
+    this.wsService.receiveMessage().subscribe((message) => {
+      console.log(message)
+    })
+    this.sendMessage()
+
+
     this.loading = true
     this.loadServerData()
     this.initializeInterval()
+  }
+
+  sendMessage() {
+    this.wsService.sendMessage("bola")
   }
 
   ngOnDestroy() {
@@ -96,11 +112,12 @@ export class ServerComponent implements OnInit, OnDestroy {
 
   initializeInterval() {
     window.localStorage.setItem(this.RELOAD_STORAGE_KEY, this.reload.toString())
-    if (this.reload > 0) {
+    // Switch Back on when correct reload in place with changing each item
+    /*if (this.reload > 0) {
       this.reloadInterval = setInterval(() => {
         this.loadServerData()
       }, this.reload * 1000)
-    }
+    }*/
   }
 
   setNewInterval() {
@@ -124,6 +141,9 @@ export class ServerComponent implements OnInit, OnDestroy {
       }, error: err => {
       }
     })
+  }
+
+  bobSaget() {
   }
 
   checkForLabel(servers: MCServerDetail[], label: string): boolean {

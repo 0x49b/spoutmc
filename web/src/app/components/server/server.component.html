@@ -1,6 +1,5 @@
 <h3>Server</h3>
 
-
 <div>
   <clr-select-container>
     <label>Reload every</label>
@@ -12,12 +11,24 @@
   </clr-select-container>
 </div>
 
-
-
 @if (loading) {
   <app-loader/>
 } @else {
-  <clr-datagrid>
+  <clr-datagrid [(clrDgSelected)]="selected">
+
+    <clr-dg-action-bar>
+      <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-secondary" (click)="bobSaget()">
+          <cds-icon shape="stop"></cds-icon>
+          Add to group
+        </button>
+        <button type="button" class="btn btn-sm btn-secondary" (click)="bobSaget()">
+          <cds-icon shape="close"></cds-icon>
+          Delete
+        </button>
+      </div>
+    </clr-dg-action-bar>
+
     <clr-dg-column>Name</clr-dg-column>
     <clr-dg-column>State</clr-dg-column>
     <clr-dg-column>Action</clr-dg-column>
@@ -25,7 +36,7 @@
     @for (server of dataSource; track server) {
       <clr-dg-row [clrDgItem]="server">
 
-        <clr-dg-action-overflow>
+        <!--clr-dg-action-overflow>
           @if (server.State.Status !== 'running') {
             <button class="action-item" aria-label="startserver" (click)="startContainer(server.Id)">Start</button>
           } @else {
@@ -34,10 +45,11 @@
           <button class="action-item" aria-label="restartserver" (click)="restartContainer(server.Id)">Restart</button>
           <button class="action-item" aria-label="resetserver" (click)="resetContainer(server.Id)">Reset</button>
           <button class="action-item" (click)="removeContainer(server.Id)">Delete</button>
-        </clr-dg-action-overflow>
+        </clr-dg-action-overflow-->
 
         <clr-dg-cell>{{ server.Config.Hostname }}</clr-dg-cell>
-        <clr-dg-cell><span class="color-square {{ server.State.Status }}"></span> {{ server.State.Status }}</clr-dg-cell>
+        <clr-dg-cell><span class="color-square {{ server.State.Status }}"></span> {{ server.State.Status }}
+        </clr-dg-cell>
         <clr-dg-cell>
 
 
