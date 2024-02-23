@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
@@ -32,6 +33,8 @@ func wsHandler(c echo.Context) error {
 		if err != nil {
 			c.Logger().Error(err)
 		}
+		messageParser(msg)
+
 		fmt.Printf("%s\n", msg)
 		err = ws.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("got %s", msg)))
 
@@ -40,5 +43,32 @@ func wsHandler(c echo.Context) error {
 		if err != nil {
 			c.Logger().Error(err)
 		}
+	}
+}
+
+func messageParser(message []byte) {
+
+	messageData := WsMessage{}
+	err := json.Unmarshal(message, &messageData)
+	if err != nil {
+		return
+	}
+
+	switch messageData.Command {
+	case START:
+		// Do start of container
+		break
+	case STOP:
+		// Do stop of container
+		break
+	case RESTART:
+		// Do restart of container
+		break
+	case CREATE:
+		// Do create of container
+		break
+	case REMOVE:
+		// Do remove of container
+		break
 	}
 }
