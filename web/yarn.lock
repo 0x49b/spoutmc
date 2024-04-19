@@ -1337,9 +1337,9 @@
   integrity sha512-S9K+Q39BGOghyLHmR0Wdcmu1i1noSUk8HcvMj+3IaohZw02WFd99aPTQDHJeseXrXZP3CNovaSlePI0R11NcFg==
 
 "@cds/core@^6.9.1":
-  version "6.9.1"
-  resolved "https://registry.yarnpkg.com/@cds/core/-/core-6.9.1.tgz#882c9953a4a16f1df34ceff1ceae3a1bc121db66"
-  integrity sha512-nlysMYtdv5eo0EZNoK9sZqqve/nLXrQ174HAD0aHp4c6lFkLb+MFbe52+yJE4jARe3/rQDRSaNR6GS10PmVUfQ==
+  version "6.10.0"
+  resolved "https://registry.yarnpkg.com/@cds/core/-/core-6.10.0.tgz#4caa5518ed101935fb4778135be2034418496cc8"
+  integrity sha512-6hY5Nk+VCEwICgTwlmCbNkd54sQwwQn8SSg3wjZQ8zQq9gvsjTGDMysZ2GJgeRLB8K1eJbgQuA/VXdQ+T+5MlA==
   dependencies:
     lit "^2.1.3"
     ramda "^0.29.0"
@@ -1349,9 +1349,9 @@
     modern-normalize "1.1.0"
 
 "@clr/angular@^16.2.0":
-  version "16.2.0"
-  resolved "https://registry.yarnpkg.com/@clr/angular/-/angular-16.2.0.tgz#3d719559038558aea2854c0da758833ba25c94ae"
-  integrity sha512-8FDNalINylTUFgRirpRBzHWKOH+ZyRDub4Mc952Hi1eto5+MGtSEA5Lv/AN3paEm/4263VlZghQ4gj0aMl20aA==
+  version "16.3.7"
+  resolved "https://registry.yarnpkg.com/@clr/angular/-/angular-16.3.7.tgz#c0f1310a84f4347c5e1bf295663fae0ac3774dc7"
+  integrity sha512-x1Dhp7G73hnqGRsJR65ItAgbruAbIMVDEO8ymorLszvb07zc4GtZMf6OI6+XW3Q/a4XdUJCEDgX+Xs75Nm0ErA==
   dependencies:
     tslib "^2.3.0"
 
@@ -1361,9 +1361,9 @@
   integrity sha512-bdcSuFvQAbIIp8Q2Fm55BjHW5cawP4xEOkZf2IEIin0d9ViRcAJNjACBCOMDhx2up7nPZsXwN2gL8zJhL7TSZQ==
 
 "@clr/ui@^16.2.0":
-  version "16.2.0"
-  resolved "https://registry.yarnpkg.com/@clr/ui/-/ui-16.2.0.tgz#2b99d2c39457731aa10e9ad293485aad9728fbf2"
-  integrity sha512-KTqn1NnvxJugwqSDq3WXK3rRY9lwQwVDQWZZejPVEz1x26DHhkHjrtqful5AxFOt3vkdK+CuVh6yF8J/Wjq+UA==
+  version "16.3.7"
+  resolved "https://registry.yarnpkg.com/@clr/ui/-/ui-16.3.7.tgz#fe4d873b28871f22a534eb38d97071ae05120159"
+  integrity sha512-qo3lp1Df4SNT3xyZ0BI97nmF7KDGbbLq41y51dZVs4Ig0YFLM6+CmLm5UnGQyLyxxrJO+3w7tWHLWfRcvFOSQQ==
 
 "@colors/colors@1.5.0":
   version "1.5.0"
@@ -1689,9 +1689,9 @@
   integrity sha512-Hcv+nVC0kZnQ3tD9GVu5xSMR4VVYOteQIr/hwFPVEvPdlXqgGEuRjiheChHgdM+JyqdgNcmzZOX/tnl0JOiI7A==
 
 "@lit-labs/ssr-dom-shim@^1.0.0", "@lit-labs/ssr-dom-shim@^1.1.0":
-  version "1.1.2"
-  resolved "https://registry.yarnpkg.com/@lit-labs/ssr-dom-shim/-/ssr-dom-shim-1.1.2.tgz#d693d972974a354034454ec1317eb6afd0b00312"
-  integrity sha512-jnOD+/+dSrfTWYfSXBXlo5l5f0q1UuJo3tkbMDCYA2lKUYq79jaxqtGEvnRoh049nt1vdo1+45RinipU6FGY2g==
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@lit-labs/ssr-dom-shim/-/ssr-dom-shim-1.2.0.tgz#353ce4a76c83fadec272ea5674ede767650762fd"
+  integrity sha512-yWJKmpGE6lUURKAaIltoPIE/wrbY3TEkqQt+X0m+7fQNnAv0keydnYvbiJFP1PnMhizmIWRWOG5KLhYyc/xl+g==
 
 "@lit/reactive-element@^1.3.0", "@lit/reactive-element@^1.6.0":
   version "1.6.3"
