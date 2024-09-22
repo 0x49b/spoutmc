@@ -1304,9 +1304,9 @@
   integrity sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==
 
 "@dimaslz/ng-heroicons@^1.16.0":
-  version "1.16.0"
-  resolved "https://registry.yarnpkg.com/@dimaslz/ng-heroicons/-/ng-heroicons-1.16.0.tgz#903fbf0ed73d5810bcac539c3d332c6ab4f76a41"
-  integrity sha512-DZpbzVsNXTFyP4or6IjUnYi69+DRuVli6Hgb3uUDpdop+dKxmFNE/kJVOu/PDTOygTW3rpTDbLGWWs8BL3SGBA==
+  version "1.18.2"
+  resolved "https://registry.yarnpkg.com/@dimaslz/ng-heroicons/-/ng-heroicons-1.18.2.tgz#857e1df8c342709d7f8a2e30a9afd373483c7371"
+  integrity sha512-9GW9Q1C3dNlD3EGxi/IV6vYLEyu/xuGn6KgoU0P/7MtcqU5XkaNgRm8cpTUGqBVYhr93QLuE8JnEAEY4vsELZw==
   dependencies:
     tslib "^2.3.0"
 
