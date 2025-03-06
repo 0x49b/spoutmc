@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	dcl "github.com/docker/docker/client"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
@@ -342,7 +343,7 @@ func echoLogs(c echo.Context) error {
 	}
 
 	ctx := context.Background()
-	execConfig := types.ExecConfig{
+	execConfig := container.ExecOptions{
 		AttachStderr: true,
 		AttachStdin:  true,
 		AttachStdout: true,
@@ -358,7 +359,7 @@ func echoLogs(c echo.Context) error {
 		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
 		return err
 	}
-	execAttachConfig := types.ExecStartCheck{
+	execAttachConfig := container.ExecAttachOptions{
 		Detach: false,
 		Tty:    false,
 	}

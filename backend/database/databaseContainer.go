@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -74,7 +73,7 @@ func checkHasDatabaseContainer() bool {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("name", databaseContainerName)
 
-	opts := types.ContainerListOptions{All: true, Filters: containerFilter}
+	opts := container.ListOptions{All: true, Filters: containerFilter}
 	containerList, err := cli.ContainerList(ctx, opts)
 	if err != nil {
 		return false
@@ -92,7 +91,7 @@ func restartDatabaseContainer() string {
 	}
 
 	if databaseContainer.State == "exited" {
-		err := cli.ContainerStart(ctx, databaseContainer.ID, types.ContainerStartOptions{})
+		err := cli.ContainerStart(ctx, databaseContainer.ID, container.StartOptions{})
 		if err != nil {
 			logger.Error(err.Error())
 		}
@@ -190,7 +189,7 @@ func createDatabaseContainer() string {
 		logger.Error("", zap.Error(err))
 	}
 
-	if err := cli.ContainerStart(ctx, databaseContainer.ID, types.ContainerStartOptions{}); err != nil {
+	if err := cli.ContainerStart(ctx, databaseContainer.ID, container.StartOptions{}); err != nil {
 		logger.Error("Cannot start database container", zap.Error(err))
 	}
 

@@ -3,7 +3,7 @@ package watchdog
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"go.uber.org/zap"
 	"spoutmc/backend/docker"
@@ -94,7 +94,7 @@ loop:
 func startContainer(containerId string, containerName string) {
 	logger.Info(fmt.Sprintf("[WatchDog] try starting container %s", containerName))
 	checkForServerTapPlugin(containerId)
-	err := cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{})
+	err := cli.ContainerStart(ctx, containerId, container.StartOptions{})
 	if err != nil {
 		logger.Error("[WatchDog] Could not start container !!!")
 	}

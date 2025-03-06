@@ -1,13 +1,13 @@
 package docker
 
 import (
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 func ExecCommand(containerId string, minecraftCommand string) (int, error) {
 
 	// Prepare the exec create options
-	createResp, err := cli.ContainerExecCreate(ctx, containerId, types.ExecConfig{
+	createResp, err := cli.ContainerExecCreate(ctx, containerId, container.ExecOptions{
 		Cmd: []string{"mc-send-to-console", minecraftCommand},
 	})
 	if err != nil {
@@ -15,7 +15,7 @@ func ExecCommand(containerId string, minecraftCommand string) (int, error) {
 	}
 
 	// Execute the command in the container
-	err = cli.ContainerExecStart(ctx, createResp.ID, types.ExecStartCheck{})
+	err = cli.ContainerExecStart(ctx, createResp.ID, container.ExecStartOptions{})
 	if err != nil {
 		return -1, err
 	}

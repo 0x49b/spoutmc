@@ -1,16 +1,16 @@
 package docker
 
 import (
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
 
-func CreateSpoutNetwork(networkName string) types.NetworkResource {
+func CreateSpoutNetwork(networkName string) network.Inspect {
 
-	networkList, err := cli.NetworkList(ctx, types.NetworkListOptions{})
+	networkList, err := cli.NetworkList(ctx, network.ListOptions{})
 	if err != nil {
-		return types.NetworkResource{}
+		return network.Inspect{}
 	}
 
 	var availableNetworks []string
@@ -20,11 +20,11 @@ func CreateSpoutNetwork(networkName string) types.NetworkResource {
 	}
 
 	if !slices.Contains(availableNetworks, networkName) {
-		spoutNetwork, err := cli.NetworkCreate(ctx, networkName, types.NetworkCreate{Driver: "bridge"})
+		spoutNetwork, err := cli.NetworkCreate(ctx, networkName, network.CreateOptions{Driver: "bridge"})
 		if err != nil {
 			logger.Error("Cannot create network", zap.Error(err))
 		}
-		return types.NetworkResource{ID: spoutNetwork.ID, Name: networkName}
+		return network.Inspect{ID: spoutNetwork.ID, Name: networkName}
 	} else {
 		for _, n := range networkList {
 			if networkName == n.Name {
@@ -33,11 +33,11 @@ func CreateSpoutNetwork(networkName string) types.NetworkResource {
 		}
 	}
 
-	return types.NetworkResource{}
+	return network.Inspect{}
 }
 
-func GetSpoutNetwork() types.NetworkResource {
-	networkList, _ := cli.NetworkList(ctx, types.NetworkListOptions{})
+func GetSpoutNetwork() network.Inspect {
+	networkList, _ := cli.NetworkList(ctx, network.ListOptions{})
 	networkName := "spoutnetwork" // todo get this from config
 	for _, n := range networkList {
 		if networkName == n.Name {
@@ -45,7 +45,7 @@ func GetSpoutNetwork() types.NetworkResource {
 		}
 	}
 
-	return types.NetworkResource{}
+	return network.Inspect{}
 }
 
 // todo don't know if this is needed

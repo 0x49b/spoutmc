@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"go.uber.org/zap"
@@ -31,7 +32,7 @@ func StreamLogsFromContainer(containerName string) {
 		return
 	}
 
-	i, err := cli.ContainerLogs(context.Background(), cid.ID, types.ContainerLogsOptions{
+	i, err := cli.ContainerLogs(context.Background(), cid.ID, container.LogsOptions{
 		ShowStderr: true,
 		ShowStdout: true,
 		Timestamps: false,
@@ -65,7 +66,7 @@ func StreamLogsFromContainer(containerName string) {
 func PullImage(imageName string) {
 
 	logger.Info("Pulling/Checking image ", zap.String("imageName", imageName))
-	pull, err := cli.ImagePull(ctx, imageName, types.ImagePullOptions{})
+	pull, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
 		return
 	}
@@ -79,7 +80,7 @@ func GetNetworkContainers() ([]types.Container, error) {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("label", "io.spout.network=true")
 
-	list, err := cli.ContainerList(ctx, types.ContainerListOptions{All: true, Filters: containerFilter})
+	list, err := cli.ContainerList(ctx, container.ListOptions{All: true, Filters: containerFilter})
 	if err != nil {
 		return []types.Container{}, err
 	}
@@ -92,7 +93,7 @@ func containerExists(containerName string) bool {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("name", containerName)
 
-	containerList, _ := cli.ContainerList(ctx, types.ContainerListOptions{All: true, Filters: containerFilter})
+	containerList, _ := cli.ContainerList(ctx, container.ListOptions{All: true, Filters: containerFilter})
 	return len(containerList) > 0
 }
 
@@ -100,7 +101,7 @@ func GetContainer(containerName string) (types.Container, error) {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("name", containerName)
 
-	containerList, err := cli.ContainerList(ctx, types.ContainerListOptions{All: true, Filters: containerFilter})
+	containerList, err := cli.ContainerList(ctx, container.ListOptions{All: true, Filters: containerFilter})
 
 	if err != nil {
 		return types.Container{}, err
@@ -121,10 +122,10 @@ func GetContainerById(containerId string) (types.ContainerJSON, error) {
 	return requestedContainer, nil
 }
 
-func getHostNetworkId() (types.NetworkResource, error) {
-	networks, err := cli.NetworkList(ctx, types.NetworkListOptions{})
+func getHostNetworkId() (network.Inspect, error) {
+	networks, err := cli.NetworkList(ctx, network.ListOptions{})
 	if err != nil {
-		return types.NetworkResource{}, err
+		return network.Inspect{}, err
 	}
 
 	for _, n := range networks {
@@ -133,7 +134,7 @@ func getHostNetworkId() (types.NetworkResource, error) {
 		}
 	}
 
-	return types.NetworkResource{}, nil
+	return network.Inspect{}, nil
 }
 
 func StartContainer(s models.SpoutServer) {
@@ -200,7 +201,7 @@ func StartContainer(s models.SpoutServer) {
 			logger.Info(fmt.Sprintf("container %s created", s.Name))
 		}
 
-		if err := cli.ContainerStart(ctx, spoutContainer.ID, types.ContainerStartOptions{}); err != nil {
+		if err := cli.ContainerStart(ctx, spoutContainer.ID, container.StartOptions{}); err != nil {
 			logger.Error("Cannot start container", zap.Error(err))
 		}
 	} else {
@@ -214,7 +215,7 @@ func StartContainer(s models.SpoutServer) {
 		}
 
 		if startContainer.State == "exited" {
-			err := cli.ContainerStart(ctx, startContainer.ID, types.ContainerStartOptions{})
+			err := cli.ContainerStart(ctx, startContainer.ID, container.StartOptions{})
 			if err != nil {
 				logger.Error(err.Error())
 			}
@@ -255,7 +256,7 @@ func StopContainerById(containerId string) {
 }
 
 func StartContainerById(containerId string) {
-	if err := cli.ContainerStart(ctx, containerId, types.ContainerStartOptions{}); err != nil {
+	if err := cli.ContainerStart(ctx, containerId, container.StartOptions{}); err != nil {
 		logger.Error("Cannot start container", zap.Error(err))
 	}
 }

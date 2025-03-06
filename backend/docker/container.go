@@ -219,7 +219,7 @@ func DeleteContainer(containerId string) (types.ContainerJSON, error) {
 		logger.Error("", zap.Error(err))
 		return types.ContainerJSON{}, err
 	}
-	err = cli.ContainerRemove(ctx, containerId, types.ContainerRemoveOptions{Force: true})
+	err = cli.ContainerRemove(ctx, containerId, container.RemoveOptions{Force: true})
 	if err != nil {
 		logger.Error("", zap.Error(err))
 		return types.ContainerJSON{}, err
@@ -232,14 +232,15 @@ func DeleteContainer(containerId string) (types.ContainerJSON, error) {
 	return removeContainer, nil
 }
 
-func GetContainerStats(containerId string) types.ContainerStats {
+/*
+func GetContainerStats(containerId string) container.StatsResponse {
 	stats, err := cli.ContainerStats(ctx, containerId, false)
 	if err != nil {
 		logger.Error("", zap.Error(err))
 	}
 
 	return stats
-}
+}*/
 
 func CreateContainer(serverName string, proxy bool, lobby bool) (container.CreateResponse, error) {
 
@@ -307,7 +308,7 @@ func CreateContainer(serverName string, proxy bool, lobby bool) (container.Creat
 		logger.Info(fmt.Sprintf("container %s created", serverName))
 	}
 
-	if err := cli.ContainerStart(ctx, spoutContainer.ID, types.ContainerStartOptions{}); err != nil {
+	if err := cli.ContainerStart(ctx, spoutContainer.ID, container.StartOptions{}); err != nil {
 		logger.Error("Cannot start container", zap.Error(err))
 	}
 

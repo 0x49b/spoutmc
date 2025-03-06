@@ -30,7 +30,6 @@ export interface ReloadTimes {
   selector: 'app-server',
   standalone: true,
   imports: [
-    RouterLink,
     ClrDatagridModule,
     LoaderComponent,
     FormsModule,

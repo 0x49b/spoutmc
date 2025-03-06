@@ -3,7 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
 
@@ -35,7 +35,7 @@ func ReadLogs(containerName string) error {
 	}
 	*/
 
-	responseBody, err := cli.ContainerLogs(ctx, c.ID, types.ContainerLogsOptions{Follow: true})
+	responseBody, err := cli.ContainerLogs(ctx, c.ID, container.LogsOptions{Follow: true})
 	if err != nil {
 		return err
 	}
