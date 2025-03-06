@@ -27,7 +27,7 @@
     "@clr/ui": "^17.0.0",
     "@dimaslz/ng-heroicons": "^1.16.0",
     "@ng-icons/core": "^26.3.0",
-    "@ng-icons/heroicons": "^26.3.0",
+    "@ng-icons/heroicons": "^30.0.0",
     "@webcomponents/custom-elements": "^1.6.0",
     "rxjs": "^7.8.1",
     "socket.io-client": "^4.7.4",
