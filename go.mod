@@ -6,7 +6,7 @@ require (
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/glebarez/sqlite v1.11.0
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/twistedasylummc/minime v0.0.4
 	go.uber.org/zap v1.27.0
