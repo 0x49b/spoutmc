@@ -1,6 +1,6 @@
 module spoutmc
 
-go 1.19
+go 1.24
 
 require (
 	github.com/docker/docker v24.0.9+incompatible
