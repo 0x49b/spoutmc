@@ -1591,12 +1591,12 @@
   dependencies:
     tslib "^2.2.0"
 
-"@ng-icons/heroicons@^26.3.0":
-  version "26.5.0"
-  resolved "https://registry.yarnpkg.com/@ng-icons/heroicons/-/heroicons-26.5.0.tgz#d0a93a88a7d55b7fd084c6ada36752b451959417"
-  integrity sha512-hdyY0ZFZe4D+ELuPXdE3StLGr9+avwtjT+A7FedcFoYyNotvLwMTefnA/1I2KfcCGoE5qGt2uRzS9O45fw86MQ==
+"@ng-icons/heroicons@^30.0.0":
+  version "30.4.0"
+  resolved "https://registry.yarnpkg.com/@ng-icons/heroicons/-/heroicons-30.4.0.tgz#1b2628f59b2c84a3b2a85e00e426e49bace6de51"
+  integrity sha512-0ZUiaZPxD5cqUA8bJqf6EVkSl5hNW+MMf8nWoBsSOsiID94FmrYuBulECXYXDB+rOs7etRLCak18ksriWh0rDA==
   dependencies:
-    tslib "^2.2.0"
+    tslib "^2.3.0"
 
 "@ngtools/webpack@17.3.12":
   version "17.3.12"
