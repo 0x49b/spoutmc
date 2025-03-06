@@ -1645,9 +1645,9 @@
     tslib "^2.2.0"
 
 "@ng-icons/heroicons@^26.3.0":
-  version "26.3.0"
-  resolved "https://registry.yarnpkg.com/@ng-icons/heroicons/-/heroicons-26.3.0.tgz#e8322fb5ecae29e6cb29c0338e81302d3b011c22"
-  integrity sha512-rj0Y6lWtQqADtMGx/cipY/ezocSVwSKEFYZEvRMFOrDIvTx80aQKldmnCVl97OQlmBKfefVpT6NQgd3G4ZNGWQ==
+  version "26.5.0"
+  resolved "https://registry.yarnpkg.com/@ng-icons/heroicons/-/heroicons-26.5.0.tgz#d0a93a88a7d55b7fd084c6ada36752b451959417"
+  integrity sha512-hdyY0ZFZe4D+ELuPXdE3StLGr9+avwtjT+A7FedcFoYyNotvLwMTefnA/1I2KfcCGoE5qGt2uRzS9O45fw86MQ==
   dependencies:
     tslib "^2.2.0"
 
@@ -6406,12 +6406,12 @@ tree-kill@1.2.2:
   resolved "https://registry.yarnpkg.com/tree-kill/-/tree-kill-1.2.2.tgz#4ca09a9092c88b73a7cdc5e8a01b507b0790a0cc"
   integrity sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==
 
-tslib@2.6.2, tslib@^2.0.0, tslib@^2.1.0, tslib@^2.2.0, tslib@^2.3.0:
+tslib@2.6.2, tslib@^2.0.0, tslib@^2.1.0, tslib@^2.3.0:
   version "2.6.2"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.6.2.tgz#703ac29425e7b37cd6fd456e92404d46d1f3e4ae"
   integrity sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==
 
-tslib@^2.3.1:
+tslib@^2.2.0, tslib@^2.3.1:
   version "2.8.1"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.8.1.tgz#612efe4ed235d567e8aba5f2a5fab70280ade83f"
   integrity sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==
