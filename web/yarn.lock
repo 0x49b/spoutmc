@@ -1281,10 +1281,10 @@
     "@cds/city" "^1.1.0"
     modern-normalize "1.1.0"
 
-"@clr/angular@^16.2.0":
-  version "16.6.0"
-  resolved "https://registry.yarnpkg.com/@clr/angular/-/angular-16.6.0.tgz#c7c8ab938913d63084cd898a48af352178326985"
-  integrity sha512-67mSd3O1QYzQ8FpuhKvLybiwr5XbgO5zZtGirKIa6RXF+PN4CUD7K95cDIaaNUIfhhhF3mTf+K3H9yYNV6yBOA==
+"@clr/angular@^17.0.0":
+  version "17.7.1"
+  resolved "https://registry.yarnpkg.com/@clr/angular/-/angular-17.7.1.tgz#8472a4ffe4fd13541cb6359da959de7c13308c82"
+  integrity sha512-cv/iSyiAdwlgGn4Z12PD14cndU4SpC1yesbBX/7li5mXqcc6sAwcduiEOuoe0BpRs6dEOiCUfgcRZBeIjl1GdA==
   dependencies:
     tslib "^2.3.0"
 
@@ -1293,10 +1293,10 @@
   resolved "https://registry.yarnpkg.com/@clr/icons/-/icons-13.0.2.tgz#600b530fe8e0d654de81f97d2b64db5905266eb6"
   integrity sha512-bdcSuFvQAbIIp8Q2Fm55BjHW5cawP4xEOkZf2IEIin0d9ViRcAJNjACBCOMDhx2up7nPZsXwN2gL8zJhL7TSZQ==
 
-"@clr/ui@^16.2.0":
-  version "16.6.0"
-  resolved "https://registry.yarnpkg.com/@clr/ui/-/ui-16.6.0.tgz#1cd9e47695e46032b23ec7963bdebad2f3e60bcf"
-  integrity sha512-IiNoJpdUe/o8goJfDVfz1CjYA3l4D2M0aqB/bX9Xlf9D+nfGyprqHCsm80h2RDlPQfJdSjHv3KvGlFx4VL/v9A==
+"@clr/ui@^17.0.0":
+  version "17.7.1"
+  resolved "https://registry.yarnpkg.com/@clr/ui/-/ui-17.7.1.tgz#f304ecf1e5446bfdd34030d09d96a8d8e76062d1"
+  integrity sha512-6gEwRMR/8xC9KNQkxw38oDffZM+rlDxQpJ+gqWLVl4e3hGZBurrQxeiW/mF1JO/rmVt/A12Plk+Of0jGgodENA==
 
 "@colors/colors@1.5.0":
   version "1.5.0"
