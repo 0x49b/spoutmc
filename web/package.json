@@ -19,7 +19,7 @@
     "@angular/platform-browser": "^17.0.0",
     "@angular/platform-browser-dynamic": "^17.0.0",
     "@angular/router": "^17.0.0",
-    "@cds/angular": "6.9.1",
+    "@cds/angular": "6.15.1",
     "@cds/city": "^1.1.0",
     "@cds/core": "^6.9.1",
     "@clr/angular": "^16.2.0",
@@ -45,6 +45,6 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "5.2.2"
+    "typescript": "5.8.2"
   }
 }
