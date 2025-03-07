@@ -148,29 +148,29 @@ entities:
     despawn-range-shape: ELLIPSOID
     despawn-ranges:
       ambient:
-        hard: 128
-        soft: 32
+        hard: default
+        soft: default
       axolotls:
-        hard: 128
-        soft: 32
+        hard: default
+        soft: default
       creature:
-        hard: 128
-        soft: 32
+        hard: default
+        soft: default
       misc:
-        hard: 128
-        soft: 32
+        hard: default
+        soft: default
       monster:
-        hard: 128
-        soft: 32
+        hard: default
+        soft: default
       underground_water_creature:
-        hard: 128
-        soft: 32
+        hard: default
+        soft: default
       water_ambient:
-        hard: 64
-        soft: 32
+        hard: default
+        soft: default
       water_creature:
-        hard: 128
-        soft: 32
+        hard: default
+        soft: default
     despawn-time:
       llama_spit: disabled
       snowball: disabled
@@ -263,7 +263,7 @@ fishing-time-range:
   maximum: 600
   minimum: 100
 fixes:
-  disable-unloaded-chunk-enderpearl-exploit: true
+  disable-unloaded-chunk-enderpearl-exploit: false
   falling-block-height-nerf: disabled
   fix-items-merging-through-walls: false
   prevent-tnt-from-moving-in-water: false
@@ -297,7 +297,7 @@ misc:
   disable-relative-projectile-velocity: false
   disable-sprint-interruption-on-attack: false
   legacy-ender-pearl-behavior: false
-  max-leash-distance: 10.0
+  max-leash-distance: default
   redstone-implementation: VANILLA
   shield-blocking-delay: 5
   show-sign-click-command-failure-msgs-to-player: false
@@ -307,8 +307,6 @@ scoreboards:
   use-vanilla-world-scoreboard-name-coloring: false
 spawn:
   allow-using-signs-inside-spawn-protection: false
-  keep-spawn-loaded: true
-  keep-spawn-loaded-range: 10
 tick-rates:
   behavior:
     villager:

@@ -57,8 +57,10 @@ ping-passthrough = "DISABLED"
 # If not enabled (default is true) player IP addresses will be replaced by <ip address withheld> in logs
 enable-player-address-logging = true
 forced-hosts = {}
-
 [servers]
+spoutlobby="spoutlobby:25565"
+spoutskyblock="spoutskyblock:25565"
+try = ["spoutlobby"]
 	spoutlobby = "spoutlobby:25565"
 	restcheck = "restcheck:25565"
 	spoutskyblock = "spoutskyblock:25565"
