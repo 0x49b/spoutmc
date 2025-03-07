@@ -22,3 +22,4 @@ dist/
 /testservers/data/spoutskyblock/plugins/
 /C:/
 /testservers/data/*/modules/
+*.tmp
