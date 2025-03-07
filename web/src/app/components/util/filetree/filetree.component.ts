@@ -7,7 +7,7 @@ import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 @Component({
   selector: 'app-filetree',
   standalone: true,
-  imports: [ClrTreeViewModule, NgComponentOutlet,],
+  imports: [ClrTreeViewModule,],
   templateUrl: './filetree.component.html',
   styleUrl: './filetree.component.css'
 })

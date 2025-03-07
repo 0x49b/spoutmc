@@ -14,7 +14,6 @@ import {NgHeroiconsModule} from "@dimaslz/ng-heroicons";
     NgOptimizedImage,
     ClrVerticalNavModule,
     ClrDropdownModule,
-    NgIcon,
     NgHeroiconsModule,
     RouterLinkActive
   ],

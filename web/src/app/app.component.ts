@@ -5,7 +5,7 @@ import {SidenavComponent} from "./components/sidenav/sidenav.component";
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, NgOptimizedImage, SidenavComponent],
+  imports: [CommonModule, SidenavComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })

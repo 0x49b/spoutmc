@@ -46,6 +46,8 @@ settings:
   moved-too-quickly-multiplier: 10.0
   netty-threads: 4
   attribute:
+    maxAbsorption:
+      max: 2048.0
     maxHealth:
       max: 2048.0
     movementSpeed:
@@ -57,6 +59,7 @@ settings:
   debug: false
 world-settings:
   default:
+    unload-frozen-chunks: false
     below-zero-generation-in-existing-chunks: true
     entity-tracking-range:
       players: 48
