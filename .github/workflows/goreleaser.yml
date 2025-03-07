@@ -8,10 +8,10 @@ on:
     # doing builds Tue-Sat, so we have changes from Fri
     # available already on Sat
     #- cron: '0 0 * * *'
-  push:
+  # push:
     # run only against tags
-    tags:
-      - "*"
+    #tags:
+      #- "*"
 
 permissions:
   contents: write
