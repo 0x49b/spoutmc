@@ -35,7 +35,6 @@ func wsHandler(c echo.Context) error {
 		}
 		messageParser(msg)
 
-		fmt.Printf("%s\n", msg)
 		err = ws.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("got %s", msg)))
 
 		// Write
