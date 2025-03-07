@@ -3,7 +3,8 @@
 <div>
   <clr-select-container>
     <label>Reload every</label>
-    <select clrSelect name="options" [value]="reload" [(ngModel)]="reload" (change)="setNewInterval()">
+    <select clrSelect name="options" [value]="reload" [(ngModel)]="reload"
+            (change)="setNewInterval()">
       @for (r of reloadTimes; track r) {
         <option [value]="r.value">{{ r.viewValue }}</option>
       }
@@ -15,20 +16,7 @@
   <app-loader/>
 } @else {
   <clr-datagrid [(clrDgSelected)]="selected">
-
-    <clr-dg-action-bar>
-      <div class="btn-group">
-        <button type="button" class="btn btn-sm btn-secondary" (click)="bobSaget()">
-          <cds-icon shape="stop"></cds-icon>
-          Add to group
-        </button>
-        <button type="button" class="btn btn-sm btn-secondary" (click)="bobSaget()">
-          <cds-icon shape="close"></cds-icon>
-          Delete
-        </button>
-      </div>
-    </clr-dg-action-bar>
-
+    
     <clr-dg-column>Name</clr-dg-column>
     <clr-dg-column>State</clr-dg-column>
     <clr-dg-column>Action</clr-dg-column>
@@ -36,22 +24,37 @@
     @for (server of dataSource; track server) {
       <clr-dg-row [clrDgItem]="server">
 
-        <!--clr-dg-action-overflow>
-          @if (server.State.Status !== 'running') {
-            <button class="action-item" aria-label="startserver" (click)="startContainer(server.Id)">Start</button>
-          } @else {
-            <button class="action-item" aria-label="stopserver" (click)="stopContainer(server.Id)">Stop</button>
-          }
-          <button class="action-item" aria-label="restartserver" (click)="restartContainer(server.Id)">Restart</button>
-          <button class="action-item" aria-label="resetserver" (click)="resetContainer(server.Id)">Reset</button>
-          <button class="action-item" (click)="removeContainer(server.Id)">Delete</button>
-        </clr-dg-action-overflow-->
-
         <clr-dg-cell>{{ server.Config.Hostname }}</clr-dg-cell>
-        <clr-dg-cell><span class="color-square {{ server.State.Status }}"></span> {{ server.State.Status }}
+        <clr-dg-cell><span
+          class="color-square {{ server.State.Status }}"></span>
+          {{ server.State.Status }} since {{ server.State.StartedAt | date:'medium' }}
         </clr-dg-cell>
         <clr-dg-cell>
 
+          <clr-button-group class="btn-primary">
+            <clr-button class="btn-icon btn-success"
+                        (click)="startContainer(server.Id)"
+                        [disabled]="server.State.Running">
+              <cds-icon shape="play"></cds-icon>
+            </clr-button>
+            <clr-button class="btn-icon btn-warning"
+                        (click)="restartContainer(server.Id)">
+              <cds-icon shape="refresh"></cds-icon>
+            </clr-button>
+            <clr-button class="btn-icon btn-danger"
+                        (click)="stopContainer(server.Id)"
+                        [disabled]="!server.State.Running">
+              <cds-icon shape="stop"></cds-icon>
+            </clr-button>
+            <clr-button class="btn-icon btn-danger"
+                        (click)="resetContainer(server.Id)">
+              <cds-icon shape="repeat"></cds-icon>
+            </clr-button>
+            <clr-button class="btn-icon btn-danger"
+                        (click)="removeContainer(server.Id)">
+              <cds-icon shape="trash"></cds-icon>
+            </clr-button>
+          </clr-button-group>
 
         </clr-dg-cell>
       </clr-dg-row>
@@ -70,7 +73,9 @@
   </div>
   <div class="modal-footer">
     <button type="button" class="btn btn-outline" (click)="dialogOpen = false">Cancel</button>
-    <button type="button" class="btn btn-warning" (click)="dialogOnConfirmation(dialogCommand.callback)">Ok</button>
+    <button type="button" class="btn btn-warning"
+            (click)="dialogOnConfirmation(dialogCommand.callback)">Ok
+    </button>
   </div>
 </clr-modal>
 
@@ -97,15 +102,18 @@
       <clr-radio-container>
         <label>Server Type</label>
         <clr-radio-wrapper>
-          <input type="radio" clrRadio value="game" name="servertype" formControlName="servertype" checked/>
+          <input type="radio" clrRadio value="game" name="servertype" formControlName="servertype"
+                 checked/>
           <label>Gameserver</label>
         </clr-radio-wrapper>
         <clr-radio-wrapper>
-          <input type="radio" clrRadio value="proxy" name="servertype" formControlName="servertype"/>
+          <input type="radio" clrRadio value="proxy" name="servertype"
+                 formControlName="servertype"/>
           <label>Proxy</label>
         </clr-radio-wrapper>
         <clr-radio-wrapper>
-          <input type="radio" clrRadio value="lobby" name="servertype" formControlName="servertype"/>
+          <input type="radio" clrRadio value="lobby" name="servertype"
+                 formControlName="servertype"/>
           <label>Lobby</label>
         </clr-radio-wrapper>
       </clr-radio-container>

@@ -1,6 +1,7 @@
 import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {RouterLink} from "@angular/router";
 import {
+  ClarityModule,
   ClrDatagridModule,
   ClrDropdownModule,
   ClrInputModule,
@@ -20,6 +21,10 @@ import {RestService} from "../../services/rest/rest.service";
 import {ContainerCommand} from "../../model/containerCommand";
 import {ServerType} from "../../model/serverType";
 import {WebsocketService} from "../../services/websocket/websocket.service";
+import '@cds/core/icon/register.js';
+import { ClarityIcons, playIcon,refreshIcon,stopIcon, repeatIcon, trashIcon } from '@cds/core/icon';
+import {DatePipe, JsonPipe, NgIf} from "@angular/common";
+
 
 export interface ReloadTimes {
   value: number,
@@ -30,6 +35,7 @@ export interface ReloadTimes {
   selector: 'app-server',
   standalone: true,
   imports: [
+    ClarityModule,
     ClrDatagridModule,
     LoaderComponent,
     FormsModule,
@@ -41,7 +47,10 @@ export interface ReloadTimes {
     ReactiveFormsModule,
     ClrInputModule,
     ClrRadioModule,
-    ClrDropdownModule
+    ClrDropdownModule,
+    NgIf,
+    JsonPipe,
+    DatePipe
   ],
   templateUrl: './server.component.html',
   styleUrl: './server.component.css'
@@ -84,6 +93,7 @@ export class ServerComponent implements OnInit, OnDestroy {
   })
 
   constructor(private restService: RestService, private wsService: WebsocketService) {
+    ClarityIcons.addIcons(playIcon,refreshIcon,stopIcon, repeatIcon, trashIcon);
     this.reload = parseInt(this.readReloadTime())
   }
 
@@ -141,9 +151,7 @@ export class ServerComponent implements OnInit, OnDestroy {
       }
     })
   }
-
-  bobSaget() {
-  }
+  
 
   checkForLabel(servers: MCServerDetail[], label: string): boolean {
     servers.forEach(s => {
