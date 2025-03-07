@@ -22,7 +22,7 @@ import {ContainerCommand} from "../../model/containerCommand";
 import {ServerType} from "../../model/serverType";
 import {WebsocketService} from "../../services/websocket/websocket.service";
 import '@cds/core/icon/register.js';
-import { ClarityIcons, playIcon,refreshIcon,stopIcon, repeatIcon, trashIcon } from '@cds/core/icon';
+import { ClarityIcons, playIcon,refreshIcon,stopIcon, repeatIcon, trashIcon, infoStandardIcon } from '@cds/core/icon';
 import {DatePipe, JsonPipe, NgIf} from "@angular/common";
 
 
@@ -59,6 +59,7 @@ export class ServerComponent implements OnInit, OnDestroy {
 
   loading = false
   actionLoading = false
+  serverInfoOpened = false;
   dataSource: MCServerDetail[] = []
   reloadInterval: any = null
   reload: number = 5
@@ -93,7 +94,7 @@ export class ServerComponent implements OnInit, OnDestroy {
   })
 
   constructor(private restService: RestService, private wsService: WebsocketService) {
-    ClarityIcons.addIcons(playIcon,refreshIcon,stopIcon, repeatIcon, trashIcon);
+    ClarityIcons.addIcons(playIcon,refreshIcon,stopIcon, repeatIcon, trashIcon, infoStandardIcon);
     this.reload = parseInt(this.readReloadTime())
   }
 
@@ -151,7 +152,7 @@ export class ServerComponent implements OnInit, OnDestroy {
       }
     })
   }
-  
+
 
   checkForLabel(servers: MCServerDetail[], label: string): boolean {
     servers.forEach(s => {
