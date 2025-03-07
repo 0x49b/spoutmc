@@ -72,7 +72,7 @@ func resetContainer(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, &model.APIError{E: err.Error()})
 	}
 
-	watchdog.ExcludeFromToWatchdog(containerId)
+	watchdog.ExcludeFromWatchdog(containerId)
 	docker.StopContainerById(containerId)
 
 	dirPath := filepath.Join(container.Mounts[0].Source, "*.jar")
@@ -296,7 +296,7 @@ func startContainerById(c echo.Context) error {
 
 func stopContainerById(c echo.Context) error {
 	containerId := c.Param("id")
-	watchdog.ExcludeFromToWatchdog(containerId)
+	watchdog.ExcludeFromWatchdog(containerId)
 
 	docker.StopContainerById(containerId)
 	container, err := docker.GetContainerById(c.Param("id"))

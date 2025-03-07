@@ -32,7 +32,7 @@ func Shutdown() error {
 	return nil
 }
 
-func ExcludeFromToWatchdog(containerId string) {
+func ExcludeFromWatchdog(containerId string) {
 	containerIds = append(containerIds, containerId)
 	logger.Debug(fmt.Sprintf("[WatchDog] added %s", containerId))
 }

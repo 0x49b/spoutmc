@@ -101,8 +101,9 @@ func readServersToStart() (models.SpoutConfiguration, error) {
 	defer func(jsonFile *os.File) {
 		err := jsonFile.Close()
 		if err != nil {
-
+			fmt.Println(err)
 		}
+
 	}(jsonFile)
 
 	byteValue, _ := io.ReadAll(jsonFile)
