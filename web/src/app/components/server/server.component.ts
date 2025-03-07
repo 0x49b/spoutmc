@@ -48,9 +48,7 @@ export interface ReloadTimes {
     ClrInputModule,
     ClrRadioModule,
     ClrDropdownModule,
-    NgIf,
-    JsonPipe,
-    DatePipe
+    JsonPipe
   ],
   templateUrl: './server.component.html',
   styleUrl: './server.component.css'
@@ -100,11 +98,11 @@ export class ServerComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
 
-    this.wsService.connect();
-    this.wsService.receiveMessage().subscribe((message) => {
-      console.log(message)
-    })
-    this.sendMessage()
+    //this.wsService.connect();
+    //this.wsService.receiveMessage().subscribe((message) => {
+    //  console.log(message)
+    //})
+    //this.sendMessage()
 
 
     this.loading = true
@@ -113,7 +111,7 @@ export class ServerComponent implements OnInit, OnDestroy {
   }
 
   sendMessage() {
-    this.wsService.sendMessage("bola")
+    //this.wsService.sendMessage("bola")
   }
 
   ngOnDestroy() {
@@ -123,11 +121,11 @@ export class ServerComponent implements OnInit, OnDestroy {
   initializeInterval() {
     window.localStorage.setItem(this.RELOAD_STORAGE_KEY, this.reload.toString())
     // Switch Back on when correct reload in place with changing each item
-    /*if (this.reload > 0) {
+    if (this.reload > 0) {
       this.reloadInterval = setInterval(() => {
         this.loadServerData()
       }, this.reload * 1000)
-    }*/
+    }
   }
 
   setNewInterval() {

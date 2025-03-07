@@ -23,7 +23,7 @@ import (
 )
 
 var spoutConfiguration models.SpoutConfiguration
-var logger = log.New()
+var logger = log.CreateLogger()
 
 func main() {
 	printBanner()

@@ -23,5 +23,10 @@ https://www.jsonschemavalidator.net/
 https://github.com/docker/cli/blob/master/cli/command/container/attach.go  
 https://ourcodeworld.com/articles/read/1293/how-to-retrieve-the-skin-of-a-minecraft-user-from-mojang-using-python-3  
 https://github.com/lus/mojango  
-https://papermc.io/software/velocity  
-https://v15.clarity.design/
+https://papermc.io/software/velocity
+https://clarity.design/pages/introduction
+https://shibumi.dev/posts/go-embed-and-angular/  
+https://github.com/Shpota/go-angular
+https://www.reddit.com/r/golang/comments/m6bzyg/go_angular_todo_app_project/
+https://github.com/mecitsemerci/go-todo-app/tree/master
+https://github.com/verbanicm/angular-go

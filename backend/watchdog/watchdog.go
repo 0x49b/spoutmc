@@ -18,7 +18,7 @@ var containerIds = []string{}
 // Todo this has to be refatored with a client used for all different docker operations, currently against DRY principle
 var ctx = context.Background()
 var cli, _ = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-var logger = log.New()
+var logger = log.CreateLogger()
 var stopped = false
 
 func Start() {
@@ -64,7 +64,7 @@ loop:
 
 					// only restart container if not stoppeb by user
 					if !utils.CheckInStringSlice(containerIds, containerInfo.ID) {
-						logger.Error(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Config.Hostname, containerInfo.State.Status))
+						logger.Warn(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Config.Hostname, containerInfo.State.Status))
 
 						switch containerInfo.State.Status {
 						case "exited":

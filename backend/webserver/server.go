@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-var logger = log.New()
+var logger = log.CreateLogger()
 
 func Start() *echo.Echo {
 
@@ -31,7 +31,7 @@ func Start() *echo.Echo {
 
 	e.Pre(middleware.RemoveTrailingSlash())
 
-	e.Use(middleware.Logger())
+	//e.Use(log.CreateZapLoggerMiddleware(logger))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:3000", "http://localhost:4200"},

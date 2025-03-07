@@ -21,13 +21,26 @@
     <clr-dg-column>State</clr-dg-column>
     <clr-dg-column>Action</clr-dg-column>
 
-    @for (server of dataSource; track server) {
+    @for (server of dataSource; track server.Id) {
       <clr-dg-row [clrDgItem]="server">
 
         <clr-dg-cell>{{ server.Config.Hostname }}</clr-dg-cell>
-        <clr-dg-cell><span
-          class="color-square {{ server.State.Status }}"></span>
-          {{ server.State.Status }} since {{ server.State.StartedAt | date:'medium' }}
+        <clr-dg-cell>
+
+
+          @if (server.State.Running) {
+            <span class="label label-success">{{ server.State.Status }}</span>
+          } @else if (server.State.Status == "exited") {
+            <span class="label label-danger">{{ server.State.Status }}</span>
+          } @else {
+            <span class="label label-warning">{{ server.State.Status }}</span>
+          }
+
+          <clr-signpost>
+            <clr-signpost-content *clrIfOpen="serverInfoOpened" position="right-bottom">
+              <pre>{{server | json}}</pre>
+            </clr-signpost-content>
+          </clr-signpost>
         </clr-dg-cell>
         <clr-dg-cell>
 
@@ -54,20 +67,9 @@
                         (click)="removeContainer(server.Id)">
               <cds-icon shape="trash"></cds-icon>
             </clr-button>
-            <clr-button class="btn-icon btn-info btn-outline"
-                        (click)="serverInfoOpened = true">
-              <cds-icon shape="info-standard"></cds-icon>
-            </clr-button>
           </clr-button-group>
 
 
-          <clr-modal [(clrModalOpen)]="serverInfoOpened" clrModalSize="xl" id="{{server.Config.}}">
-            <h3 class="modal-title">{{ server.Config.Hostname }}</h3>
-            <div class="modal-body">
-              <pre>{{ server | json }}</pre>
-            </div>
-            <div class="modal-footer"></div>
-          </clr-modal>
 
         </clr-dg-cell>
       </clr-dg-row>

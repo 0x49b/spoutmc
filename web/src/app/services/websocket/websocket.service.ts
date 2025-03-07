@@ -7,7 +7,7 @@ import {Observable} from "rxjs";
   providedIn: 'root'
 })
 export class WebsocketService {
-
+/*
   private socket: Socket;
 
   constructor() {
@@ -35,5 +35,5 @@ export class WebsocketService {
     })
   }
 
-
+*/
 }

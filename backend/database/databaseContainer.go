@@ -27,7 +27,7 @@ var ctx = context.Background()
 var cli, _ = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 var databaseContainerName = "spoutdatabase"
 var databaseContainerImage = "mysql"
-var logger = log.New()
+var logger = log.CreateLogger()
 
 // Todo remove this one, only to check
 type Product struct {

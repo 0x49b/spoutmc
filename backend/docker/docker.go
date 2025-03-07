@@ -23,7 +23,7 @@ import (
 var ctx = context.Background()
 var cli, _ = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 
-var logger = log.New()
+var logger = log.CreateLogger()
 
 func StreamLogsFromContainer(containerName string) {
 

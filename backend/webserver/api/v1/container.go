@@ -23,7 +23,7 @@ import (
 	"unicode/utf8"
 )
 
-var logger = log.New()
+var logger = log.CreateLogger()
 var upgrader = websocket.Upgrader{}
 var inout chan []byte
 var output chan []byte
