@@ -1656,10 +1656,10 @@
     "@napi-rs/nice-win32-ia32-msvc" "1.0.1"
     "@napi-rs/nice-win32-x64-msvc" "1.0.1"
 
-"@ng-icons/core@^30.0.0":
-  version "30.4.0"
-  resolved "https://registry.yarnpkg.com/@ng-icons/core/-/core-30.4.0.tgz#27292a04d38a3a53c7eacbf5f1e8abf7e3e83970"
-  integrity sha512-wERLO6rjDAyciBjdDHlH/A3WLuQmT5KvC1ulgHSRDUAKmTf8HchJifjlc4VeJC8NnkXnnifCC9xcgpGK/sCSQw==
+"@ng-icons/core@^31.0.0":
+  version "31.0.0"
+  resolved "https://registry.yarnpkg.com/@ng-icons/core/-/core-31.0.0.tgz#6c8766ff1a7e8342f6573bc47b24825ab36fe7e2"
+  integrity sha512-/CTijAkloQzukFeX6U681LogYq+LK1euppUqbS8GbVPboqvGbtzP66rnzL9/wo6IwHK9i8bCLct6IUKlhfXMyA==
   dependencies:
     tslib "^2.3.0"
 
