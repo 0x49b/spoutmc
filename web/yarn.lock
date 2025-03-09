@@ -1663,10 +1663,10 @@
   dependencies:
     tslib "^2.3.0"
 
-"@ng-icons/heroicons@^30.0.0":
-  version "30.4.0"
-  resolved "https://registry.yarnpkg.com/@ng-icons/heroicons/-/heroicons-30.4.0.tgz#1b2628f59b2c84a3b2a85e00e426e49bace6de51"
-  integrity sha512-0ZUiaZPxD5cqUA8bJqf6EVkSl5hNW+MMf8nWoBsSOsiID94FmrYuBulECXYXDB+rOs7etRLCak18ksriWh0rDA==
+"@ng-icons/heroicons@^31.0.0":
+  version "31.0.0"
+  resolved "https://registry.yarnpkg.com/@ng-icons/heroicons/-/heroicons-31.0.0.tgz#321269f8619b9a175cc272162b713480ec69a395"
+  integrity sha512-HhC4KbSDH4xAtKKDkxuDHiHizvH/lLZ2Im/0xSxyYa7Rw2u63VFAFKbqwTD3C1Vge+W/EwjKNJ/y44gOHnFYjA==
   dependencies:
     tslib "^2.3.0"
 
