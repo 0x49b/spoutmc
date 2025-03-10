@@ -23,3 +23,4 @@ dist/
 /C:/
 /testservers/data/*/modules/
 *.tmp
+.DS_Store
