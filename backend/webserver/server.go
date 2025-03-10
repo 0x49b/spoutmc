@@ -2,22 +2,66 @@ package webserver
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
+	"golang.org/x/net/websocket"
 	"net/http"
 	"os"
 	"os/signal"
 	"spoutmc/backend/config"
 	"spoutmc/backend/dbcontext"
+	"spoutmc/backend/docker"
 	"spoutmc/backend/log"
 	v1Container "spoutmc/backend/webserver/api/v1"
-	v1Ws "spoutmc/backend/webserver/ws/v1"
 	"spoutmc/web"
 	"time"
 )
 
 var logger = log.CreateLogger()
+
+func hello(c echo.Context) error {
+	websocket.Handler(func(ws *websocket.Conn) {
+		defer ws.Close()
+		for {
+			// Read
+			msg := ""
+			err := websocket.Message.Receive(ws, &msg)
+			if err != nil {
+				if err.Error() == "EOF" {
+					c.Logger().Info("Client disconnected gracefully")
+				} else {
+					c.Logger().Error("WebSocket read error", zap.Error(err))
+				}
+				break // Exit the loop if an error occurs
+			}
+
+			fmt.Printf("%s\n", msg)
+
+			if msg == "server" {
+				containerList, err := docker.GetNetworkContainers()
+				if err != nil {
+					logger.Error("Cannot load containerlist", zap.Error(err))
+				}
+
+				containerListJson, err := json.Marshal(containerList)
+				err = websocket.Message.Send(ws, containerListJson)
+			}
+
+			// Write
+			err = websocket.Message.Send(ws, "Hello, Client!")
+
+			if err != nil {
+				c.Logger().Error("WebSocket write error", zap.Error(err))
+				break // Exit the loop if writing fails
+			}
+
+		}
+	}).ServeHTTP(c.Response(), c.Request())
+	return nil
+}
 
 func Start() *echo.Echo {
 
@@ -26,7 +70,9 @@ func Start() *echo.Echo {
 	conf := config.New(os.Getenv("3000"), os.Getenv("ENV"))
 
 	e := echo.New()
+
 	e.HideBanner = true
+	e.HidePort = true
 	app := conf.Bootstrap()
 
 	e.Pre(middleware.RemoveTrailingSlash())
@@ -57,9 +103,11 @@ func Start() *echo.Echo {
 	v1Container.RegisterContainerAPI(v1)
 
 	// FrontendHandler WS based
-	wsGroup := e.Group("/ws")
+	/*wsGroup := e.Group("/ws")
 	v1ws := wsGroup.Group("/v1")
-	v1Ws.RegisterWS(v1ws)
+	v1Ws.RegisterWS(v1ws)*/
+
+	e.GET("ws", hello)
 
 	go func() {
 		logger.Info("Webserver started")
@@ -79,11 +127,25 @@ func Start() *echo.Echo {
 		logger.Fatal("", zap.Error(err))
 	}
 
+	writeRoutes(e)
+
 	return e
 }
 
 func registerHandler(r *echo.Echo, db *dbcontext.DB) {
 	web.RegisterHandlers(r)
+}
+
+func writeRoutes(e *echo.Echo) {
+	data, err := json.MarshalIndent(e.Routes(), "", "  ")
+	if err != nil {
+		logger.Error("json marshalling error", zap.Error(err))
+	}
+
+	err = os.WriteFile("routes.json", data, 0644)
+	if err != nil {
+		logger.Error("writing error", zap.Error(err))
+	}
 }
 
 func Shutdown(e *echo.Echo) error {

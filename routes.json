@@ -1,0 +1,97 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/container/logs/:name",
+    "name": "spoutmc/backend/webserver/api/v1.echoLogs"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/start/:id",
+    "name": "spoutmc/backend/webserver/api/v1.startContainerById"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/stop/:id",
+    "name": "spoutmc/backend/webserver/api/v1.stopContainerById"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/name/:name",
+    "name": "spoutmc/backend/webserver/api/v1.getContainerByName"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/id/:id",
+    "name": "spoutmc/backend/webserver/api/v1.getContainerById"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/container/create",
+    "name": "spoutmc/backend/webserver/api/v1.createNewServer"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/container/id/:id",
+    "name": "spoutmc/backend/webserver/api/v1.removeServer"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/plugins/:id",
+    "name": "spoutmc/backend/webserver/api/v1.listPluginsForContainer"
+  },
+  {
+    "method": "GET",
+    "path": "/ws",
+    "name": "spoutmc/backend/webserver.hello"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/opPlayers/:id",
+    "name": "spoutmc/backend/webserver/api/v1.listOpPlayers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container",
+    "name": "spoutmc/backend/webserver/api/v1.getContainerList"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/withDetails",
+    "name": "spoutmc/backend/webserver/api/v1.getContainerListWithDetails"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/restart/:id",
+    "name": "spoutmc/backend/webserver/api/v1.restartContainerById"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/bannedPlayers/:id",
+    "name": "spoutmc/backend/webserver/api/v1.listBannedPlayers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/plugins",
+    "name": "spoutmc/backend/webserver/api/v1.listPlugins"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/reset/:id",
+    "name": "spoutmc/backend/webserver/api/v1.resetContainer"
+  },
+  {
+    "method": "GET",
+    "path": "/*",
+    "name": "github.com/labstack/echo/v4.(*Echo).StaticFS.StaticDirectoryHandler.func1"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/container/command/:id",
+    "name": "spoutmc/backend/webserver/api/v1.executeCommand"
+  },
+  {
+    "method": "GET",
+    "path": "/",
+    "name": "github.com/labstack/echo/v4.(*Echo).FileFS.StaticFileHandler.func1"
+  }
+]

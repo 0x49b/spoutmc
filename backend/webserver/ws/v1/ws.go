@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"spoutmc/backend/log"
 )
 
 var (
 	upgrader = websocket.Upgrader{}
 )
 
+var logger = log.CreateLogger()
 var ws *websocket.Conn
 
 func RegisterWS(g *echo.Group) {
@@ -39,6 +41,7 @@ func wsHandler(c echo.Context) error {
 
 		// Write
 		err = ws.WriteMessage(websocket.TextMessage, []byte("Hello, Client!"))
+
 		if err != nil {
 			c.Logger().Error(err)
 		}

@@ -2,12 +2,6 @@ package v1
 
 type Command string // string mapping
 
-type WsMessage struct {
-	Command     Command `json:"type"` // START, STOP, RESTART, CREATE, REMOVE, ...
-	Message     any     `json:"message,omitempty"`
-	ContainerId string  `json:"containerId"`
-}
-
 const (
 	START   Command = "start"
 	STOP    Command = "stop"
@@ -15,3 +9,9 @@ const (
 	CREATE  Command = "create"
 	REMOVE  Command = "remove"
 )
+
+type WsMessage struct {
+	Command     Command `json:"type"` // START, STOP, RESTART, CREATE, REMOVE, ...
+	Message     string  `json:"message,omitempty"`
+	ContainerId string  `json:"containerId"`
+}
