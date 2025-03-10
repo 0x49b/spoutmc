@@ -47,11 +47,15 @@ func hello(c echo.Context) error {
 				}
 
 				containerListJson, err := json.Marshal(containerList)
-				err = websocket.Message.Send(ws, containerListJson)
+				fmt.Printf("%s\n", containerList)
+				fmt.Printf("%s\n", containerListJson)
+
+				err = websocket.Message.Send(ws, string(containerListJson))
 			}
 
-			// Write
-			err = websocket.Message.Send(ws, "Hello, Client!")
+			if msg == "" {
+				err = websocket.Message.Send(ws, "Hello, Client!")
+			}
 
 			if err != nil {
 				c.Logger().Error("WebSocket write error", zap.Error(err))
