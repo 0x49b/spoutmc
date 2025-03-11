@@ -22,7 +22,7 @@ builds:
       #- darwin
       - linux
       #- windows
-    main: backend/main.go
+    main: core/main.go
 
 archives:
   - format: tar.gz
