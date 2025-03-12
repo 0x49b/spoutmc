@@ -144,6 +144,7 @@ unsupported-settings:
   perform-username-validation: true
   skip-tripwire-hook-placement-validation: false
   skip-vanilla-damage-tick-when-shield-blocked: false
+  update-equipment-on-player-actions: true
 watchdog:
   early-warning-delay: 10000
   early-warning-every: 5000

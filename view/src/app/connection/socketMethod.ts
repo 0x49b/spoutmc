@@ -5,8 +5,7 @@ import {CommandType, Command} from "@app/model/command";
 import {socket} from "@app/connection/socketConfig";
 
 const sendMessage = (commandMessage: Command) => {
-  console.log(socket.send(JSON.stringify(commandMessage)));
-  return {}
+  socket.send(JSON.stringify(commandMessage));
 }
 
 export const getContainerList = () => {

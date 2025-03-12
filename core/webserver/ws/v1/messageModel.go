@@ -9,6 +9,7 @@ const (
 	CREATE        Command = "create"
 	REMOVE        Command = "remove"
 	CONTAINERLIST Command = "containerlist"
+	HEARTBEAT     Command = "heartbeat"
 )
 
 type WsMessage struct {
@@ -18,6 +19,6 @@ type WsMessage struct {
 }
 
 type WsReply struct {
-	Command string `json:"type"`
-	Data    []byte `json:"data"`
+	Command string      `json:"type"`
+	Data    interface{} `json:"data"`
 }
