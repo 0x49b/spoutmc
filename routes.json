@@ -1,51 +1,6 @@
 [
   {
     "method": "GET",
-    "path": "/api/v1/container/plugins",
-    "name": "spoutmc/core/webserver/api/v1.listPlugins"
-  },
-  {
-    "method": "GET",
-    "path": "/ws",
-    "name": "spoutmc/core/webserver/ws/v1.WebsocketHandler"
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/container/withDetails",
-    "name": "spoutmc/core/webserver/api/v1.getContainerListWithDetails"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/v1/container/id/:id",
-    "name": "spoutmc/core/webserver/api/v1.removeServer"
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/container/name/:name",
-    "name": "spoutmc/core/webserver/api/v1.getContainerByName"
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/container/opPlayers/:id",
-    "name": "spoutmc/core/webserver/api/v1.listOpPlayers"
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/container/create",
-    "name": "spoutmc/core/webserver/api/v1.createNewServer"
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/container/reset/:id",
-    "name": "spoutmc/core/webserver/api/v1.resetContainer"
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/container/id/:id",
-    "name": "spoutmc/core/webserver/api/v1.getContainerById"
-  },
-  {
-    "method": "GET",
     "path": "/api/v1/container/start/:id",
     "name": "spoutmc/core/webserver/api/v1.startContainerById"
   },
@@ -56,8 +11,8 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/container/plugins/:id",
-    "name": "spoutmc/core/webserver/api/v1.listPluginsForContainer"
+    "path": "/api/v1/container/reset/:id",
+    "name": "spoutmc/core/webserver/api/v1.resetContainer"
   },
   {
     "method": "GET",
@@ -66,8 +21,8 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/container/logs/:name",
-    "name": "spoutmc/core/webserver/api/v1.echoLogs"
+    "path": "/api/v1/container/withDetails",
+    "name": "spoutmc/core/webserver/api/v1.getContainerListWithDetails"
   },
   {
     "method": "GET",
@@ -76,12 +31,57 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/container/restart/:id",
-    "name": "spoutmc/core/webserver/api/v1.restartContainerById"
+    "path": "/api/v1/container/opPlayers/:id",
+    "name": "spoutmc/core/webserver/api/v1.listOpPlayers"
   },
   {
     "method": "POST",
     "path": "/api/v1/container/command/:id",
     "name": "spoutmc/core/webserver/api/v1.executeCommand"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/container/create",
+    "name": "spoutmc/core/webserver/api/v1.createNewServer"
+  },
+  {
+    "method": "GET",
+    "path": "/ws",
+    "name": "spoutmc/core/webserver/ws/v1.WebsocketHandler"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/id/:id",
+    "name": "spoutmc/core/webserver/api/v1.getContainerById"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/logs/:name",
+    "name": "spoutmc/core/webserver/api/v1.echoLogs"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/restart/:id",
+    "name": "spoutmc/core/webserver/api/v1.restartContainerById"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/container/id/:id",
+    "name": "spoutmc/core/webserver/api/v1.removeServer"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/plugins/:id",
+    "name": "spoutmc/core/webserver/api/v1.listPluginsForContainer"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/name/:name",
+    "name": "spoutmc/core/webserver/api/v1.getContainerByName"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/plugins",
+    "name": "spoutmc/core/webserver/api/v1.listPlugins"
   }
 ]

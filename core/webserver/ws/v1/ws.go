@@ -85,15 +85,15 @@ func containerList() {
 
 	containerListJson, err := json.Marshal(containerList)
 
-	reply := WsReply{
+	/*reply := WsReply{
 		Command: "containerlist",
 		Data:    containerListJson,
-	}
+	}*/
 
-	replyJson, err := json.Marshal(reply)
+	//replyJson, err := json.Marshal(reply)
 
-	logger.Info("Sending Data: ", zap.ByteString("reply", replyJson))
-	err = websocket.Message.Send(socket, reply)
+	logger.Info("Sending Data: ", zap.ByteString("reply", containerListJson))
+	err = websocket.Message.Send(socket, containerListJson)
 	if err != nil {
 		logger.Error("WebSocket write error", zap.Error(err))
 	}
