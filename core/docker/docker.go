@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"path/filepath"
 	"spoutmc/core/log"
 	"spoutmc/core/models"
+	"time"
 )
 
 // ALways run Docker commands in Background Context
@@ -81,6 +83,7 @@ func GetNetworkContainers() ([]container.Summary, error) {
 	containerFilter.Add("label", "io.spout.network=true")
 
 	list, err := cli.ContainerList(ctx, container.ListOptions{All: true, Filters: containerFilter})
+
 	if err != nil {
 		return []container.Summary{}, err
 	}
@@ -114,10 +117,10 @@ func GetContainer(containerName string) (types.Container, error) {
 	return containerList[0], nil
 }
 
-func GetContainerById(containerId string) (types.ContainerJSON, error) {
+func GetContainerById(containerId string) (container.InspectResponse, error) {
 	requestedContainer, err := cli.ContainerInspect(ctx, containerId)
 	if err != nil {
-		return types.ContainerJSON{}, err
+		return container.InspectResponse{}, err
 	}
 	return requestedContainer, nil
 }
@@ -317,4 +320,52 @@ func filterForContainerLabel(label string) (types.Container, error) {
 		}
 	}
 	return types.Container{}, errors.New(fmt.Sprintf("no Server found for label %s", label))
+}
+
+func getContainerNameById(containerId string) string {
+	interestedContainer, err := GetContainerById(containerId)
+	if err != nil {
+		logger.Error("cannot load container", zap.Error(err))
+	}
+	return interestedContainer.Name
+}
+
+// fetchDockerLogs retrieves logs from the Docker container
+func FetchDockerLogs(id string) ([]string, error) {
+	// Fetch logs with the Docker SDK
+	ctx := context.Background()
+	options := container.LogsOptions{ShowStdout: true, Follow: true, Tail: "0"}
+
+	reader, err := cli.ContainerLogs(ctx, getContainerNameById(id), options)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve logs: %v", err)
+	}
+	defer reader.Close()
+
+	// Read the log data
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(reader)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read logs: %v", err)
+	}
+
+	// Split logs into lines
+	logLines := bytes.Split(buf.Bytes(), []byte("\n"))
+	var result []string
+	for _, line := range logLines {
+		result = append(result, string(line))
+	}
+
+	// Simulate continuous log stream (for demo purposes)
+	go func() {
+		// Simulate logging by generating new log entries every 2 seconds
+		for {
+			select {
+			case <-time.After(2 * time.Second):
+				newLog := fmt.Sprintf("Log entry at %s", time.Now().Format(time.RFC3339))
+				result = append(result, newLog)
+			}
+		}
+	}()
+	return result, nil
 }

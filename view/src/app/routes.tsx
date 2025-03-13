@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { Dashboard } from '@app/Dashboard/Dashboard';
+import { ServerList } from '@app/Server/ServerList';
 import { Support } from '@app/Support/Support';
 import { GeneralSettings } from '@app/Settings/General/GeneralSettings';
 import { ProfileSettings } from '@app/Settings/Profile/ProfileSettings';
 import { NotFound } from '@app/NotFound/NotFound';
+import {ServerDetail} from "@app/Server/ServerDetail";
 
 export interface IAppRoute {
   label?: string; // Excluding the label will exclude the route from the nav sidebar in AppLayout
@@ -15,6 +16,7 @@ export interface IAppRoute {
   path: string;
   title: string;
   routes?: undefined;
+  show: boolean
 }
 
 export interface IAppRouteGroup {
@@ -26,11 +28,25 @@ export type AppRouteConfig = IAppRoute | IAppRouteGroup;
 
 const routes: AppRouteConfig[] = [
   {
-    element: <Dashboard />,
-    exact: true,
-    label: 'Dashboard',
-    path: '/',
-    title: 'PatternFly Seed | Main Dashboard',
+    label: 'Server',
+    routes: [
+      {
+        element: <ServerList />,
+        exact: true,
+        label: 'Serverlist',
+        path: '/',
+        title: 'PatternFly Seed | Main Server',
+        show: true
+      },
+      {
+        element: <ServerDetail/>,
+        exact: true,
+        label: 'ServerDetail',
+        path: '/serverdetail/:serverId',
+        title: 'Server Details',
+        show: false
+      }
+    ]
   },
   {
     element: <Support />,
@@ -38,6 +54,7 @@ const routes: AppRouteConfig[] = [
     label: 'Support',
     path: '/support',
     title: 'PatternFly Seed | Support Page',
+    show: true
   },
   {
     label: 'Settings',
@@ -48,6 +65,7 @@ const routes: AppRouteConfig[] = [
         label: 'General',
         path: '/settings/general',
         title: 'PatternFly Seed | General Settings',
+        show: true
       },
       {
         element: <ProfileSettings />,
@@ -55,6 +73,7 @@ const routes: AppRouteConfig[] = [
         label: 'Profile',
         path: '/settings/profile',
         title: 'PatternFly Seed | Profile Settings',
+        show: true
       },
     ],
   },
@@ -67,8 +86,8 @@ const flattenedRoutes: IAppRoute[] = routes.reduce(
 
 const AppRoutes = (): React.ReactElement => (
   <Routes>
-    {flattenedRoutes.map(({ path, element }, idx) => (
-      <Route path={path} element={element} key={idx} />
+    {flattenedRoutes.map(({ path, element, show }, idx) => (
+     <Route path={path} element={element} key={idx} />
     ))}
     <Route element={<NotFound />} />
   </Routes>

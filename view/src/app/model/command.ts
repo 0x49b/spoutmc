@@ -6,6 +6,8 @@ export enum CommandType {
   REMOVE = "remove",
   CONTAINERLIST = "containerlist",
   HEARTBEAT = "heartbeat",
+  LOGS = "log",
+  CONTAINERDETAIL = "containerdetail"
 }
 
 export interface Command {

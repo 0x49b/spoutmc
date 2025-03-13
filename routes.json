@@ -1,6 +1,11 @@
 [
   {
     "method": "GET",
+    "path": "/api/v1/container/plugins",
+    "name": "spoutmc/core/webserver/api/v1.listPlugins"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/container/bannedPlayers/:id",
     "name": "spoutmc/core/webserver/api/v1.listBannedPlayers"
   },
@@ -11,33 +16,28 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/container/logs/:name",
-    "name": "spoutmc/core/webserver/api/v1.echoLogs"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/v1/container/id/:id",
-    "name": "spoutmc/core/webserver/api/v1.removeServer"
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/container/plugins/:id",
-    "name": "spoutmc/core/webserver/api/v1.listPluginsForContainer"
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/container/name/:name",
-    "name": "spoutmc/core/webserver/api/v1.getContainerByName"
-  },
-  {
-    "method": "GET",
     "path": "/api/v1/container/id/:id",
     "name": "spoutmc/core/webserver/api/v1.getContainerById"
   },
   {
     "method": "GET",
-    "path": "/api/v1/container/plugins",
-    "name": "spoutmc/core/webserver/api/v1.listPlugins"
+    "path": "/api/v1/container/logs/:name",
+    "name": "spoutmc/core/webserver/api/v1.echoLogs"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/stop/:id",
+    "name": "spoutmc/core/webserver/api/v1.stopContainerById"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/container/create",
+    "name": "spoutmc/core/webserver/api/v1.createNewServer"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/container/plugins/:id",
+    "name": "spoutmc/core/webserver/api/v1.listPluginsForContainer"
   },
   {
     "method": "GET",
@@ -51,13 +51,13 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/container/stop/:id",
-    "name": "spoutmc/core/webserver/api/v1.stopContainerById"
+    "path": "/api/v1/container/name/:name",
+    "name": "spoutmc/core/webserver/api/v1.getContainerByName"
   },
   {
     "method": "GET",
-    "path": "/api/v1/container/restart/:id",
-    "name": "spoutmc/core/webserver/api/v1.restartContainerById"
+    "path": "/api/v1/container/start/:id",
+    "name": "spoutmc/core/webserver/api/v1.startContainerById"
   },
   {
     "method": "GET",
@@ -65,9 +65,9 @@
     "name": "spoutmc/core/webserver/api/v1.listOpPlayers"
   },
   {
-    "method": "POST",
-    "path": "/api/v1/container/create",
-    "name": "spoutmc/core/webserver/api/v1.createNewServer"
+    "method": "DELETE",
+    "path": "/api/v1/container/id/:id",
+    "name": "spoutmc/core/webserver/api/v1.removeServer"
   },
   {
     "method": "GET",
@@ -81,7 +81,7 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/container/start/:id",
-    "name": "spoutmc/core/webserver/api/v1.startContainerById"
+    "path": "/api/v1/container/restart/:id",
+    "name": "spoutmc/core/webserver/api/v1.restartContainerById"
   }
 ]

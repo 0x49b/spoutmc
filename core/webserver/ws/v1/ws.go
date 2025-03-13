@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"github.com/docker/docker/api/types/container"
 	"sync"
 	"time"
 
@@ -78,6 +79,12 @@ func messageParser(message []byte, ws *websocket.Conn) {
 		// Do remove of container
 	case HEARTBEAT:
 		sendHeartbeat(ws)
+	case LOGS:
+		//send logs for container
+		break
+	case CONTAINERDETAIL:
+		sendContainerDetails(ws, messageData.ContainerId)
+		break
 	default:
 		logger.Error("Unknown command", zap.String("command", string(messageData.Command)))
 	}
@@ -89,16 +96,50 @@ func sendHeartbeat(ws *websocket.Conn) {
 	}
 }
 
-func containerList(ws *websocket.Conn) {
-	containerListSummary, err := docker.GetNetworkContainers()
+func sendContainerDetails(ws *websocket.Conn, containerId string) {
+
+	containerDetails, err := docker.GetContainerById(containerId)
 	if err != nil {
-		logger.Error("Cannot load container list", zap.Error(err))
-		return
+		logger.Error("Cannot load container details", zap.Error(err))
 	}
 
 	reply := WsReply{
+		Command: "containerdetail",
+		Data:    containerDetails,
+	}
+
+	replyJson, err := json.Marshal(reply)
+	if err != nil {
+		logger.Error("Cannot marshal reply", zap.Error(err))
+	}
+	if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
+		logger.Error("WebSocket write error", zap.Error(err))
+	}
+}
+
+func getContainerListWithDetails() []container.InspectResponse {
+
+	var containerListWithDetails []container.InspectResponse
+	containerList, err := docker.GetNetworkContainers()
+	if err != nil {
+		logger.Error("Cannot load containerlist", zap.Error(err))
+
+	}
+	for _, c := range containerList {
+		containerDetails, err := docker.GetContainerById(c.ID)
+		if err != nil {
+			logger.Error("Cannot load container details", zap.Error(err))
+		}
+		containerListWithDetails = append(containerListWithDetails, containerDetails)
+	}
+
+	return containerListWithDetails
+}
+
+func containerList(ws *websocket.Conn) {
+	reply := WsReply{
 		Command: "containerlist",
-		Data:    containerListSummary,
+		Data:    getContainerListWithDetails(),
 	}
 
 	replyJson, err := json.Marshal(reply)
@@ -115,15 +156,10 @@ func containerList(ws *websocket.Conn) {
 func broadcastContainerList() {
 	for {
 		time.Sleep(1 * time.Second)
-		containerListSummary, err := docker.GetNetworkContainers()
-		if err != nil {
-			logger.Error("Cannot load container list", zap.Error(err))
-			continue
-		}
 
 		reply := WsReply{
 			Command: "containerlist",
-			Data:    containerListSummary,
+			Data:    getContainerListWithDetails(),
 		}
 
 		replyJson, err := json.Marshal(reply)
