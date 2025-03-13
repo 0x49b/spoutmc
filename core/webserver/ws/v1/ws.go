@@ -2,83 +2,89 @@ package v1
 
 import (
 	"encoding/json"
+	"sync"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 	"golang.org/x/net/websocket"
 	"spoutmc/core/docker"
 	"spoutmc/core/log"
+	"spoutmc/core/watchdog"
 )
 
-var logger = log.GetLogger()
+var (
+	logger       = log.GetLogger()
+	clients      = make(map[*websocket.Conn]struct{})
+	clientsMutex sync.Mutex
+)
 
 func WebsocketHandler(c echo.Context) error {
 	websocket.Handler(func(ws *websocket.Conn) {
-		defer ws.Close()
+		registerClient(ws)
+		defer unregisterClient(ws)
+
 		for {
-			// Read
 			msg := ""
-			err := websocket.Message.Receive(ws, &msg)
-			if err != nil {
+			if err := websocket.Message.Receive(ws, &msg); err != nil {
 				if err.Error() == "EOF" {
 					logger.Info("Client disconnected gracefully")
 				} else {
 					logger.Error("WebSocket read error", zap.Error(err))
 				}
-				break // Exit the loop if an error occurs
+				break
 			}
 
-			logger.Info("Got Message from Client: ", zap.String("msg", msg))
-
+			logger.Info("Got Message from Client", zap.String("msg", msg))
 			messageParser([]byte(msg), ws)
-
-			if err != nil {
-				c.Logger().Error("WebSocket write error", zap.Error(err))
-				break // Exit the loop if writing fails
-			}
-
 		}
 	}).ServeHTTP(c.Response(), c.Request())
 	return nil
 }
 
-func messageParser(message []byte, ws *websocket.Conn) {
+func registerClient(ws *websocket.Conn) {
+	clientsMutex.Lock()
+	clients[ws] = struct{}{}
+	clientsMutex.Unlock()
+}
 
+func unregisterClient(ws *websocket.Conn) {
+	clientsMutex.Lock()
+	delete(clients, ws)
+	clientsMutex.Unlock()
+	ws.Close()
+}
+
+func messageParser(message []byte, ws *websocket.Conn) {
 	messageData := WsMessage{}
-	err := json.Unmarshal(message, &messageData)
-	if err != nil {
+	if err := json.Unmarshal(message, &messageData); err != nil {
 		return
 	}
 
 	switch messageData.Command {
-	case CONTAINERLIST: //
+	case CONTAINERLIST:
 		containerList(ws)
-		break
 	case START:
-		// Do start of container
-		break
+		docker.StartContainerById(messageData.ContainerId)
+		watchdog.IncludeToWatchdog(messageData.ContainerId)
 	case STOP:
-		// Do stop of container
-		break
+		watchdog.ExcludeFromWatchdog(messageData.ContainerId)
+		docker.StopContainerById(messageData.ContainerId)
 	case RESTART:
-		// Do restart of container
-		break
+		docker.RestartContainerById(messageData.ContainerId)
 	case CREATE:
 		// Do create of container
-		break
 	case REMOVE:
 		// Do remove of container
-		break
 	case HEARTBEAT:
 		sendHeartbeat(ws)
-		break
 	default:
-		logger.Error("Unknown command", zap.String("", string(messageData.Command)))
+		logger.Error("Unknown command", zap.String("command", string(messageData.Command)))
 	}
 }
 
 func sendHeartbeat(ws *websocket.Conn) {
-	err := websocket.Message.Send(ws, "pong") // Ensure it's a string
-	if err != nil {
+	if err := websocket.Message.Send(ws, "pong"); err != nil {
 		logger.Error("WebSocket write error", zap.Error(err))
 	}
 }
@@ -92,7 +98,7 @@ func containerList(ws *websocket.Conn) {
 
 	reply := WsReply{
 		Command: "containerlist",
-		Data:    containerListSummary, // Send as JSON, not a byte array
+		Data:    containerListSummary,
 	}
 
 	replyJson, err := json.Marshal(reply)
@@ -101,8 +107,42 @@ func containerList(ws *websocket.Conn) {
 		return
 	}
 
-	err = websocket.Message.Send(ws, string(replyJson)) // Ensure it's a string
-	if err != nil {
+	if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
 		logger.Error("WebSocket write error", zap.Error(err))
 	}
+}
+
+func broadcastContainerList() {
+	for {
+		time.Sleep(1 * time.Second)
+		containerListSummary, err := docker.GetNetworkContainers()
+		if err != nil {
+			logger.Error("Cannot load container list", zap.Error(err))
+			continue
+		}
+
+		reply := WsReply{
+			Command: "containerlist",
+			Data:    containerListSummary,
+		}
+
+		replyJson, err := json.Marshal(reply)
+		if err != nil {
+			logger.Error("Failed to marshal reply", zap.Error(err))
+			continue
+		}
+
+		clientsMutex.Lock()
+		for ws := range clients {
+			if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
+				logger.Error("WebSocket write error", zap.Error(err))
+				unregisterClient(ws)
+			}
+		}
+		clientsMutex.Unlock()
+	}
+}
+
+func init() {
+	go broadcastContainerList()
 }
