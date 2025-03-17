@@ -24,3 +24,5 @@ dist/
 /testservers/data/*/modules/
 *.tmp
 .DS_Store
+
+routes.json
