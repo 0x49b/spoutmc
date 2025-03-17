@@ -35,7 +35,7 @@ const routes: AppRouteConfig[] = [
         exact: true,
         label: 'Serverlist',
         path: '/',
-        title: 'PatternFly Seed | Main Server',
+        title: 'Serverlist',
         show: true
       },
       {
