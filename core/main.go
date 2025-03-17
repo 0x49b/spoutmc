@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"spoutmc/core/database"
@@ -28,26 +29,42 @@ var logger = log.GetLogger()
 func main() {
 	printBanner()
 	logger.Info("Starting SpoutNetwork")
-	go watchdog.Start()
-	//go database.Start()
-	go startSpout()
-	c := webserver.Start()
 
-	wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
-		"containers": func(ctx context.Context) error {
-			return docker.ShutdownContainers()
-		},
-		"webserver": func(ctx context.Context) error {
-			return webserver.Shutdown(c)
-		},
-		"database": func(ctx context.Context) error {
-			return database.Shutdown()
-		},
-		"watchdog": func(ctx context.Context) error {
-			return watchdog.Shutdown()
-		},
-	})
-	<-wait
+	if isDockerRunning() {
+		go watchdog.Start()
+		//go database.Start()
+		go startSpout()
+		c := webserver.Start()
+
+		wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
+			"containers": func(ctx context.Context) error {
+				return docker.ShutdownContainers()
+			},
+			"webserver": func(ctx context.Context) error {
+				return webserver.Shutdown(c)
+			},
+			"database": func(ctx context.Context) error {
+				return database.Shutdown()
+			},
+			"watchdog": func(ctx context.Context) error {
+				return watchdog.Shutdown()
+			},
+		})
+		<-wait
+	} else {
+		logger.Error("Docker runtime is not running. Cannot start SpoutNetwork.")
+		os.Exit(1)
+	}
+
+}
+
+func isDockerRunning() bool {
+	cmd := exec.Command("docker", "version")
+	err := cmd.Run()
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 func startSpout() {
