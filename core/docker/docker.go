@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	"go.uber.org/zap"
 	"io"
 	"os"
@@ -23,7 +22,6 @@ import (
 
 // ALways run Docker commands in Background Context
 var ctx = context.Background()
-var cli, _ = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 
 var logger = log.GetLogger()
 

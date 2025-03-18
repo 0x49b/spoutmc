@@ -23,4 +23,5 @@ type WsMessage struct {
 type WsReply struct {
 	Command string      `json:"type"`
 	Data    interface{} `json:"data"`
+	Ts      int64       `json:"ts"`
 }

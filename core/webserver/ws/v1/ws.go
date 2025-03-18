@@ -140,6 +140,7 @@ func containerList(ws *websocket.Conn) {
 	reply := WsReply{
 		Command: "containerlist",
 		Data:    getContainerListWithDetails(),
+		Ts:      time.Now().Unix(),
 	}
 
 	replyJson, err := json.Marshal(reply)
@@ -154,12 +155,14 @@ func containerList(ws *websocket.Conn) {
 }
 
 func broadcastContainerList() {
+
 	for {
 		time.Sleep(1 * time.Second)
 
 		reply := WsReply{
 			Command: "containerlist",
 			Data:    getContainerListWithDetails(),
+			Ts:      time.Now().Unix(),
 		}
 
 		replyJson, err := json.Marshal(reply)
