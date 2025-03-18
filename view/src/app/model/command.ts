@@ -19,4 +19,5 @@ export interface Command {
 export interface Reply {
   type: CommandType;
   data?: any
+  ts: any
 }

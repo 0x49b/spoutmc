@@ -24,8 +24,13 @@ import {RootState} from "@app/store/store";
 
 const ServerList: React.FunctionComponent = () => {
 
-  const {sendMessage, readyState} = useServerWebSocket();
+  const {sendMessage} = useServerWebSocket();
+
+  // Store
   const servers = useSelector((state: RootState) => state.server.servers)
+  const lastMessage = useSelector((state: RootState) => state.message.lastMessage)
+  const readyStateString = useSelector((state: RootState) => state.socket.readyStateString)
+  const readyState = useSelector((state: RootState) => state.socket.readyState)
 
   //Table
   const columnNames = {
@@ -76,18 +81,9 @@ const ServerList: React.FunctionComponent = () => {
     sendMessage(JSON.stringify(commandMessage))
   }
 
-
   useEffect(() => {
     loadServerlist()
   }, [loadServerlist]);
-
-  const connectionStatus = {
-    [ReadyState.CONNECTING]: 'Connecting',
-    [ReadyState.OPEN]: 'Open',
-    [ReadyState.CLOSING]: 'Closing',
-    [ReadyState.CLOSED]: 'Closed',
-    [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
-  }[readyState];
 
   const defaultActions = (server: Server): IAction[] => [
     {
@@ -99,6 +95,12 @@ const ServerList: React.FunctionComponent = () => {
       onClick: () => deleteServer(server.Id),
     },
   ];
+
+  const formatTimestamp = (timestamp: number) => {
+    return new Date(timestamp * 1000).toLocaleString("de-CH", {
+      dateStyle: 'short', timeStyle: 'medium'
+    });
+  }
 
   return (
     <PageSection hasBodyWrapper={false}>
@@ -160,7 +162,6 @@ const ServerList: React.FunctionComponent = () => {
                 </Td>
 
                 <Td isActionCell>
-                  {" "}
                   {rowActions ? <ActionsColumn items={rowActions}/> : null}
                 </Td>
               </Tr>
@@ -179,7 +180,8 @@ const ServerList: React.FunctionComponent = () => {
           Reload Serverlist
         </Button>
 
-        <span>The WebSocket is currently {connectionStatus}</span>
+        <span>The WebSocket is currently {readyStateString}</span>
+        <pre>{formatTimestamp(lastMessage.ts)}</pre>
       </Flex>
     </PageSection>
   );

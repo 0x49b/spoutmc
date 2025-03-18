@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import {NavLink, useLocation} from 'react-router-dom';
 import {
   Brand,
   Button,
@@ -17,8 +17,8 @@ import {
   PageSidebarBody,
   SkipToContent,
 } from '@patternfly/react-core';
-import { IAppRoute, IAppRouteGroup, routes } from '@app/routes';
-import { BarsIcon } from '@patternfly/react-icons';
+import {IAppRoute, IAppRouteGroup, routes} from '@app/routes';
+import {BarsIcon} from '@patternfly/react-icons';
 import spoutmclogo from '../bgimages/Logo.svg'
 
 
@@ -26,14 +26,14 @@ interface IAppLayout {
   children: React.ReactNode;
 }
 
-const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
+const AppLayout: React.FunctionComponent<IAppLayout> = ({children}) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const masthead = (
     <Masthead>
       <MastheadMain>
         <MastheadToggle>
           <Button
-            icon={<BarsIcon />}
+            icon={<BarsIcon/>}
             variant="plain"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label="Global navigation"
@@ -41,7 +41,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
         </MastheadToggle>
         <MastheadBrand data-codemods>
           <MastheadLogo data-codemods>
-            <Brand src={spoutmclogo} alt="SpoutMC" heights={{ default: '30px' }} />
+            <Brand src={spoutmclogo} alt="SpoutMC" heights={{default: '30px'}}/>
           </MastheadLogo>
         </MastheadBrand>
       </MastheadMain>
@@ -51,10 +51,9 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const location = useLocation();
 
   const renderNavItem = (route: IAppRoute, index: number) => (
-    <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`} isActive={route.path === location.pathname}>
-      <NavLink
-        to={route.path}
-      >
+    <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`}
+             isActive={route.path === location.pathname}>
+      <NavLink to={route.path}>
         {route.label}
       </NavLink>
     </NavItem>
@@ -113,4 +112,4 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   );
 };
 
-export { AppLayout };
+export {AppLayout};
