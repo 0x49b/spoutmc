@@ -18,6 +18,12 @@ export interface Command {
 
 export interface Reply {
   type: CommandType;
-  data?: any
-  ts: any
+  data?: string;
+  ts: number;
+}
+
+export interface CreateServer {
+  servername: string
+  proxy?: boolean
+  lobby?: boolean
 }

@@ -2,6 +2,7 @@ package docker
 
 import (
 	"os"
+	"spoutmc/core/docker/model"
 	"strings"
 )
 
@@ -244,6 +245,8 @@ func GetContainerStats(containerId string) container.StatsResponse {
 
 func CreateContainer(serverName string, proxy bool, lobby bool) (container.CreateResponse, error) {
 
+	//TODO add check if proxy or lobby already exists
+
 	serverName = strings.ToLower(serverName)
 
 	addToProxyConfig(serverName)
@@ -260,7 +263,11 @@ func CreateContainer(serverName string, proxy bool, lobby bool) (container.Creat
 	endpoints[spoutNetwork.ID] = &network.EndpointSettings{EndpointID: spoutNetwork.ID}
 	endpoints[hostNetwork.ID] = &network.EndpointSettings{EndpointID: hostNetwork.ID}
 
-	containerImage := "itzg/minecraft-server"
+	containerImage := model.MINECRAFT_SERVER
+
+	if proxy {
+		containerImage = model.BUNGEECORD
+	}
 
 	var containerLabels map[string]string
 	containerLabels = make(map[string]string)
@@ -270,7 +277,6 @@ func CreateContainer(serverName string, proxy bool, lobby bool) (container.Creat
 
 	if proxy {
 		containerLabels["io.spout.proxy"] = "true"
-		containerImage = "itzg/bungeecord"
 	}
 	if lobby {
 		containerLabels["io.spout.lobby"] = "true"
@@ -282,7 +288,7 @@ func CreateContainer(serverName string, proxy bool, lobby bool) (container.Creat
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
-		Image:        containerImage,
+		Image:        string(containerImage),
 		Hostname:     serverName,
 		Env:          MapEnvironmentVariables(models.SpoutServerEnv{Eula: "TRUE", Type: "PAPER", OnlineMode: "FALSE", EnforceSecureProfile: "FALSE", MaxMemory: "4G", Version: "1.20.4", Gui: "FALSE", Console: "FALSE", LogTimestamp: "TRUE", Tz: "Europe/Zurich", Plugins: []string{"https://github.com/servertap-io/servertap/releases/download/v0.6.1/ServerTap-0.6.1.jar"}, SpigetIds: "6245"}),
 		Labels:       containerLabels,
