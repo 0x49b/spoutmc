@@ -5,6 +5,7 @@ import {
   Button,
   Masthead,
   MastheadBrand,
+  MastheadContent,
   MastheadLogo,
   MastheadMain,
   MastheadToggle,
@@ -20,6 +21,7 @@ import {
 import {IAppRoute, IAppRouteGroup, routes} from '@app/routes';
 import {BarsIcon} from '@patternfly/react-icons';
 import spoutmclogo from '../bgimages/Logo.svg'
+import SpoutToolbar from "@app/AppLayout/SpoutToolbar";
 
 
 interface IAppLayout {
@@ -28,6 +30,8 @@ interface IAppLayout {
 
 const AppLayout: React.FunctionComponent<IAppLayout> = ({children}) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+
+
   const masthead = (
     <Masthead>
       <MastheadMain>
@@ -45,6 +49,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({children}) => {
           </MastheadLogo>
         </MastheadBrand>
       </MastheadMain>
+      <MastheadContent><SpoutToolbar/></MastheadContent>
     </Masthead>
   );
 
