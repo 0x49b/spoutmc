@@ -28,8 +28,6 @@ const ServerList: React.FunctionComponent = () => {
 
   // Store
   const servers = useSelector((state: RootState) => state.server.servers)
-  const lastMessage = useSelector((state: RootState) => state.message.lastMessage)
-  const readyStateString = useSelector((state: RootState) => state.socket.readyStateString)
   const readyState = useSelector((state: RootState) => state.socket.readyState)
 
   //Table
@@ -96,11 +94,7 @@ const ServerList: React.FunctionComponent = () => {
     },
   ];
 
-  const formatTimestamp = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleString("de-CH", {
-      dateStyle: 'short', timeStyle: 'medium'
-    });
-  }
+
 
   return (
     <PageSection hasBodyWrapper={false}>
@@ -179,9 +173,6 @@ const ServerList: React.FunctionComponent = () => {
         >
           Reload Serverlist
         </Button>
-
-        <span>The WebSocket is currently {readyStateString}</span>
-        <pre>{formatTimestamp(lastMessage.ts)}</pre>
       </Flex>
     </PageSection>
   );
