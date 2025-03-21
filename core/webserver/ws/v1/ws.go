@@ -75,6 +75,7 @@ func messageParser(message []byte, ws *websocket.Conn) {
 		docker.RestartContainerById(messageData.ContainerId)
 	case CREATE:
 		// Do create of container
+		createServer(messageData.Message)
 	case REMOVE:
 		// Do remove of container
 	case HEARTBEAT:
@@ -88,6 +89,10 @@ func messageParser(message []byte, ws *websocket.Conn) {
 	default:
 		logger.Error("Unknown command", zap.String("command", string(messageData.Command)))
 	}
+}
+
+func createServer(commandData string) {
+
 }
 
 func sendHeartbeat(ws *websocket.Conn) {
