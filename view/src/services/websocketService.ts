@@ -2,7 +2,7 @@ import useWebSocket, {ReadyState} from "react-use-websocket";
 import {useEffect, useState} from "react";
 import {CommandType, Reply} from "@app/model/command";
 import {store} from "@app/store/store";
-import {setServers} from "@app/store/serverSlice";
+import {setServer, setServers} from "@app/store/serverSlice";
 import {setMessage} from "@app/store/messageSlice";
 import {setSocketState} from "@app/store/socketSlice";
 
@@ -50,10 +50,13 @@ export const useServerWebSocket = () => {
 
         switch (messageJSON.type) {
           case CommandType.CONTAINERLIST:
+            // @ts-ignore
             store.dispatch(setServers(messageJSON.data));
             break;
           case CommandType.CONTAINERDETAIL:
             // Handle additional cases if needed
+            // @ts-ignore
+            store.dispatch(setServer(messageJSON.data));
             break;
           default:
             console.error("Could not parse reply message");

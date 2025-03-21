@@ -55,14 +55,18 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({children}) => {
 
   const location = useLocation();
 
-  const renderNavItem = (route: IAppRoute, index: number) => (
-    <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`}
-             isActive={route.path === location.pathname}>
-      <NavLink to={route.path}>
-        {route.label}
-      </NavLink>
-    </NavItem>
-  );
+
+  const renderNavItem = (route: IAppRoute, index: number) => {
+    const isActive = location.pathname === route.path || (route.path !== '/' && location.pathname.startsWith(route.path));
+    return (
+      <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`}
+               isActive={isActive}>
+        <NavLink to={route.path}>
+          {route.label}
+        </NavLink>
+      </NavItem>
+    )
+  };
 
   const renderNavGroup = (group: IAppRouteGroup, groupIndex: number) => (
     <NavExpandable

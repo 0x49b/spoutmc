@@ -17,7 +17,7 @@ import {
 } from '@patternfly/react-table';
 import StopIcon from "@patternfly/react-icons/dist/esm/icons/stop-icon";
 import PlayIcon from "@patternfly/react-icons/dist/esm/icons/play-icon";
-import {Link} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import {useSelector} from "react-redux";
 import {useServerWebSocket} from "../../services/websocketService";
 import {RootState} from "@app/store/store";
@@ -25,6 +25,7 @@ import {RootState} from "@app/store/store";
 const ServerList: React.FunctionComponent = () => {
 
   const {sendMessage} = useServerWebSocket();
+  const navigate = useNavigate();
 
   // Store
   const servers = useSelector((state: RootState) => state.server.servers)
@@ -94,8 +95,6 @@ const ServerList: React.FunctionComponent = () => {
     },
   ];
 
-
-
   return (
     <PageSection hasBodyWrapper={false}>
       <Title headingLevel="h1" size="lg">Serverlist</Title>
@@ -117,7 +116,7 @@ const ServerList: React.FunctionComponent = () => {
             let rowActions: IAction[] | null = defaultActions(server);
             return (<Tr key={server.Id}>
                 <Td dataLabel={columnNames.name}>
-                  <Link to={`/serverdetail/${server.Id}`}>
+                  <Link to={`/server/detail/${server.Id}`}>
                     {server.Config.Hostname}
                   </Link>
                 </Td>

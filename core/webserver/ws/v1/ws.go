@@ -111,6 +111,7 @@ func sendContainerDetails(ws *websocket.Conn, containerId string) {
 	reply := WsReply{
 		Command: "containerdetail",
 		Data:    containerDetails,
+		Ts:      time.Now().Unix(),
 	}
 
 	replyJson, err := json.Marshal(reply)
@@ -141,7 +142,7 @@ func getContainerListWithDetails() []container.InspectResponse {
 	return containerListWithDetails
 }
 
-func containerList(ws *websocket.Conn) {
+func prepareContainerListAsJson() ([]byte, error) {
 	reply := WsReply{
 		Command: "containerlist",
 		Data:    getContainerListWithDetails(),
@@ -149,6 +150,16 @@ func containerList(ws *websocket.Conn) {
 	}
 
 	replyJson, err := json.Marshal(reply)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return replyJson, nil
+}
+
+func containerList(ws *websocket.Conn) {
+
+	replyJson, err := prepareContainerListAsJson()
 	if err != nil {
 		logger.Error("Failed to marshal reply", zap.Error(err))
 		return
@@ -164,18 +175,11 @@ func broadcastContainerList() {
 	for {
 		time.Sleep(1 * time.Second)
 
-		reply := WsReply{
-			Command: "containerlist",
-			Data:    getContainerListWithDetails(),
-			Ts:      time.Now().Unix(),
-		}
-
-		replyJson, err := json.Marshal(reply)
+		replyJson, err := prepareContainerListAsJson()
 		if err != nil {
 			logger.Error("Failed to marshal reply", zap.Error(err))
 			continue
 		}
-
 		clientsMutex.Lock()
 		for ws := range clients {
 			if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
