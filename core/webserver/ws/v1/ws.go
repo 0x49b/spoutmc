@@ -86,6 +86,8 @@ func messageParser(message []byte, ws *websocket.Conn) {
 	case CONTAINERDETAIL:
 		sendContainerDetails(ws, messageData.ContainerId)
 		break
+	case CONTAINERSTATS:
+		sendContainerStats(ws, messageData.ContainerId)
 	default:
 		logger.Error("Unknown command", zap.String("command", string(messageData.Command)))
 	}
@@ -100,6 +102,24 @@ func sendHeartbeat(ws *websocket.Conn) {
 		logger.Error("WebSocket write error", zap.Error(err))
 	}
 }
+func sendContainerStats(ws *websocket.Conn, containerId string) {
+	containerStats, err := docker.GetContainerStats(containerId)
+	if err != nil {
+		logger.Error("Cannot load container stats", zap.Error(err))
+	}
+	reply := WsReply{
+		Command: string(CONTAINERSTATS),
+		Data:    containerStats,
+		Ts:      time.Now().Unix(),
+	}
+	replyJson, err := json.Marshal(reply)
+	if err != nil {
+		logger.Error("Cannot marshal reply", zap.Error(err))
+	}
+	if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
+		logger.Error("WebSocket write error", zap.Error(err))
+	}
+}
 
 func sendContainerDetails(ws *websocket.Conn, containerId string) {
 
@@ -109,7 +129,7 @@ func sendContainerDetails(ws *websocket.Conn, containerId string) {
 	}
 
 	reply := WsReply{
-		Command: "containerdetail",
+		Command: string(CONTAINERDETAIL),
 		Data:    containerDetails,
 		Ts:      time.Now().Unix(),
 	}
@@ -144,7 +164,7 @@ func getContainerListWithDetails() []container.InspectResponse {
 
 func prepareContainerListAsJson() ([]byte, error) {
 	reply := WsReply{
-		Command: "containerlist",
+		Command: string(CONTAINERLIST),
 		Data:    getContainerListWithDetails(),
 		Ts:      time.Now().Unix(),
 	}

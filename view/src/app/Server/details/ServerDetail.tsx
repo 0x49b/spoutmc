@@ -6,9 +6,16 @@ import {ArrowLeftIcon} from "@patternfly/react-icons";
 import {useParams} from "react-router";
 import {useSelector} from "react-redux";
 import {RootState} from "@app/store/store";
-import {Command, CommandType} from "@app/model/command";
+import {WsCommand, WsCommandType} from "@app/model/wsCommand";
 import {useServerWebSocket} from "../../../services/websocketService";
 import {ServerDetailsInspect} from "@app/Server/details/ServerDetailsInspect";
+import {ServerDetailsStats} from "@app/Server/details/ServerDetailsStats";
+
+enum ActiveTab {
+  LOGS = 0,
+  INSPECT = 1,
+  STATS = 2
+}
 
 const ServerDetail: React.FunctionComponent = () => {
   // const
@@ -24,8 +31,8 @@ const ServerDetail: React.FunctionComponent = () => {
 
   // Functions
   const loadServerDetail = () => {
-    const commandMessage: Command = {
-      type: CommandType.CONTAINERDETAIL,
+    const commandMessage: WsCommand = {
+      type: WsCommandType.CONTAINERDETAIL,
       containerId: serverId,
     }
     sendMessage(JSON.stringify(commandMessage))
@@ -55,18 +62,17 @@ const ServerDetail: React.FunctionComponent = () => {
       <Tabs
         activeKey={activeTabKey}
         onSelect={handleTabClick}
-        aria-label="Tabs in the default example"
-        role="region"
+        aria-label="Server details Tabs"
       >
-        <Tab eventKey={0} title={<TabTitleText>Logs</TabTitleText>}
+        <Tab eventKey={ActiveTab.LOGS} title={<TabTitleText>Logs</TabTitleText>}
              aria-label="Default content - users">
           Users
         </Tab>
-        <Tab eventKey={1} title={<TabTitleText>Inspect</TabTitleText>}>
-          <ServerDetailsInspect inspectJson={JSON.stringify(server, null, 2)} />
+        <Tab eventKey={ActiveTab.INSPECT} title={<TabTitleText>Inspect</TabTitleText>}>
+          <ServerDetailsInspect inspectJson={JSON.stringify(server, null, 2)}/>
         </Tab>
-        <Tab eventKey={2} title={<TabTitleText>Stats</TabTitleText>}>
-          Database
+        <Tab eventKey={ActiveTab.STATS} title={<TabTitleText>Stats</TabTitleText>}>
+          <ServerDetailsStats/>
         </Tab>
       </Tabs>
 

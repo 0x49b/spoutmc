@@ -12,6 +12,7 @@ const (
 	HEARTBEAT       Command = "heartbeat"
 	LOGS            Command = "logs"
 	CONTAINERDETAIL Command = "containerdetail"
+	CONTAINERSTATS  Command = "containerstats"
 )
 
 type WsMessage struct {

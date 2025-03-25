@@ -1,17 +1,17 @@
 /**
  * Get a List of all running Network Containers
  */
-import {CommandType, Command} from "@app/model/command";
+import {WsCommandType, WsCommand} from "@app/model/wsCommand";
 import {socket} from "@app/connection/socketConfig";
 
-const sendMessage = (commandMessage: Command) => {
+const sendMessage = (commandMessage: WsCommand) => {
   socket.send(JSON.stringify(commandMessage));
 }
 
 export const getContainerList = () => {
 
-  const commandMessage: Command = {
-    type: CommandType.CONTAINERLIST
+  const commandMessage: WsCommand = {
+    type: WsCommandType.CONTAINERLIST
   };
   sendMessage(commandMessage)
   return {}
@@ -19,8 +19,8 @@ export const getContainerList = () => {
 
 export const startServer = (id: string) => {
 
-  const commandMessage: Command = {
-    type: CommandType.START,
+  const commandMessage: WsCommand = {
+    type: WsCommandType.START,
     containerId: id
   };
   sendMessage(commandMessage)
@@ -28,8 +28,8 @@ export const startServer = (id: string) => {
 }
 
 export const stopServer = (id: string) => {
-  const commandMessage: Command = {
-    type: CommandType.STOP,
+  const commandMessage: WsCommand = {
+    type: WsCommandType.STOP,
     containerId: id
   };
   sendMessage(commandMessage)
@@ -37,8 +37,8 @@ export const stopServer = (id: string) => {
 }
 
 export const restartServer = (id: string) => {
-  const commandMessage: Command = {
-    type: CommandType.RESTART,
+  const commandMessage: WsCommand = {
+    type: WsCommandType.RESTART,
     containerId: id
   };
   sendMessage(commandMessage)
@@ -46,16 +46,16 @@ export const restartServer = (id: string) => {
 }
 
 export const createServer = () => {
-  const commandMessage: Command = {
-    type: CommandType.CREATE
+  const commandMessage: WsCommand = {
+    type: WsCommandType.CREATE
   };
   sendMessage(commandMessage)
   return {}
 }
 
 export const removeServer = (id: string) => {
-  const commandMessage: Command = {
-    type: CommandType.REMOVE,
+  const commandMessage: WsCommand = {
+    type: WsCommandType.REMOVE,
     containerId: id
   };
   sendMessage(commandMessage)

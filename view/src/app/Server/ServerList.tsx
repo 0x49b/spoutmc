@@ -3,7 +3,7 @@ import {useCallback, useEffect} from 'react';
 import {ReadyState} from "react-use-websocket";
 import {Button, Flex, Icon, Label, PageSection, Title} from '@patternfly/react-core';
 import {Server} from "@app/model/server";
-import {Command, CommandType} from "@app/model/command";
+import {WsCommand, WsCommandType} from "@app/model/wsCommand";
 import {
   ActionsColumn,
   IAction,
@@ -42,39 +42,39 @@ const ServerList: React.FunctionComponent = () => {
   };
 
   const loadServerlist = useCallback(() => {
-    const commandMessage: Command = {
-      type: CommandType.CONTAINERLIST
+    const commandMessage: WsCommand = {
+      type: WsCommandType.CONTAINERLIST
     };
     sendMessage(JSON.stringify(commandMessage))
   }, [])
 
   const stopServer = (id: string) => {
-    const commandMessage: Command = {
-      type: CommandType.STOP,
+    const commandMessage: WsCommand = {
+      type: WsCommandType.STOP,
       containerId: id
     }
     sendMessage(JSON.stringify(commandMessage))
   }
 
   const startServer = (id: string) => {
-    const commandMessage: Command = {
-      type: CommandType.START,
+    const commandMessage: WsCommand = {
+      type: WsCommandType.START,
       containerId: id
     }
     sendMessage(JSON.stringify(commandMessage))
   }
 
   const restartServer = (id: string) => {
-    const commandMessage: Command = {
-      type: CommandType.RESTART,
+    const commandMessage: WsCommand = {
+      type: WsCommandType.RESTART,
       containerId: id,
     }
     sendMessage(JSON.stringify(commandMessage))
   }
 
   const deleteServer = (id: string) => {
-    const commandMessage: Command = {
-      type: CommandType.REMOVE,
+    const commandMessage: WsCommand = {
+      type: WsCommandType.REMOVE,
       containerId: id,
     }
     sendMessage(JSON.stringify(commandMessage))

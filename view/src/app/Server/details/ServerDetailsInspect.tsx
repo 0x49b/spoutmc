@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Button,
   ClipboardCopyButton,
   CodeBlock,
   CodeBlockAction,
@@ -44,34 +43,38 @@ export const ServerDetailsInspect: React.FC<ServerDetailsInspectProps> = ({inspe
   const expandedCode = splittedJsonInspect[1]
 
   const actions = (
-    <React.Fragment>
-      <CodeBlockAction>
-        <ClipboardCopyButton
-          id="expandable-copy-button"
-          textId="code-content"
-          aria-label="Copy to clipboard"
-          onClick={(e) => onClick(e, copyBlock)}
-          exitDelay={copied ? 1500 : 600}
-          maxWidth="110px"
-          variant="plain"
-          onTooltipHidden={() => setCopied(false)}
-        >
-          {copied ? 'Successfully copied to clipboard!' : 'Copy to clipboard'}
-        </ClipboardCopyButton>
-      </CodeBlockAction>
-    </React.Fragment>
+    <CodeBlockAction>
+      <ClipboardCopyButton
+        id="expandable-copy-button"
+        textId="code-content"
+        aria-label="Copy to clipboard"
+        onClick={(e) => onClick(e, copyBlock)}
+        exitDelay={copied ? 1500 : 600}
+        maxWidth="110px"
+        variant="plain"
+        onTooltipHidden={() => setCopied(false)}
+      >
+        {copied ? 'Successfully copied to clipboard!' : 'Copy to clipboard'}
+      </ClipboardCopyButton>
+    </CodeBlockAction>
   );
 
   return (
     <CodeBlock actions={actions}>
       <CodeBlockCode>
         {code}
-        <ExpandableSection isExpanded={isExpanded} isDetached contentId="code-block-expand">
+        <ExpandableSection isExpanded={isExpanded}
+                           isDetached
+                           contentId="code-block-expand"
+                           toggleId="code-block-toggle">
           {expandedCode}
         </ExpandableSection>
       </CodeBlockCode>
-      <ExpandableSectionToggle isExpanded={isExpanded} onToggle={onToggle}
-                               contentId="code-block-expand" direction="up">
+      <ExpandableSectionToggle isExpanded={isExpanded}
+                               onToggle={onToggle}
+                               contentId="code-block-expand"
+                               direction="up"
+                               toggleId="code-block-toggle">
         {isExpanded ? 'Show Less' : 'Show More'}
       </ExpandableSectionToggle>
     </CodeBlock>

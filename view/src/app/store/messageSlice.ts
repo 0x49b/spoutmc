@@ -1,14 +1,14 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
-import {CommandType, Reply} from "@app/model/command";
+import {WsCommandType, WsReply} from "@app/model/wsCommand";
 
 // Initial state
 interface MessageState {
-  lastMessage: Reply;
+  lastMessage: WsReply;
 }
 
 const initialState: MessageState = {
   lastMessage: {
-    type: CommandType.START,
+    type: WsCommandType.START,
     ts: 0
   },
 };
@@ -18,7 +18,7 @@ const messageSlice = createSlice({
   name: 'message',
   initialState,
   reducers: {
-    setMessage: (state, action: PayloadAction<Reply>) => {
+    setMessage: (state, action: PayloadAction<WsReply>) => {
       state.lastMessage = action.payload;
     },
   },

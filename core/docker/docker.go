@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
@@ -121,6 +122,21 @@ func GetContainerById(containerId string) (container.InspectResponse, error) {
 		return container.InspectResponse{}, err
 	}
 	return requestedContainer, nil
+}
+
+func GetContainerStats(containerId string) (*container.StatsResponse, error) {
+
+	stats, err := cli.ContainerStats(context.Background(), containerId, false)
+	if err != nil {
+		return nil, err
+	}
+	defer stats.Body.Close()
+	var statsResponse container.StatsResponse
+	decoder := json.NewDecoder(stats.Body)
+	if err := decoder.Decode(&statsResponse); err != nil && err != io.EOF {
+		return nil, err
+	}
+	return &statsResponse, nil
 }
 
 func getHostNetworkId() (network.Inspect, error) {

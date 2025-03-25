@@ -1,4 +1,4 @@
-export enum CommandType {
+export enum WsCommandType {
   START = "start",
   STOP = "stop",
   RESTART = "restart",
@@ -7,17 +7,18 @@ export enum CommandType {
   CONTAINERLIST = "containerlist",
   HEARTBEAT = "heartbeat",
   LOGS = "log",
-  CONTAINERDETAIL = "containerdetail"
+  CONTAINERDETAIL = "containerdetail",
+  CONTAINERSTATS = "containerstats"
 }
 
-export interface Command {
-  type: CommandType;
+export interface WsCommand {
+  type: WsCommandType;
   message?: string;
   containerId?: string;
 }
 
-export interface Reply {
-  type: CommandType;
+export interface WsReply {
+  type: WsCommandType;
   data?: string;
   ts: number;
 }
