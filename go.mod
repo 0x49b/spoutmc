@@ -3,7 +3,7 @@ module spoutmc
 go 1.24
 
 require (
-	github.com/docker/docker v28.0.2+incompatible
+	github.com/docker/docker v28.0.4+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gorilla/websocket v1.5.3
