@@ -26,3 +26,6 @@ dist/
 .DS_Store
 
 routes.json
+/testservers/data/restcheck/*
+!/testservers/data/restcheck/server.properties
+/testservers/data
