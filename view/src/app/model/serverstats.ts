@@ -59,23 +59,12 @@ export interface ThrottlingData {
 }
 
 export interface PrecpuStats {
-  cpu_usage: CpuUsage2
+  cpu_usage: CpuUsage
   system_cpu_usage: number
   online_cpus: number
-  throttling_data: ThrottlingData2
+  throttling_data: ThrottlingData
 }
 
-export interface CpuUsage2 {
-  total_usage: number
-  usage_in_kernelmode: number
-  usage_in_usermode: number
-}
-
-export interface ThrottlingData2 {
-  periods: number
-  throttled_periods: number
-  throttled_time: number
-}
 
 export interface MemoryStats {
   usage: number

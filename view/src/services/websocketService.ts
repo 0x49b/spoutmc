@@ -62,6 +62,9 @@ export const useServerWebSocket = () => {
             // @ts-ignore
             store.dispatch(setServerStats(messageJSON.data));
             break;
+          case WsCommandType.CONTAINERSTATSLIST:
+            console.log("CONTAINERSTATSLIST ", new Date());
+            break;
           default:
             console.error("Could not parse reply message");
         }

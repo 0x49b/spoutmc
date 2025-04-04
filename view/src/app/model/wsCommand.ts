@@ -8,7 +8,8 @@ export enum WsCommandType {
   HEARTBEAT = "heartbeat",
   LOGS = "log",
   CONTAINERDETAIL = "containerdetail",
-  CONTAINERSTATS = "containerstats"
+  CONTAINERSTATS = "containerstats",
+  CONTAINERSTATSLIST = "containerstatslist"
 }
 
 export interface WsCommand {

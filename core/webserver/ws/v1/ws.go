@@ -177,6 +177,53 @@ func prepareContainerListAsJson() ([]byte, error) {
 	return replyJson, nil
 }
 
+func prepareContainerStatsAsJson() ([]byte, error) {
+
+	networkContainers, err := docker.GetNetworkContainers()
+
+	if err != nil {
+		logger.Error("Cannot load network containers", zap.Error(err))
+	}
+
+	containerStatsList := make([]container.StatsResponse, 0)
+
+	var wg sync.WaitGroup
+	statsCh := make(chan container.StatsResponse, len(networkContainers))
+
+	for _, c := range networkContainers {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			stat, err := docker.GetContainerStats(id)
+			if err != nil {
+				logger.Error("Cannot load container stats", zap.Error(err))
+				return
+			}
+			statsCh <- stat
+		}(c.ID)
+	}
+
+	wg.Wait()
+	close(statsCh)
+
+	for stat := range statsCh {
+		containerStatsList = append(containerStatsList, stat)
+	}
+
+	reply := WsReply{
+		Command: string(CONTAINERSTATSLIST),
+		Data:    containerStatsList,
+		Ts:      time.Now().Unix(),
+	}
+
+	replyJson, err := json.Marshal(reply)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return replyJson, nil
+}
+
 func containerList(ws *websocket.Conn) {
 
 	replyJson, err := prepareContainerListAsJson()
@@ -211,6 +258,29 @@ func broadcastContainerList() {
 	}
 }
 
+func broadcastContainerStats() {
+	for {
+		time.Sleep(1 * time.Second)
+		replyJson, err := prepareContainerStatsAsJson()
+
+		if err != nil {
+			logger.Error("Failed to marshal reply", zap.Error(err))
+			continue
+		}
+
+		clientsMutex.Lock()
+
+		for ws := range clients { // needs to be ws :=
+			if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
+				logger.Error("WebSocket write error", zap.Error(err))
+				unregisterClient(ws)
+			}
+		}
+		clientsMutex.Unlock()
+	}
+}
+
 func init() {
 	go broadcastContainerList()
+	go broadcastContainerStats()
 }

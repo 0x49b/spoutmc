@@ -124,19 +124,19 @@ func GetContainerById(containerId string) (container.InspectResponse, error) {
 	return requestedContainer, nil
 }
 
-func GetContainerStats(containerId string) (*container.StatsResponse, error) {
+func GetContainerStats(containerId string) (container.StatsResponse, error) {
 
 	stats, err := cli.ContainerStats(context.Background(), containerId, false)
 	if err != nil {
-		return nil, err
+		return container.StatsResponse{}, err
 	}
 	defer stats.Body.Close()
 	var statsResponse container.StatsResponse
 	decoder := json.NewDecoder(stats.Body)
 	if err := decoder.Decode(&statsResponse); err != nil && err != io.EOF {
-		return nil, err
+		return container.StatsResponse{}, err
 	}
-	return &statsResponse, nil
+	return statsResponse, nil
 }
 
 func getHostNetworkId() (network.Inspect, error) {
