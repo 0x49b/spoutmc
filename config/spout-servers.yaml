@@ -1,0 +1,62 @@
+container-network:
+  name: spoutnetwork
+  driver: bridge
+servers:
+  - name: spoutproxy
+    image: itzg/bungeecord
+    proxy: true
+    ports:
+      hostPort: '25577'
+      containerPort: '25577'
+    env:
+      TZ: Europe/Zurich
+      TYPE: VELOCITY
+      MAX_MEMORY: 1G
+    volumes:
+      - hostpath:
+          - testservers
+          - data
+          - spoutproxy
+        containerpath: /server
+  - name: spoutlobby
+    image: itzg/minecraft-server
+    lobby: true
+    env:
+      EULA: 'TRUE'
+      TYPE: PAPER
+      ONLINE_MODE: 'FALSE'
+      ENFORCE_SECURE_PROFILE: 'FALSE'
+      MAX_MEMORY: 4G
+      VERSION: 1.20.4
+      GUI: 'FALSE'
+      CONSOLE: 'FALSE'
+      LOG_TIMESTAMP: 'TRUE'
+      TZ: Europe/Zurich
+    volumes:
+      - hostpath:
+          - testservers
+          - data
+          - spoutlobby
+        containerpath: /data
+  - name: spoutskyblock
+    image: itzg/minecraft-server
+    ports:
+      hostPort: '25565'
+      containerPort: '25565'
+    env:
+      EULA: 'TRUE'
+      TYPE: PAPER
+      ONLINE_MODE: 'FALSE'
+      ENFORCE_SECURE_PROFILE: 'FALSE'
+      MAX_MEMORY: 8G
+      VERSION: 1.20.4
+      GUI: 'FALSE'
+      CONSOLE: 'FALSE'
+      LOG_TIMESTAMP: 'TRUE'
+      TZ: Europe/Zurich
+    volumes:
+      - hostpath:
+          - testservers
+          - data
+          - spoutskyblock
+        containerpath: /data

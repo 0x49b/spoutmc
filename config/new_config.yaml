@@ -1,0 +1,137 @@
+$schema: 'https://0x49b.github.io/spoutmc/spout-schema.json'
+base:
+  restart_servers: true
+  stop_servers: true
+database:
+  db_type: mysql
+  db_port: 3306
+  db_user: db_user
+  db_password: db_password
+  db_name: spout
+  enable_phpmyadmin: true
+  external_database: false
+  external_host: ''
+network:
+  name: spoutnetwork
+  driver: bridge
+servers:
+  - name: spoutlobby
+    image: itzg/minecraft-server
+    ports:
+      hostPort: '30066'
+      containerPort: '25565'
+    env:
+      os_options:
+        uid: 1000
+        gid: 1000
+        memory: 1G
+        init_memory: 1G
+        max_memory: 1G
+        tz: UTC
+        enable_rolling_logs: false
+        enable_jmx: false
+        jmx_host: localhost
+        use_aikar_flags: false
+        jvm_opts: ''
+        jvm_xx_opts: ''
+        jvm_dd_opts: ''
+        extra_args: ''
+        log_timestamp: false
+      server:
+        type: vanilla
+        eula: true
+        version: latest
+        motd: ''
+        difficulty: easy
+        icon: ''
+        override_icon: false
+        max_players: 20
+        max_world_size: ''
+        allow_nether: true
+        announce_player_achievements: true
+        enable_command_block: ''
+        force_gamemode: false
+        generate_structures: true
+        hardcore: false
+        snooper_enabled: true
+        max_build_height: 256
+        spawn_animals: true
+        spawn_monsters: true
+        spawn_npcs: true
+        spawn_protect: 0
+        view_distance: ''
+        seed: ''
+        mode: survival
+        pvp: true
+        level_type: 'minecraft:default'
+        generator_settings: ''
+        level: world
+        online_mode: true
+        allow_flight: true
+        server_name: ''
+        server_port: '25565'
+        player_idle_timeout: 600
+        enable_jmx: false
+        sync_chunk_writes: ''
+        enable_status: ''
+        entity_broadcast_range_percentage: ''
+        function_permission_level: ''
+        network_compression_threshold: ''
+        op_permission_level: ''
+        prevent_proxy_connections: false
+        use_native_transport: ''
+        simulation_distance: ''
+        exec_directly: ''
+        stop_server_announce_delay: ''
+        proxy: false
+        console: true
+        gui: true
+        stop_duration: 60
+        setup_only: false
+        use_flare_flags: false
+        use_simd_flags: false
+      custom_resource_pack:
+        resource_pack: ''
+        resource_pack_sha1: ''
+        resource_pack_enforce: false
+      whitelist:
+        enable_whitelist: false
+        whitelist: ''
+        whitelist_file: ''
+        override_whitelist: false
+      rcon:
+        enable_rcon: true
+        rcon_password: ''
+        rcon_port: '25575'
+        broadcast_rcon_to_ops: false
+        rcon_cmds_startup: ''
+        rcon_cmds_on_connect: ''
+        rcon_cmds_on_disconnect: ''
+        rcon_cmds_last_disconnect: ''
+      autopause:
+        enable_autopause: false
+        autopause_timeout_est: 3600
+        autopause_timeout_init: 600
+        autopause_timeout_kn: 120
+        autopause_period: 10
+        autopause_knock_interface: eth0
+        debug_autopause: false
+      autostop:
+        enable_autostop: false
+        autostop_timeout_est: 3600
+        autostop_timeout_init: 1800
+        autostop_period: 10
+        debug_autostop: false
+      curseforge:
+        cf_api_key: ''
+        cf_page_url: ''
+        cf_slug: ''
+        cf_file_id: ''
+        cf_filename_matcher: ''
+        cf_exclude_include_file: ''
+        cf_exclude_mods: ''
+        cf_force_include_mods: ''
+        cf_force_synchronize: ''
+        cf_set_level_from: ''
+        cf_parallel_downloads: 4
+        cf_overrides_skip_existing: false
