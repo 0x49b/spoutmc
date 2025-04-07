@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/docker/docker/api/types/container"
 	"sync"
@@ -15,9 +16,11 @@ import (
 )
 
 var (
-	logger       = log.GetLogger()
-	clients      = make(map[*websocket.Conn]struct{})
-	clientsMutex sync.Mutex
+	logger             = log.GetLogger()
+	clients            = make(map[*websocket.Conn]struct{})
+	clientsMutex       sync.Mutex
+	subscriptions      = make(map[*websocket.Conn]string) // ws -> containerId
+	subscriptionsMutex sync.Mutex
 )
 
 func WebsocketHandler(c echo.Context) error {
@@ -53,6 +56,11 @@ func unregisterClient(ws *websocket.Conn) {
 	clientsMutex.Lock()
 	delete(clients, ws)
 	clientsMutex.Unlock()
+
+	subscriptionsMutex.Lock()
+	delete(subscriptions, ws)
+	subscriptionsMutex.Unlock()
+
 	ws.Close()
 }
 
@@ -82,14 +90,55 @@ func messageParser(message []byte, ws *websocket.Conn) {
 		sendHeartbeat(ws)
 	case LOGS:
 		//send logs for container
+		sendContainerLogs(ws, messageData.ContainerId)
 		break
 	case CONTAINERDETAIL:
 		sendContainerDetails(ws, messageData.ContainerId)
 		break
 	case CONTAINERSTATS:
 		sendContainerStats(ws, messageData.ContainerId)
+		break
+	case SUBSCRIBE_CONTAINER_STATS:
+		subscriptionsMutex.Lock()
+		subscriptions[ws] = messageData.ContainerId
+		subscriptionsMutex.Unlock()
+		break
+	case UNSUBSCRIBE_CONTAINER_STATS:
+		subscriptionsMutex.Lock()
+		delete(subscriptions, ws)
+		subscriptionsMutex.Unlock()
+		break
 	default:
 		logger.Error("Unknown command", zap.String("command", string(messageData.Command)))
+	}
+}
+
+func sendContainerLogs(ws *websocket.Conn, id string) {
+	ctx := context.Background()
+	logChan, err := docker.FetchDockerLogs(ctx, id)
+	if err != nil {
+		logger.Error("Error fetching docker logs", zap.Error(err))
+		return
+	}
+
+	for logLine := range logChan {
+		reply := WsReply{
+			Command:     string(LOGS),
+			Data:        []string{logLine}, // Send as slice for consistency
+			Ts:          time.Now().Unix(),
+			ContainerId: id,
+		}
+
+		replyJson, err := json.Marshal(reply)
+		if err != nil {
+			logger.Error("Cannot marshal reply", zap.Error(err))
+			continue
+		}
+
+		if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
+			logger.Error("WebSocket write error", zap.Error(err))
+			break
+		}
 	}
 }
 
@@ -261,21 +310,43 @@ func broadcastContainerList() {
 func broadcastContainerStats() {
 	for {
 		time.Sleep(1 * time.Second)
-		replyJson, err := prepareContainerStatsAsJson()
-
-		if err != nil {
-			logger.Error("Failed to marshal reply", zap.Error(err))
-			continue
-		}
 
 		clientsMutex.Lock()
+		subscriptionsMutex.Lock()
 
-		for ws := range clients { // needs to be ws :=
-			if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
-				logger.Error("WebSocket write error", zap.Error(err))
-				unregisterClient(ws)
+		// Create a map: containerId -> []ws
+		containerToClients := make(map[string][]*websocket.Conn)
+		for ws, containerId := range subscriptions {
+			containerToClients[containerId] = append(containerToClients[containerId], ws)
+		}
+
+		for containerId, clientList := range containerToClients {
+			stats, err := docker.GetContainerStats(containerId)
+			if err != nil {
+				logger.Error("Cannot load container stats", zap.String("id", containerId), zap.Error(err))
+				continue
+			}
+			reply := WsReply{
+				Command: string(CONTAINERSTATS),
+				Data:    stats,
+				Ts:      time.Now().Unix(),
+			}
+			replyJson, err := json.Marshal(reply)
+			if err != nil {
+				logger.Error("Marshal error", zap.Error(err))
+				continue
+			}
+
+			for _, ws := range clientList {
+				if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
+					logger.Error("WebSocket write error", zap.Error(err))
+					unregisterClient(ws)
+					delete(subscriptions, ws)
+				}
 			}
 		}
+
+		subscriptionsMutex.Unlock()
 		clientsMutex.Unlock()
 	}
 }

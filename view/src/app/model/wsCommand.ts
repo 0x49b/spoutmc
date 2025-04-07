@@ -6,10 +6,12 @@ export enum WsCommandType {
   REMOVE = "remove",
   CONTAINERLIST = "containerlist",
   HEARTBEAT = "heartbeat",
-  LOGS = "log",
+  LOGS = "logs",
   CONTAINERDETAIL = "containerdetail",
   CONTAINERSTATS = "containerstats",
-  CONTAINERSTATSLIST = "containerstatslist"
+  CONTAINERSTATSLIST = "containerstatslist",
+  SUBSCRIBE_CONTAINER_STATS = "subscribe_container_stats",
+  UNSUBSCRIBE_CONTAINER_STATS = "unsubscribe_container_stats"
 }
 
 export interface WsCommand {
@@ -20,12 +22,7 @@ export interface WsCommand {
 
 export interface WsReply {
   type: WsCommandType;
-  data?: string;
+  data?: string | string[];
   ts: number;
-}
-
-export interface CreateServer {
-  servername: string
-  proxy?: boolean
-  lobby?: boolean
+  containerId?: string;
 }

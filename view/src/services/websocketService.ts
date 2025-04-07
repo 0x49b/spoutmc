@@ -2,7 +2,7 @@ import useWebSocket, {ReadyState} from "react-use-websocket";
 import {useEffect, useState} from "react";
 import {WsCommandType, WsReply} from "@app/model/wsCommand";
 import {store} from "@app/store/store";
-import {setServer, setServers, setServerStats} from "@app/store/serverSlice";
+import {setServer, setServers, setServersLogs, setServerStats} from "@app/store/serverSlice";
 import {setMessage} from "@app/store/messageSlice";
 import {setSocketState} from "@app/store/socketSlice";
 
@@ -25,6 +25,8 @@ export const useServerWebSocket = () => {
     [ReadyState.CLOSED]: "Closed",
     [ReadyState.UNINSTANTIATED]: "Uninstantiated",
   }[readyState];
+
+
 
   // Update Redux store when readyState changes
   useEffect(() => {
@@ -64,6 +66,9 @@ export const useServerWebSocket = () => {
             break;
           case WsCommandType.CONTAINERSTATSLIST:
             console.log("CONTAINERSTATSLIST ", new Date());
+            break;
+          case WsCommandType.LOGS:
+            store.dispatch(setServersLogs(messageJSON))
             break;
           default:
             console.error("Could not parse reply message");

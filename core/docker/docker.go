@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"bytes"
+	"bufio"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"spoutmc/core/log"
 	"spoutmc/core/models"
-	"time"
 )
 
 // ALways run Docker commands in Background Context
@@ -345,41 +344,29 @@ func getContainerNameById(containerId string) string {
 }
 
 // fetchDockerLogs retrieves logs from the Docker container
-func FetchDockerLogs(id string) ([]string, error) {
-	// Fetch logs with the Docker SDK
-	ctx := context.Background()
-	options := container.LogsOptions{ShowStdout: true, Follow: true, Tail: "0"}
+func FetchDockerLogs(ctx context.Context, id string) (<-chan string, error) {
+	options := container.LogsOptions{ShowStdout: true, Follow: true, Tail: "1000"}
 
 	reader, err := cli.ContainerLogs(ctx, getContainerNameById(id), options)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve logs: %v", err)
 	}
-	defer reader.Close()
 
-	// Read the log data
-	var buf bytes.Buffer
-	_, err = buf.ReadFrom(reader)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read logs: %v", err)
-	}
+	logChan := make(chan string)
 
-	// Split logs into lines
-	logLines := bytes.Split(buf.Bytes(), []byte("\n"))
-	var result []string
-	for _, line := range logLines {
-		result = append(result, string(line))
-	}
-
-	// Simulate continuous log stream (for demo purposes)
 	go func() {
-		// Simulate logging by generating new log entries every 2 seconds
-		for {
-			select {
-			case <-time.After(2 * time.Second):
-				newLog := fmt.Sprintf("Log entry at %s", time.Now().Format(time.RFC3339))
-				result = append(result, newLog)
-			}
+		defer reader.Close()
+		defer close(logChan)
+
+		scanner := bufio.NewScanner(reader)
+		for scanner.Scan() {
+			logChan <- scanner.Text()
+		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Printf("error reading logs: %v\n", err)
 		}
 	}()
-	return result, nil
+
+	return logChan, nil
 }

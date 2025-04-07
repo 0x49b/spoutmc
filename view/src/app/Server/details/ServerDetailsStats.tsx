@@ -5,7 +5,7 @@ import {WsCommand, WsCommandType} from "@app/model/wsCommand";
 import {CpuStats, PrecpuStats, ServerStats} from "@app/model/serverstats";
 import {useSelector} from "react-redux";
 import {RootState} from "@app/store/store";
-import {Card, CardBody, CardTitle, Flex, FlexItem} from "@patternfly/react-core";
+import {Card, CardBody, CardTitle, Flex, FlexItem, Skeleton} from "@patternfly/react-core";
 
 export const ServerDetailsStats: React.FC = () => {
   const {serverId} = useParams<{ serverId: string }>();
@@ -16,13 +16,22 @@ export const ServerDetailsStats: React.FC = () => {
     loadServerStats();
   }, [serverId]);
 
+  useEffect(() => {
+    return () => {
+      if (serverId) {
+        unsubscribeFromStats(serverId);
+      }
+    };
+  }, [serverId]);
+
   const loadServerStats = () => {
     const commandMessage: WsCommand = {
-      type: WsCommandType.CONTAINERSTATS,
+      type: WsCommandType.SUBSCRIBE_CONTAINER_STATS,
       containerId: serverId,
     };
     sendMessage(JSON.stringify(commandMessage));
   };
+
 
   const bytesToGb = (b: number) => {
     return Number(b / (Math.pow(1024, 3))).toFixed(2);
@@ -42,23 +51,37 @@ export const ServerDetailsStats: React.FC = () => {
     return Number((delta_container_cpu / delta_system_cpu) * online_cpus * 100).toFixed(2);
   };
 
+  const unsubscribeFromStats = (containerId: string) => {
+    const commandMessage: WsCommand = {
+      type: WsCommandType.UNSUBSCRIBE_CONTAINER_STATS,
+      containerId: containerId,
+    };
+    sendMessage(JSON.stringify(commandMessage));
+  };
+
   return (
     <>
       <Flex>
-        <FlexItem grow={{ default: 'grow' }}>
-          <Card ouiaId="MemoryCard" style={{ height: '100%' }}>
+        <FlexItem grow={{default: 'grow'}}>
+          <Card ouiaId="MemoryCard" style={{height: '100%'}}>
             <CardTitle>Memory</CardTitle>
             <CardBody>
-              <p>Current Usage: {bytesToGb(serverStats?.memory_stats.usage ?? 0)} GB</p>
-              <p>Limit: {bytesToGb(serverStats?.memory_stats.limit ?? 0)} GB</p>
+              {serverStats ?
+                <>
+                  <p>Current Usage: {bytesToGb(serverStats?.memory_stats.usage ?? 0)} GB</p>
+                  <p>Limit: {bytesToGb(serverStats?.memory_stats.limit ?? 0)} GB</p>
+                </> :
+                <Skeleton width="25%" screenreaderText="Loading contents"/>}
             </CardBody>
           </Card>
         </FlexItem>
-        <FlexItem grow={{ default: 'grow' }}>
-          <Card ouiaId="CPUCard" style={{ height: '100%' }}>
+        <FlexItem grow={{default: 'grow'}}>
+          <Card ouiaId="CPUCard" style={{height: '100%'}}>
             <CardTitle>CPU</CardTitle>
             <CardBody>
-              <p>{calcCPUPercent(serverStats?.cpu_stats, serverStats?.precpu_stats)}%</p>
+              {serverStats ?
+                <p>{calcCPUPercent(serverStats?.cpu_stats, serverStats?.precpu_stats)}%</p> :
+                <Skeleton width="25%" screenreaderText="Loading contents"/>}
               <p>&nbsp;</p>
             </CardBody>
           </Card>

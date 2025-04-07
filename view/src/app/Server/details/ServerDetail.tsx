@@ -10,6 +10,7 @@ import {WsCommand, WsCommandType} from "@app/model/wsCommand";
 import {useServerWebSocket} from "../../../services/websocketService";
 import {ServerDetailsInspect} from "@app/Server/details/ServerDetailsInspect";
 import {ServerDetailsStats} from "@app/Server/details/ServerDetailsStats";
+import {ServerDetailsLogs} from "@app/Server/details/ServerDetailsLogs";
 
 enum ActiveTab {
   LOGS = 0,
@@ -66,7 +67,7 @@ const ServerDetail: React.FunctionComponent = () => {
       >
         <Tab eventKey={ActiveTab.LOGS} title={<TabTitleText>Logs</TabTitleText>}
              aria-label="Default content - users">
-          Users
+          <ServerDetailsLogs/>
         </Tab>
         <Tab eventKey={ActiveTab.INSPECT} title={<TabTitleText>Inspect</TabTitleText>}>
           <ServerDetailsInspect inspectJson={JSON.stringify(server, null, 2)}/>

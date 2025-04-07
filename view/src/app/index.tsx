@@ -4,6 +4,7 @@ import {BrowserRouter as Router} from 'react-router-dom';
 import {AppLayout} from '@app/AppLayout/AppLayout';
 import {AppRoutes} from '@app/routes';
 import '@app/app.css';
+import '@patternfly/react-core/dist/styles/base.css';
 import {Provider} from "react-redux";
 import {store} from "@app/store/store";
 
