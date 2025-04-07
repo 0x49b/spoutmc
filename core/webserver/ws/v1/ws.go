@@ -56,12 +56,19 @@ func unregisterClient(ws *websocket.Conn) {
 	clientsMutex.Lock()
 	delete(clients, ws)
 	clientsMutex.Unlock()
+	unregisterSubscription(ws)
+}
 
+func registerSubscription(ws *websocket.Conn, containerId string) {
+	subscriptionsMutex.Lock()
+	subscriptions[ws] = containerId
+	subscriptionsMutex.Unlock()
+}
+
+func unregisterSubscription(ws *websocket.Conn) {
 	subscriptionsMutex.Lock()
 	delete(subscriptions, ws)
 	subscriptionsMutex.Unlock()
-
-	ws.Close()
 }
 
 func messageParser(message []byte, ws *websocket.Conn) {
@@ -89,7 +96,6 @@ func messageParser(message []byte, ws *websocket.Conn) {
 	case HEARTBEAT:
 		sendHeartbeat(ws)
 	case LOGS:
-		//send logs for container
 		sendContainerLogs(ws, messageData.ContainerId)
 		break
 	case CONTAINERDETAIL:
@@ -99,14 +105,10 @@ func messageParser(message []byte, ws *websocket.Conn) {
 		sendContainerStats(ws, messageData.ContainerId)
 		break
 	case SUBSCRIBE_CONTAINER_STATS:
-		subscriptionsMutex.Lock()
-		subscriptions[ws] = messageData.ContainerId
-		subscriptionsMutex.Unlock()
+		registerSubscription(ws, messageData.ContainerId)
 		break
 	case UNSUBSCRIBE_CONTAINER_STATS:
-		subscriptionsMutex.Lock()
-		delete(subscriptions, ws)
-		subscriptionsMutex.Unlock()
+		unregisterSubscription(ws)
 		break
 	default:
 		logger.Error("Unknown command", zap.String("command", string(messageData.Command)))
