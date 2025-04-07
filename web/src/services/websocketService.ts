@@ -1,6 +1,6 @@
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import {useEffect, useState} from "react";
-import {WsCommandType, WsReply} from "@app/model/wsCommand";
+import {Subscriptions, WsCommand, WsCommandType, WsReply} from "@app/model/wsCommand";
 import {store} from "@app/store/store";
 import {setServer, setServers, setServersLogs, setServerStats} from "@app/store/serverSlice";
 import {setMessage} from "@app/store/messageSlice";
@@ -25,8 +25,6 @@ export const useServerWebSocket = () => {
     [ReadyState.CLOSED]: "Closed",
     [ReadyState.UNINSTANTIATED]: "Uninstantiated",
   }[readyState];
-
-
 
   // Update Redux store when readyState changes
   useEffect(() => {
@@ -65,7 +63,6 @@ export const useServerWebSocket = () => {
             store.dispatch(setServerStats(messageJSON.data));
             break;
           case WsCommandType.CONTAINERSTATSLIST:
-            console.log("CONTAINERSTATSLIST ", new Date());
             break;
           case WsCommandType.LOGS:
             store.dispatch(setServersLogs(messageJSON))
@@ -79,5 +76,15 @@ export const useServerWebSocket = () => {
     }
   }, [lastMessage]);
 
+
   return {sendMessage, readyState};
 };
+
+export const registerSubscriptions = (sendMessage: (msg: string) => void, sub: Subscriptions[], cId?: string) => {
+  const commandMessage: WsCommand = {
+    type: WsCommandType.REGISTER_SUBSCRIPTIONS,
+    ...(cId && {containerId: cId}),
+    subscriptions: sub
+  };
+  sendMessage(JSON.stringify(commandMessage));
+}

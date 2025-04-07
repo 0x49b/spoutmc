@@ -57,7 +57,7 @@ export const ServerDetailsLogs: React.FC = () => {
   };
 
   const onChange = (value) => {
-    console.log(value);
+   
   };
 
   return (

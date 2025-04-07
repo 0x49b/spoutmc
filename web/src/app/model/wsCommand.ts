@@ -11,13 +11,24 @@ export enum WsCommandType {
   CONTAINERSTATS = "containerstats",
   CONTAINERSTATSLIST = "containerstatslist",
   SUBSCRIBE_CONTAINER_STATS = "subscribe_container_stats",
-  UNSUBSCRIBE_CONTAINER_STATS = "unsubscribe_container_stats"
+  UNSUBSCRIBE_CONTAINER_STATS = "unsubscribe_container_stats",
+  REGISTER_SUBSCRIPTIONS = "register_subscription",
+  UNREGISTER_SUBSCRIPTIONS = "unregister_subscription"
+
+}
+
+export enum Subscriptions {
+  SUB_DETAIL = "CONTAINERDETAIL",
+  SUB_LOGS = "CONTAINERLOGS",
+  SUB_STATS = "CONTAINERSTATS",
+  SUB_LIST = "CONTAINERLIST",
 }
 
 export interface WsCommand {
   type: WsCommandType;
   message?: string;
   containerId?: string;
+  subscriptions?: string[];
 }
 
 export interface WsReply {
