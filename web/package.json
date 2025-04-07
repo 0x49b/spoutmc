@@ -77,7 +77,7 @@
     "@reduxjs/toolkit": "^2.6.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-dropzone": "13",
+    "react-dropzone": "14",
     "react-redux": "^9.2.0",
     "react-use-websocket": "^4.13.0",
     "redux": "^5.0.1",
