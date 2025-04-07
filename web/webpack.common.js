@@ -13,6 +13,7 @@ module.exports = (env) => {
       rules: [
         {
           test: /\.(tsx|ts|jsx)?$/,
+          exclude: /node_modules/,
           use: [
             {
               loader: 'ts-loader',
@@ -29,7 +30,7 @@ module.exports = (env) => {
           // only process modules with this loader
           // if they live under a 'fonts' or 'pficon' directory
           include: [
-            path.resolve(__dirname, 'node_modules/patternfly/dist/fonts'),
+            path.resolve(__dirname, `node_modules/patternfly/dist/fonts`),
             path.resolve(__dirname, 'node_modules/@patternfly/react-internal/dist/styles/assets/fonts'),
             path.resolve(__dirname, 'node_modules/@patternfly/react-internal/dist/styles/assets/pficon'),
             path.resolve(__dirname, 'node_modules/@patternfly/patternfly/assets/fonts'),
@@ -111,6 +112,7 @@ module.exports = (env) => {
       publicPath: ASSET_PATH,
     },
     plugins: [
+
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, 'src', 'index.html'),
       }),

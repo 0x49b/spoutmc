@@ -2,6 +2,8 @@ $schema: 'https://0x49b.github.io/spoutmc/spout-schema.json'
 base:
   restart_servers: true
   stop_servers: true
+  log:
+    level: DEBUG
 database:
   db_type: mysql
   db_port: 3306

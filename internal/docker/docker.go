@@ -71,8 +71,11 @@ func isImageExisting(imageName string) bool {
 	}
 
 	for _, i := range images {
-		if strings.HasPrefix(i.RepoDigests[0], "itzg/bungeecord") {
-			return true
+
+		if len(i.RepoDigests) > 0 {
+			if strings.HasPrefix(i.RepoDigests[0], imageName) {
+				return true
+			}
 		}
 	}
 	return false
