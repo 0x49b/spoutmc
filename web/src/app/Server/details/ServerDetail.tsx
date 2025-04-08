@@ -13,9 +13,9 @@ import {ServerDetailsStats} from "@app/Server/details/ServerDetailsStats";
 import {ServerDetailsLogs} from "@app/Server/details/ServerDetailsLogs";
 
 enum ActiveTab {
-  INSPECT = 0,
-  LOGS = 1,
-  STATS = 2
+  STATS = 0,
+  INSPECT = 1,
+  LOGS = 2,
 }
 
 const ServerDetail: React.FunctionComponent = () => {
@@ -67,18 +67,16 @@ const ServerDetail: React.FunctionComponent = () => {
         onSelect={handleTabClick}
         aria-label="Server details Tabs"
       >
-        <Tab eventKey={ActiveTab.INSPECT} title={<TabTitleText>Inspect</TabTitleText>}>
-          <ServerDetailsInspect inspectJson={JSON.stringify(server, null, 2)}/>
-        </Tab>
-        <Tab eventKey={ActiveTab.LOGS} title={<TabTitleText>Logs</TabTitleText>}
-             aria-label="Default content - users">
-          <ServerDetailsLogs/>
-        </Tab>
         <Tab eventKey={ActiveTab.STATS} title={<TabTitleText>Stats</TabTitleText>}>
           <ServerDetailsStats/>
         </Tab>
+        <Tab eventKey={ActiveTab.INSPECT} title={<TabTitleText>Inspect</TabTitleText>}>
+          <ServerDetailsInspect inspectJson={JSON.stringify(server, null, 2)}/>
+        </Tab>
+        <Tab eventKey={ActiveTab.LOGS} title={<TabTitleText>Logs</TabTitleText>}>
+          <ServerDetailsLogs/>
+        </Tab>
       </Tabs>
-
     </PageSection>
   );
 };
