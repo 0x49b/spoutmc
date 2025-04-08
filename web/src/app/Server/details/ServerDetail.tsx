@@ -13,9 +13,9 @@ import {ServerDetailsStats} from "@app/Server/details/ServerDetailsStats";
 import {ServerDetailsLogs} from "@app/Server/details/ServerDetailsLogs";
 
 enum ActiveTab {
-  STATS = 0,
+  STATS = 2,
   INSPECT = 1,
-  LOGS = 2,
+  LOGS = 0,
 }
 
 const ServerDetail: React.FunctionComponent = () => {
