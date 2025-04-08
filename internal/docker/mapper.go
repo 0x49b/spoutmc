@@ -10,23 +10,26 @@ import (
 	"strings"
 )
 
-func MapExposedPorts(p models.SpoutServerPorts) (nat.PortSet, nat.PortMap) {
-	var exposedPorts nat.PortSet
-	var hostBinding nat.PortBinding
-	var containerPortBinding nat.PortMap
+func MapExposedPorts(ports []models.SpoutServerPorts) (nat.PortSet, nat.PortMap) {
+	exposedPorts := nat.PortSet{}
+	containerPortBinding := nat.PortMap{}
 
-	if (models.SpoutServerPorts{}) != p {
-
-		exposedPorts = map[nat.Port]struct{}{
-			nat.Port(p.ContainerPort + "/tcp"): {},
+	for _, p := range ports {
+		// Skip zero values
+		if p.HostPort == "" || p.ContainerPort == "" {
+			continue
 		}
-		hostBinding = nat.PortBinding{
+
+		port := nat.Port(p.ContainerPort + "/tcp")
+		exposedPorts[port] = struct{}{}
+
+		hostBinding := nat.PortBinding{
 			HostIP:   "0.0.0.0",
 			HostPort: p.HostPort,
 		}
-		containerPortBinding = nat.PortMap{
-			nat.Port(p.ContainerPort + "/tcp"): []nat.PortBinding{hostBinding},
-		}
+
+		containerPortBinding[port] = append(containerPortBinding[port], hostBinding)
+
 	}
 
 	return exposedPorts, containerPortBinding

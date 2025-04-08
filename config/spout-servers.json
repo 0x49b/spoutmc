@@ -8,10 +8,12 @@
       "name": "spoutproxy",
       "image": "itzg/bungeecord",
       "proxy": true,
-      "ports": {
-        "hostPort": "25577",
-        "containerPort": "25577"
-      },
+      "ports": [
+        {
+          "hostPort": "25577",
+          "containerPort": "25577"
+        }
+      ],
       "env": {
         "TZ": "Europe/Zurich",
         "TYPE": "VELOCITY",
@@ -58,10 +60,16 @@
     {
       "name": "spoutskyblock",
       "image": "itzg/minecraft-server",
-      "ports": {
-        "hostPort": "25565",
-        "containerPort": "25565"
-      },
+      "ports": [
+        {
+          "hostPort": "25565",
+          "containerPort": "25565"
+        },
+        {
+          "hostPort": "25575",
+          "containerPort": "25575"
+        }
+      ],
       "env": {
         "EULA": "TRUE",
         "TYPE": "PAPER",

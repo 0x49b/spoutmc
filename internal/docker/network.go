@@ -47,11 +47,3 @@ func GetSpoutNetwork() network.Inspect {
 
 	return network.Inspect{}
 }
-
-// todo don't know if this is needed
-func destroySpoutNetwork() {
-	err := cli.NetworkRemove(ctx, GetSpoutNetwork().ID)
-	if err != nil {
-		logger.Error("", zap.Error(err))
-	}
-}

@@ -163,9 +163,10 @@ func createDatabaseContainer() string {
 		writeDBPassword(rootPassword)
 	}
 
-	exposedPorts, containerPortBinding := docker.MapExposedPorts(models.SpoutServerPorts{
-		HostPort:      "3306",
-		ContainerPort: "3306",
+	exposedPorts, containerPortBinding := docker.MapExposedPorts([]models.SpoutServerPorts{
+		{HostPort: "3306",
+			ContainerPort: "3306",
+		},
 	})
 	spoutNetwork := docker.GetSpoutNetwork()
 	containerLabels := map[string]string{

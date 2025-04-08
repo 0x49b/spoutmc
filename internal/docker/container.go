@@ -233,16 +233,6 @@ func DeleteContainer(containerId string) (types.ContainerJSON, error) {
 	return removeContainer, nil
 }
 
-/*
-func GetContainerStats(containerId string) container.StatsResponse {
-	stats, err := cli.ContainerStats(ctx, containerId, false)
-	if err != nil {
-		logger.Error("", zap.Error(err))
-	}
-
-	return stats
-}*/
-
 func CreateContainer(serverName string, proxy bool, lobby bool) (container.CreateResponse, error) {
 
 	//TODO add check if proxy or lobby already exists
@@ -282,7 +272,7 @@ func CreateContainer(serverName string, proxy bool, lobby bool) (container.Creat
 		containerLabels["io.spout.lobby"] = "true"
 	}
 
-	exposedPorts, containerPortBinding := MapExposedPorts(models.SpoutServerPorts{ContainerPort: "4567", HostPort: "4567"})
+	exposedPorts, containerPortBinding := MapExposedPorts([]models.SpoutServerPorts{{ContainerPort: "4567", HostPort: "4567"}})
 
 	spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Tty:          true,
