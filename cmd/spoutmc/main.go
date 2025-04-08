@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"spoutmc/internal/database"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
@@ -42,9 +41,6 @@ func main() {
 			},
 			"webserver": func(ctx context.Context) error {
 				return webserver.Shutdown(c)
-			},
-			"database": func(ctx context.Context) error {
-				return database.Shutdown()
 			},
 			"watchdog": func(ctx context.Context) error {
 				return watchdog.Shutdown()
