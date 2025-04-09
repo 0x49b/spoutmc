@@ -29,4 +29,5 @@ https://shibumi.dev/posts/go-embed-and-angular/
 https://github.com/Shpota/go-angular
 https://www.reddit.com/r/golang/comments/m6bzyg/go_angular_todo_app_project/
 https://github.com/mecitsemerci/go-todo-app/tree/master
-https://github.com/verbanicm/angular-go
+https://github.com/verbanicm/angular-go  
+https://pkg.go.dev/github.com/Tnze/go-mc  

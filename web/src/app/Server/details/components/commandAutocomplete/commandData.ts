@@ -1,25 +1,27 @@
 export const commandData = [
   {
     gamerule: [
-      ["doDaylightCycle", "naturalRegenration", "mobGriefing"],
-      {
-        "<item: bool>": ["false", "true"]
-      }
+      ['doDaylightCycle', 'naturalRegenration', 'mobGriefing', 'allowFireTicksAwayFromPlayer'],
+      '<value: bool|int>'
     ]
   },
   {
-    deop: ["<target: string>"]
+    deop: ['<target: string>']
+  },
+  {
+    op: ['<target: string>']
   },
   {
     give: [
-      "<target: string>",
+      '<target: string>',
       {
-        "<item: string>": ["stone", "brick", "bucket"]
+        '<item: string>': ['stone', 'brick', 'bucket']
       }
     ]
   },
   {
     tp: [
-      ['<position: x y z>']]
+      ['<position: x y z>']
+    ]
   }
-]
+];

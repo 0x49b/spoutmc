@@ -2,7 +2,6 @@ import React, { useRef, useState } from 'react';
 import { Menu, MenuContent, MenuItem, MenuList, Popper, TextInput } from '@patternfly/react-core';
 import { commandData } from '@app/Server/details/components/commandAutocomplete/commandData';
 
-
 type ParsedArg = {
   name: string
   type: string
@@ -17,13 +16,13 @@ type CommandAutocompleteProps = {
 
 const parseArgument = (arg: string | Record<string, string[]>): ParsedArg => {
   if (typeof arg === 'string') {
-    const match = arg.match(/^<([\w-]+):\s*(\w+(?:\s+\w+)*)>$/)
+    const match = arg.match(/^<([\w-]+):\s*(.+)>$/)
     if (match) {
       return { name: match[1], type: match[2] }
     }
   } else if (typeof arg === 'object') {
     const [key] = Object.keys(arg)
-    const match = key.match(/^<([\w-]+):\s*(\w+(?:\s+\w+)*)>$/)
+    const match = key.match(/^<([\w-]+):\s*(.+)>$/)
     if (match) {
       return {
         name: match[1],
@@ -75,6 +74,13 @@ const getSuggestions = (input: string): { suggestions: string[]; argIndex: numbe
     }
   }
 
+  if (parsed.type.includes('|')) {
+    const types = parsed.type.split('|').map(s => s.trim())
+    if (types.includes('bool')) {
+      return { suggestions: ['true', 'false'], argIndex: currentArgIndex }
+    }
+  }
+
   return { suggestions: [], argIndex: currentArgIndex }
 }
 
@@ -98,6 +104,28 @@ const isValidCommand = (value: string): boolean => {
       if (coords.length !== 3 || coords.some(v => isNaN(Number(v)))) {
         return false
       }
+    }
+
+    if (parsed.type === 'bool') {
+      if (inputVal !== 'true' && inputVal !== 'false') {
+        return false
+      }
+    }
+
+    if (parsed.type === 'int') {
+      if (isNaN(Number(inputVal))) {
+        return false
+      }
+    }
+
+    if (parsed.type.includes('|')) {
+      const types = parsed.type.split('|').map(s => s.trim())
+      if (types.includes('bool') && (inputVal === 'true' || inputVal === 'false')) {
+        continue
+      } else if (types.includes('int') && !isNaN(Number(inputVal))) {
+        continue
+      }
+      return false
     }
 
     if (parsed.suggestions && !parsed.suggestions.includes(inputVal)) {
