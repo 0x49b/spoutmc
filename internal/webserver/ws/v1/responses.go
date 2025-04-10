@@ -9,6 +9,41 @@ import (
 	"time"
 )
 
+func executeCommands(ws *websocket.Conn, message WsMessage) {
+	// 1. Create a context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := message.Message
+	cmdChan := make(chan string, 1)
+	outputChan := docker.ExecCommand(ctx, message.ContainerId, cmdChan)
+
+	// 2. Send command
+	cmdChan <- cmd
+	close(cmdChan)
+
+	// 3. Wait for result
+	for result := range outputChan {
+		reply := WsReply{
+			Command:     string(EXEC_RESPONSE),
+			Data:        []string{result},
+			Ts:          time.Now().Unix(),
+			ContainerId: message.ContainerId,
+		}
+
+		replyJson, err := json.Marshal(reply)
+		if err != nil {
+			logger.Error("Cannot marshal exec reply", zap.Error(err))
+			continue
+		}
+
+		if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
+			logger.Error("WebSocket write error", zap.Error(err))
+			return
+		}
+	}
+}
+
 func sendContainerLogs(ws *websocket.Conn, id string) {
 	ctx := context.Background()
 	logChan, err := docker.FetchDockerLogs(ctx, id)

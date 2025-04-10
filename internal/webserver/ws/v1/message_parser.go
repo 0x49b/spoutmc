@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"fmt"
 	"go.uber.org/zap"
 	"golang.org/x/net/websocket"
 	"spoutmc/internal/docker"
@@ -41,6 +42,9 @@ func messageParser(message []byte, ws *websocket.Conn) {
 	case UNSUBSCRIBE_CONTAINER_STATS:
 	// Todo; will be replace by new Subscription handling
 	// unregisterSubscription(ws)
+	case EXEC_REQUEST:
+		fmt.Println("EXEC_REQUEST")
+		executeCommands(ws, messageData)
 	case REGISTER_SUBSCRIPTIONS:
 		var payload struct {
 			ContainerId   string             `json:"containerId"`

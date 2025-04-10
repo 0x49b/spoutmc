@@ -32,6 +32,8 @@ const (
 	UNSUBSCRIBE_CONTAINER_STATS Command = "unsubscribe_container_stats"
 	REGISTER_SUBSCRIPTIONS      Command = "register_subscription"
 	UNREGISTER_SUBSCRIPTIONS    Command = "unregister_subscription"
+	EXEC_REQUEST                Command = "exec_request"
+	EXEC_RESPONSE               Command = "exec_response"
 )
 
 type WsMessage struct {
