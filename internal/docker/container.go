@@ -274,13 +274,28 @@ func CreateContainer(serverName string, proxy bool, lobby bool) (container.Creat
 
 	exposedPorts, containerPortBinding := MapExposedPorts([]models.SpoutServerPorts{{ContainerPort: "4567", HostPort: "4567"}})
 
+	environment := map[string]string{
+		"EULA":                   "TRUE",
+		"TYPE":                   "PAPER",
+		"ONLINE_MODE":            "FALSE",
+		"ENFORCE_SECURE_PROFILE": "FALSE",
+		"MAX_MEMORY":             "4G",
+		"VERSION":                "1.20.4",
+		"GUI":                    "FALSE",
+		"CONSOLE":                "FALSE",
+		"LOG_TIMESTAMP":          "TRUE",
+		"TZ":                     "Europe/Zurich",
+		"PLUGINS":                "",
+		"SPIGET_IDS":             "6245",
+	}
+
 	spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 		Image:        string(containerImage),
 		Hostname:     serverName,
-		Env:          MapEnvironmentVariables(models.SpoutServerEnv{Eula: "TRUE", Type: "PAPER", OnlineMode: "FALSE", EnforceSecureProfile: "FALSE", MaxMemory: "4G", Version: "1.20.4", Gui: "FALSE", Console: "FALSE", LogTimestamp: "TRUE", Tz: "Europe/Zurich", Plugins: []string{"https://github.com/servertap-io/servertap/releases/download/v0.6.1/ServerTap-0.6.1.jar"}, SpigetIds: "6245"}),
+		Env:          MapEnvironmentVariables(environment),
 		Labels:       containerLabels,
 		ExposedPorts: exposedPorts,
 	}, &container.HostConfig{

@@ -206,7 +206,6 @@ func StartContainer(s models.SpoutServer) {
 		}
 
 		envVars := MapEnvironmentVariables(s.Env)
-		envVars = append(envVars, "PLUGINS=https://github.com/servertap-io/servertap/releases/download/v0.6.1/ServerTap-0.6.1.jar")
 
 		spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 			Tty:          true,

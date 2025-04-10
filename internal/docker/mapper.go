@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"spoutmc/internal/models"
-	"strings"
 )
 
 func MapExposedPorts(ports []models.SpoutServerPorts) (nat.PortSet, nat.PortMap) {
@@ -56,44 +55,11 @@ func MapVolumeBindings(volumes []models.SpoutServerVolumes) []string {
 	return spoutVolumes
 }
 
-func MapEnvironmentVariables(s models.SpoutServerEnv) []string {
+func MapEnvironmentVariables(environment map[string]string) []string {
 	var containerEnv []string
 
-	if s.Eula != "" {
-		containerEnv = append(containerEnv, "EULA="+s.Eula)
+	for k, v := range environment {
+		containerEnv = append(containerEnv, fmt.Sprintf("%s=%s", k, v))
 	}
-	if s.Type != "" {
-		containerEnv = append(containerEnv, "TYPE="+s.Type)
-	}
-	if s.OnlineMode != "" {
-		containerEnv = append(containerEnv, "ONLINE_MODE="+s.OnlineMode)
-	}
-	if s.EnforceSecureProfile != "" {
-		containerEnv = append(containerEnv, "ENFORCE_SECURE_PROFILE="+s.EnforceSecureProfile)
-	}
-	if s.MaxMemory != "" {
-		containerEnv = append(containerEnv, "MAX_MEMORY="+s.MaxMemory)
-	}
-	if s.Gui != "" {
-		containerEnv = append(containerEnv, "GUI="+s.Gui)
-	}
-	if s.Console != "" {
-		containerEnv = append(containerEnv, "CONSOLE="+s.Console)
-	}
-	if s.LogTimestamp != "" {
-		containerEnv = append(containerEnv, "LOG_TIMESTAMP="+s.LogTimestamp)
-	}
-	if s.Tz != "" {
-		containerEnv = append(containerEnv, "TZ="+s.Tz)
-	}
-
-	if s.Plugins != nil {
-		containerEnv = append(containerEnv, "PLUGINS="+strings.Join(s.Plugins, ","))
-	}
-
-	if s.SpigetIds != "" {
-		containerEnv = append(containerEnv, "SPIGET_RESOURCES="+s.SpigetIds)
-	}
-
 	return containerEnv
 }
