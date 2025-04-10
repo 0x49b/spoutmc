@@ -14,17 +14,19 @@ import {
   GridItem,
   HelperText,
   HelperTextItem,
-  Icon
+  Icon,
+  TextInput
 } from '@patternfly/react-core';
 import { PaperPlaneIcon } from '@patternfly/react-icons';
-import CommandAutocomplete from '@app/Server/details/components/commandAutocomplete/CommandAutocomplete';
+import { ReadyState } from 'react-use-websocket';
+
 
 export const ServerDetailsLogs: React.FC = () => {
   const { serverId } = useParams<{ serverId: string }>();
-  const { sendMessage } = useServerWebSocket();
+  const { sendMessage, readyState } = useServerWebSocket();
   const serverLogs = useSelector((state: RootState) => state.server.serverLogs);
   const [logContent, setLogContent] = useState<string>('');
-  const [command, setCommand] = useState<string>('');
+  const [serverCommand, setServerCommand] = useState<string>('');
 
   const editorRef = useRef<any>(null); // Ref to Monaco editor instance
 
@@ -54,6 +56,10 @@ export const ServerDetailsLogs: React.FC = () => {
   };
 
   const loadServerLogs = () => {
+    if (readyState !== ReadyState.OPEN) {
+      console.error('WebSocket not open');
+      return;
+    }
     const commandMessage: WsCommand = {
       type: WsCommandType.LOGS,
       containerId: serverId
@@ -70,8 +76,35 @@ export const ServerDetailsLogs: React.FC = () => {
     }
   };
 
-  const onChange = (value) => {
+  const onChangeCommand = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
+    setServerCommand(value);
+  };
 
+  const sendCommand = () => {
+    if (!serverCommand) return;
+
+    if (readyState !== ReadyState.OPEN) {
+      console.warn('WebSocket is not open. Cannot send command yet.');
+      // Optionally show an error or UI message here
+      return;
+    }
+
+    const commandMessage: WsCommand = {
+      type: WsCommandType.EXEC_REQUEST,
+      containerId: serverId,
+      message: serverCommand
+    };
+
+    console.log(JSON.stringify(commandMessage));
+
+    sendMessage(JSON.stringify(commandMessage));
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      sendCommand();
+    }
   };
 
   return (
@@ -84,7 +117,6 @@ export const ServerDetailsLogs: React.FC = () => {
           isReadOnly={true}
           isMinimapVisible={false}
           code={logContent}
-          onChange={onChange}
           onEditorDidMount={onEditorDidMount}
           height="400px"
         />
@@ -97,16 +129,14 @@ export const ServerDetailsLogs: React.FC = () => {
             <Flex direction={{ default: 'column' }}>
               <FlexItem>
 
-
-                {/*<TextInput
-                  value={command}
-                  type="text"
-                  onChange={(_event, value) => setCommand(value)}
-                  aria-label="Server command input box"
-                />*/}
-                <CommandAutocomplete onComplete={(value) => console.log('Final command:', value)} />
-
-
+                {/*<CommandAutocomplete onComplete={(value) => handleCommand(value)} />*/}
+                <TextInput
+                  id={serverId}
+                  value={serverCommand}
+                  onChange={onChangeCommand}
+                  onKeyDown={handleKeyDown}
+                  isDisabled={readyState !== ReadyState.OPEN}
+                />
 
               </FlexItem>
               <FlexItem>
@@ -119,7 +149,7 @@ export const ServerDetailsLogs: React.FC = () => {
             </Flex>
           </GridItem>
           <GridItem span={1}>
-            <Button variant="control" icon={<PaperPlaneIcon />} />
+            <Button variant="control" icon={<PaperPlaneIcon />} onClick={() => sendCommand()} />
           </GridItem>
         </Grid>
 

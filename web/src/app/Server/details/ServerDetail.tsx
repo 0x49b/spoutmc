@@ -6,11 +6,12 @@ import {ArrowLeftIcon} from "@patternfly/react-icons";
 import {useParams} from "react-router";
 import {useSelector} from "react-redux";
 import {RootState} from "@app/store/store";
-import {Subscriptions, WsCommand, WsCommandType} from "@app/model/wsCommand";
+import {Subscription, WsCommand, WsCommandType} from "@app/model/wsCommand";
 import {registerSubscriptions, useServerWebSocket} from "../../../services/websocketService";
 import {ServerDetailsInspect} from "@app/Server/details/ServerDetailsInspect";
 import {ServerDetailsStats} from "@app/Server/details/ServerDetailsStats";
 import {ServerDetailsLogs} from "@app/Server/details/ServerDetailsLogs";
+import { ReadyState } from 'react-use-websocket';
 
 enum ActiveTab {
   STATS = 2,
@@ -20,7 +21,7 @@ enum ActiveTab {
 
 const ServerDetail: React.FunctionComponent = () => {
   // const
-  const {sendMessage} = useServerWebSocket();
+  const {sendMessage, readyState} = useServerWebSocket();
   const {serverId} = useParams<{ serverId: string }>();
   const server = useSelector((state: RootState) => state.server.server)
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
@@ -28,7 +29,11 @@ const ServerDetail: React.FunctionComponent = () => {
 
   //Effects
   useEffect(() => {
-    registerSubscriptions(sendMessage, [Subscriptions.SUB_DETAIL, Subscriptions.SUB_STATS], serverId);
+    if (readyState !== ReadyState.OPEN) {
+      console.error("WebSocket not open");
+      return;
+    }
+    registerSubscriptions(sendMessage, [Subscription.SUB_DETAIL, Subscription.SUB_STATS], serverId);
     loadServerDetail()
   }, [serverId]);
 

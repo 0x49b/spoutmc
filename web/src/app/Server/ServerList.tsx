@@ -3,7 +3,7 @@ import {useCallback, useEffect} from 'react';
 import {ReadyState} from "react-use-websocket";
 import {Button, Flex, Icon, Label, PageSection, Skeleton, Spinner, Title} from '@patternfly/react-core';
 import {Server} from "@app/model/server";
-import {Subscriptions, WsCommand, WsCommandType} from "@app/model/wsCommand";
+import {Subscription, WsCommand, WsCommandType} from "@app/model/wsCommand";
 import {ActionsColumn, IAction, Table, TableText, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
 import StopIcon from "@patternfly/react-icons/dist/esm/icons/stop-icon";
 import PlayIcon from "@patternfly/react-icons/dist/esm/icons/play-icon";
@@ -72,7 +72,7 @@ const ServerList: React.FunctionComponent = () => {
   }, [])
 
   useEffect(() => {
-    registerSubscriptions(sendMessage, [Subscriptions.SUB_LIST]);
+    registerSubscriptions(sendMessage, [Subscription.SUB_LIST]);
   }, []);
 
   const defaultActions = (server: Server): IAction[] => [

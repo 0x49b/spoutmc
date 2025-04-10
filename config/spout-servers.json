@@ -76,11 +76,12 @@
         "ONLINE_MODE": "FALSE",
         "ENFORCE_SECURE_PROFILE": "FALSE",
         "MAX_MEMORY": "8G",
-        "VERSION": "1.20.4",
+        "VERSION": "1.21.4",
         "GUI": "FALSE",
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",
-        "TZ": "Europe/Zurich"
+        "TZ": "Europe/Zurich",
+        "CREATE_CONSOLE_IN_PIPE": "TRUE"
       },
       "volumes": [
         {

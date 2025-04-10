@@ -1,7 +1,7 @@
 import React, {useEffect} from 'react';
 import {useParams} from "react-router";
 import {registerSubscriptions, useServerWebSocket} from "../../../services/websocketService";
-import {Subscriptions, WsCommand, WsCommandType} from "@app/model/wsCommand";
+import {Subscription, WsCommand, WsCommandType} from "@app/model/wsCommand";
 import {CpuStats, PrecpuStats, ServerStats} from "@app/model/serverstats";
 import {useSelector} from "react-redux";
 import {RootState} from "@app/store/store";
@@ -13,7 +13,7 @@ export const ServerDetailsStats: React.FC = () => {
   const serverStats: ServerStats | undefined = useSelector((state: RootState) => state.server.serverStats);
 
   useEffect(() => {
-    registerSubscriptions(sendMessage, [Subscriptions.SUB_STATS], serverId);
+    registerSubscriptions(sendMessage, [Subscription.SUB_STATS], serverId);
   }, [serverId]);
 
   useEffect(() => {

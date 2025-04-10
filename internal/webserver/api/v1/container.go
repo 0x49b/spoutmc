@@ -51,7 +51,6 @@ func RegisterContainerAPI(v1Group *echo.Group) {
 	g.GET("/bannedPlayers/:id", listBannedPlayers)
 	g.GET("/opPlayers/:id", listOpPlayers)
 
-	g.POST("/command/:id", executeCommand)
 	g.POST("/create", createNewServer)
 
 	g.DELETE("/id/:id", removeServer)
@@ -198,47 +197,6 @@ func createNewServer(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, newContainer)
-}
-
-func executeCommand(c echo.Context) error {
-
-	var requestBody CommandRequest
-
-	if err := c.Bind(&requestBody); err != nil {
-		return c.JSON(http.StatusInternalServerError,
-			&model.APIError{
-				E: fmt.Sprintf("Bad JSON Format"),
-			})
-	}
-
-	containerId := c.Param("id")
-	command := requestBody.Command
-
-	logger.Info(fmt.Sprintf("Sending command [%s] to container %s ", command, containerId))
-	execCommand, err := docker.ExecCommand(containerId, command)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError,
-			&model.APIError{
-				E: "Something went wrong",
-			})
-	}
-
-	if execCommand != 0 {
-		return c.JSON(http.StatusInternalServerError,
-			&model.APIError{
-				E: fmt.Sprintf("Something went wrong, Exit Code was %d", execCommand),
-			})
-	}
-
-	container, err := docker.GetContainerById(containerId)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError,
-			&model.APIError{
-				E: "Something went wrong",
-			})
-	}
-
-	return c.JSON(http.StatusOK, container)
 }
 
 func listBannedPlayers(c echo.Context) error {
