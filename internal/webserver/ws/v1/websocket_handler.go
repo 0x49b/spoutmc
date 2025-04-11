@@ -20,7 +20,7 @@ func WebsocketHandler(c echo.Context) error {
 				if err.Error() == "EOF" {
 					logger.Info("Client disconnected gracefully")
 				} else {
-					logger.Error("WebSocket read error", zap.Error(err))
+					log.HandleError(err)
 				}
 
 				unregisterClient(ws)

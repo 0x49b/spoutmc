@@ -1,11 +1,13 @@
 package utils
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
+	"spoutmc/internal/log"
 	"time"
 )
+
+var logger = log.GetLogger()
 
 type File struct {
 	ModifiedTime time.Time `json:"modifiedtime"`
@@ -18,30 +20,35 @@ type File struct {
 	Children     []*File   `json:"children"`
 }
 
-func ToFile(file os.FileInfo, path string) *File {
-	JSONFile := File{ModifiedTime: file.ModTime(),
+func ToFile(file os.DirEntry, path string) *File {
+	fileInfo, err := file.Info()
+	if err == nil {
+		log.HandleError(err)
+	}
+
+	JSONFile := File{ModifiedTime: fileInfo.ModTime(),
 		IsDir:    file.IsDir(),
-		Size:     file.Size(),
+		Size:     fileInfo.Size(),
 		Name:     file.Name(),
 		Path:     path,
 		Children: []*File{},
 	}
-	if file.Mode()&os.ModeSymlink == os.ModeSymlink {
+	if fileInfo.Mode()&os.ModeSymlink == os.ModeSymlink {
 		JSONFile.IsLink = true
 		JSONFile.LinksTo, _ = filepath.EvalSymlinks(filepath.Join(path, file.Name()))
 	} // Else case is the zero values of the fields
 	return &JSONFile
 }
 func FileToJSON(path string) *File {
-	rootOSFile, _ := os.Stat(path)
-	rootFile := ToFile(rootOSFile, path) //start with root file
+	rootOSFile, _ := os.ReadDir(path)
+	rootFile := ToFile(rootOSFile[0], path) //start with root file
 	stack := []*File{rootFile}
 
 	for len(stack) > 0 { //until stack is empty,
 		file := stack[len(stack)-1] //pop entry from stack
 		stack = stack[:len(stack)-1]
-		children, _ := ioutil.ReadDir(file.Path) //get the children of entry
-		for _, chld := range children {          //for each child
+		children, _ := os.ReadDir(file.Path) //get the children of entry
+		for _, chld := range children {      //for each child
 			child := ToFile(chld, filepath.Join(file.Path, chld.Name())) //turn it into a File object
 			file.Children = append(file.Children, child)                 //append it to the children of the current file popped
 			stack = append(stack, child)                                 //append the child to the stack, so the same process can be run again

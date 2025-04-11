@@ -1,11 +1,13 @@
 package log
 
 import (
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"os"
+	"runtime"
 	"time"
 )
 
@@ -43,6 +45,17 @@ func CreateLogger() *zap.Logger {
 
 	spoutLogger := zap.New(core)
 	return spoutLogger
+}
+
+func HandleError(err error) (b bool) {
+	if err != nil {
+		// notice that we're using 1, so it will actually log where
+		// the error happened, 0 = this function, we don't want that.
+		_, filename, line, _ := runtime.Caller(1)
+		globalLogger.Error(fmt.Sprintf("%s:%d: %s %s", filename, line, err.Error()))
+		b = true
+	}
+	return
 }
 
 func CreateZapLoggerMiddleware(log *zap.Logger) echo.MiddlewareFunc {

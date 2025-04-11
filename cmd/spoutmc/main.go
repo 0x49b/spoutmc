@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -48,7 +49,7 @@ func main() {
 		})
 		<-wait
 	} else {
-		logger.Error("Docker runtime is not running. Cannot start SpoutMc.")
+		log.HandleError(errors.New("docker runtime is not running. Cannot start SpoutMC"))
 		os.Exit(1)
 	}
 

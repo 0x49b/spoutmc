@@ -2,7 +2,6 @@ package webserver
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"spoutmc/internal/log"
-	v1Container "spoutmc/internal/webserver/api/v1"
 	ws "spoutmc/internal/webserver/ws/v1"
 	"time"
 )
@@ -45,11 +43,6 @@ func Start() *echo.Echo {
 		},
 	}))
 
-	// Frontend Handler REST based
-	apiGroup := e.Group("/api")
-	v1 := apiGroup.Group("/v1")
-	v1Container.RegisterContainerAPI(v1)
-
 	// FrontendHandler WS based
 	e.GET("ws", ws.WebsocketHandler)
 
@@ -70,22 +63,7 @@ func Start() *echo.Echo {
 	if err := e.Shutdown(ctx); err != nil {
 		logger.Fatal("", zap.Error(err))
 	}
-
-	writeRoutes(e)
-
 	return e
-}
-
-func writeRoutes(e *echo.Echo) {
-	data, err := json.MarshalIndent(e.Routes(), "", "  ")
-	if err != nil {
-		logger.Error("json marshalling error", zap.Error(err))
-	}
-
-	err = os.WriteFile("routes.json", data, 0644)
-	if err != nil {
-		logger.Error("writing error", zap.Error(err))
-	}
 }
 
 func Shutdown(e *echo.Echo) error {

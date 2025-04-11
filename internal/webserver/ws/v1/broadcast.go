@@ -26,12 +26,6 @@ func broadcastContainerList() {
 				if !safeSend(ws, string(replyJson)) {
 					continue
 				}
-				/*if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
-					logger.Error("WebSocket write error", zap.Error(err))
-					unregisterClient(ws)
-					delete(subscriptions, ws)
-				}*/
-
 			}
 		}
 
@@ -68,12 +62,6 @@ func broadcastContainerStats() {
 				if !safeSend(ws, string(replyJson)) {
 					continue
 				}
-				/*
-					if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
-						logger.Error("Send failed", zap.Error(err))
-						unregisterClient(ws)
-						delete(subscriptions, ws)
-					}*/
 			}
 		}
 

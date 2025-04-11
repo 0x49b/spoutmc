@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/websocket"
 	"spoutmc/internal/docker"
+	"spoutmc/internal/log"
 	"time"
 )
 
@@ -30,17 +31,7 @@ func executeCommands(ws *websocket.Conn, message WsMessage) {
 			Ts:          time.Now().Unix(),
 			ContainerId: message.ContainerId,
 		}
-
-		replyJson, err := json.Marshal(reply)
-		if err != nil {
-			logger.Error("Cannot marshal exec reply", zap.Error(err))
-			continue
-		}
-
-		if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
-			logger.Error("WebSocket write error", zap.Error(err))
-			return
-		}
+		sendReply(ws, reply)
 	}
 }
 
@@ -60,16 +51,7 @@ func sendContainerLogs(ws *websocket.Conn, id string) {
 			ContainerId: id,
 		}
 
-		replyJson, err := json.Marshal(reply)
-		if err != nil {
-			logger.Error("Cannot marshal reply", zap.Error(err))
-			continue
-		}
-
-		if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
-			logger.Error("WebSocket write error", zap.Error(err))
-			break
-		}
+		sendReply(ws, reply)
 	}
 }
 
@@ -85,13 +67,7 @@ func sendContainerDetails(ws *websocket.Conn, containerId string) {
 		Ts:      time.Now().Unix(),
 	}
 
-	replyJson, err := json.Marshal(reply)
-	if err != nil {
-		logger.Error("Cannot marshal reply", zap.Error(err))
-	}
-	if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
-		logger.Error("WebSocket write error", zap.Error(err))
-	}
+	sendReply(ws, reply)
 }
 
 func sendContainerStats(ws *websocket.Conn, containerId string) {
@@ -104,12 +80,16 @@ func sendContainerStats(ws *websocket.Conn, containerId string) {
 		Data:    containerStats,
 		Ts:      time.Now().Unix(),
 	}
+	sendReply(ws, reply)
+}
+
+func sendReply(ws *websocket.Conn, reply WsReply) {
 	replyJson, err := json.Marshal(reply)
 	if err != nil {
-		logger.Error("Cannot marshal reply", zap.Error(err))
+		log.HandleError(err)
 	}
-	if err := websocket.Message.Send(ws, string(replyJson)); err != nil {
-		logger.Error("WebSocket write error", zap.Error(err))
+	if err = websocket.Message.Send(ws, string(replyJson)); err != nil {
+		log.HandleError(err)
 	}
 }
 

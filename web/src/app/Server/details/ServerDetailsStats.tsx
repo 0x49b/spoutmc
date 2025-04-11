@@ -1,15 +1,15 @@
-import React, {useEffect} from 'react';
-import {useParams} from "react-router";
-import {registerSubscriptions, useServerWebSocket} from "../../../services/websocketService";
-import {Subscription, WsCommand, WsCommandType} from "@app/model/wsCommand";
-import {CpuStats, PrecpuStats, ServerStats} from "@app/model/serverstats";
-import {useSelector} from "react-redux";
-import {RootState} from "@app/store/store";
-import {Card, CardBody, CardTitle, Flex, FlexItem, Skeleton} from "@patternfly/react-core";
+import React, { useEffect } from 'react';
+import { useParams } from 'react-router';
+import { Subscription, WsCommand, WsCommandType } from '@app/model/wsCommand';
+import { CpuStats, PrecpuStats, ServerStats } from '@app/model/serverstats';
+import { useSelector } from 'react-redux';
+import { RootState } from '@app/store/store';
+import { Card, CardBody, CardTitle, Flex, FlexItem, Skeleton } from '@patternfly/react-core';
+import { registerSubscriptions, useSharedWebSocket } from '@app/connection/WebSocketContext';
 
 export const ServerDetailsStats: React.FC = () => {
-  const {serverId} = useParams<{ serverId: string }>();
-  const {sendMessage} = useServerWebSocket();
+  const { serverId } = useParams<{ serverId: string }>();
+  const { sendMessage } = useSharedWebSocket();
   const serverStats: ServerStats | undefined = useSelector((state: RootState) => state.server.serverStats);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export const ServerDetailsStats: React.FC = () => {
   const unsubscribeFromStats = (containerId: string) => {
     const commandMessage: WsCommand = {
       type: WsCommandType.UNSUBSCRIBE_CONTAINER_STATS,
-      containerId: containerId,
+      containerId: containerId
     };
     sendMessage(JSON.stringify(commandMessage));
   };
@@ -54,8 +54,8 @@ export const ServerDetailsStats: React.FC = () => {
   return (
     <>
       <Flex>
-        <FlexItem grow={{default: 'grow'}}>
-          <Card ouiaId="MemoryCard" style={{height: '100%'}}>
+        <FlexItem grow={{ default: 'grow' }}>
+          <Card ouiaId="MemoryCard" style={{ height: '100%' }}>
             <CardTitle>Memory</CardTitle>
             <CardBody>
               {serverStats ?
@@ -63,17 +63,17 @@ export const ServerDetailsStats: React.FC = () => {
                   <p>Current Usage: {bytesToGb(serverStats?.memory_stats.usage ?? 0)} GB</p>
                   <p>Limit: {bytesToGb(serverStats?.memory_stats.limit ?? 0)} GB</p>
                 </> :
-                <Skeleton width="25%" screenreaderText="Loading contents"/>}
+                <Skeleton width="25%" screenreaderText="Loading contents" />}
             </CardBody>
           </Card>
         </FlexItem>
-        <FlexItem grow={{default: 'grow'}}>
-          <Card ouiaId="CPUCard" style={{height: '100%'}}>
+        <FlexItem grow={{ default: 'grow' }}>
+          <Card ouiaId="CPUCard" style={{ height: '100%' }}>
             <CardTitle>CPU</CardTitle>
             <CardBody>
               {serverStats ?
                 <p>{calcCPUPercent(serverStats?.cpu_stats, serverStats?.precpu_stats)}%</p> :
-                <Skeleton width="25%" screenreaderText="Loading contents"/>}
+                <Skeleton width="25%" screenreaderText="Loading contents" />}
               <p>&nbsp;</p>
             </CardBody>
           </Card>

@@ -6,15 +6,18 @@ import { AppRoutes } from '@app/routes';
 import '@app/app.css';
 import { Provider } from 'react-redux';
 import { store } from '@app/store/store';
+import { WebSocketProvider } from '@app/connection/WebSocketContext';
 
 
 const App: React.FunctionComponent = () => (
   <Provider store={store}>
-    <Router>
-      <AppLayout>
-        <AppRoutes />
-      </AppLayout>
-    </Router>
+    <WebSocketProvider>
+      <Router>
+        <AppLayout>
+          <AppRoutes />
+        </AppLayout>
+      </Router>
+    </WebSocketProvider>
   </Provider>
 );
 

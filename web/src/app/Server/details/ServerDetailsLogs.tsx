@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
-import { useServerWebSocket } from '../../../services/websocketService';
 import { CodeEditor } from '@patternfly/react-code-editor';
 import { WsCommand, WsCommandType } from '@app/model/wsCommand';
 import { useSelector } from 'react-redux';
@@ -19,14 +18,16 @@ import {
 } from '@patternfly/react-core';
 import { PaperPlaneIcon } from '@patternfly/react-icons';
 import { ReadyState } from 'react-use-websocket';
+import { useSharedWebSocket } from '@app/connection/WebSocketContext';
 
 
 export const ServerDetailsLogs: React.FC = () => {
   const { serverId } = useParams<{ serverId: string }>();
-  const { sendMessage, readyState } = useServerWebSocket();
+  const { sendMessage } = useSharedWebSocket();
   const serverLogs = useSelector((state: RootState) => state.server.serverLogs);
   const [logContent, setLogContent] = useState<string>('');
   const [serverCommand, setServerCommand] = useState<string>('');
+  const readyState = useSelector((state: RootState) => state.socket.readyState);
 
   const editorRef = useRef<any>(null); // Ref to Monaco editor instance
 

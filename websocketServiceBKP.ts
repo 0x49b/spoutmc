@@ -1,14 +1,13 @@
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { useEffect, useState } from 'react';
 import { Subscription, WsCommand, WsCommandType, WsReply } from '@app/model/wsCommand';
-import { RootState, store } from '@app/store/store';
+import { store } from '@app/store/store';
 import { setServer, setServers, setServersLogs, setServerStats } from '@app/store/serverSlice';
 import { setMessage } from '@app/store/messageSlice';
 import { setSocketState } from '@app/store/socketSlice';
-import { useSelector } from 'react-redux';
 
 const WS_URL = 'ws://localhost:3000/ws/';
-const RECONNECT_INTERVAL = 100; // 5 seconds
+const RECONNECT_INTERVAL = 1000; // 1 Second
 
 export const useServerWebSocket = () => {
   const [shouldReconnect, setShouldReconnect] = useState(true);
@@ -42,14 +41,6 @@ export const useServerWebSocket = () => {
     }
   }, [readyState]);
 
-  useEffect(() => {
-    if (readyState === ReadyState.OPEN) {
-      const subscriptions = useSelector((state: RootState) => state.activeSubscriptions);
-
-      // Todo Write sending logic here
-
-    }
-  }, [readyState]);
 
   // Process incoming WebSocket messages
   useEffect(() => {
