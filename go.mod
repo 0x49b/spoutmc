@@ -9,6 +9,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/mochi-mqtt/server/v2 v2.7.9
 	github.com/samber/slog-zap v1.0.0
+	github.com/samber/slog-zap/v2 v2.6.2
 	github.com/twistedasylummc/minime v0.0.4
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
@@ -45,7 +46,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rs/xid v1.4.0 // indirect
-	github.com/samber/lo v1.38.1 // indirect
+	github.com/samber/lo v1.47.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
