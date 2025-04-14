@@ -46,7 +46,7 @@ const ServerList: React.FunctionComponent = () => {
     return () => {
       // Optional cleanup if needed
     };
-  }, [isConnected]);
+  }, []);
 
   //const { sendMessage, readyState } = useSharedWebSocket();
   const sendMessage = (s: string) => {
@@ -84,10 +84,7 @@ const ServerList: React.FunctionComponent = () => {
       type: WsCommandType.STOP,
       containerId: id
     };
-    sendMessage(JSON.stringify(commandMessage));
-
-    (isConnected) ? publish('server', JSON.stringify(commandMessage)) : '';
-
+    if (isConnected) publish('server', JSON.stringify(commandMessage));
   };
 
   const startServer = (id: string) => {
@@ -115,11 +112,11 @@ const ServerList: React.FunctionComponent = () => {
   };
 
   const loadServerlist = useCallback(() => {
-    /*const commandMessage: WsCommand = {
+    const commandMessage: WsCommand = {
       type: WsCommandType.CONTAINERLIST
     };
-    (readyState === ReadyState.OPEN) ? sendMessage(JSON.stringify(commandMessage)) : '';
-    */
+
+    if (isConnected) publish('server', JSON.stringify(commandMessage));
 
   }, []);
 

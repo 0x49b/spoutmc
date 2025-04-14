@@ -38,4 +38,5 @@ export interface WsReply {
   data?: string | string[];
   ts: number;
   containerId?: string;
+  clientId?: string;
 }

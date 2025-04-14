@@ -36,8 +36,9 @@ export const MqttProvider = ({ children }: { children: React.ReactNode }) => {
 
     client.on('message', (topic, message) => {
       const msgStr = message.toString();
-      const lastMessage:WsReply = JSON.parse(msgStr);
-      dispatch(setMessage(lastMessage));
+      const parsed: WsReply = JSON.parse(msgStr);
+
+      dispatch(setMessage(parsed));
       if (subscribersRef.current[topic]) {
         subscribersRef.current[topic].forEach((callback) => callback(msgStr));
       }
