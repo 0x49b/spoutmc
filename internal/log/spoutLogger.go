@@ -2,22 +2,36 @@ package log
 
 import (
 	"fmt"
-	"github.com/labstack/echo/v4"
+	slogzap "github.com/samber/slog-zap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+	"log/slog"
 	"os"
 	"runtime"
-	"time"
+)
+
+type LogType string
+
+const (
+	DEBUG LogType = "debug"
+	INFO  LogType = "info"
+	WARN  LogType = "warn"
+	ERROR LogType = "error"
 )
 
 var globalLogger *zap.Logger
+var zapLevel, slogLevel = getLogLevel(INFO) //Todo read this from Config
 
 func GetLogger() *zap.Logger {
 	if globalLogger == nil {
 		globalLogger = CreateLogger()
 	}
 	return globalLogger
+}
+
+func GetSLogger() *slog.Logger {
+	return slog.New(slogzap.Option{Level: slogLevel, Logger: GetLogger()}.NewZapHandler())
 }
 
 func CreateLogger() *zap.Logger {
@@ -29,7 +43,7 @@ func CreateLogger() *zap.Logger {
 		MaxBackups: 5,
 		MaxAge:     7, // days
 	})
-	level := zap.NewAtomicLevelAt(zap.InfoLevel)
+	level := zap.NewAtomicLevelAt(zapLevel)
 	productionCfg := zap.NewProductionEncoderConfig()
 	productionCfg.TimeKey = "timestamp"
 	productionCfg.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -52,53 +66,21 @@ func HandleError(err error) (b bool) {
 		// notice that we're using 1, so it will actually log where
 		// the error happened, 0 = this function, we don't want that.
 		_, filename, line, _ := runtime.Caller(1)
-		globalLogger.Error(fmt.Sprintf("%s:%d: %s %s", filename, line, err.Error()))
+		globalLogger.Error(fmt.Sprintf("⛔ %s:%d: %s %s", filename, line, err.Error()))
 		b = true
 	}
 	return
 }
 
-func CreateZapLoggerMiddleware(log *zap.Logger) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			start := time.Now()
-
-			err := next(c)
-			if err != nil {
-				c.Error(err)
-			}
-
-			req := c.Request()
-			res := c.Response()
-
-			id := req.Header.Get(echo.HeaderXRequestID)
-			if id == "" {
-				id = res.Header().Get(echo.HeaderXRequestID)
-			}
-
-			fields := []zapcore.Field{
-				zap.Int("status", res.Status),
-				zap.String("latency", time.Since(start).String()),
-				zap.String("id", id),
-				zap.String("method", req.Method),
-				zap.String("uri", req.RequestURI),
-				zap.String("host", req.Host),
-				zap.String("remote_ip", c.RealIP()),
-			}
-
-			n := res.Status
-			switch {
-			case n >= 500:
-				log.Error("Server error", fields...)
-			case n >= 400:
-				log.Warn("Client error", fields...)
-			case n >= 300:
-				log.Info("Redirection", fields...)
-			default:
-				log.Info("Success", fields...)
-			}
-
-			return nil
-		}
+func getLogLevel(level LogType) (zapcore.Level, slog.Level) {
+	switch level {
+	case "debug":
+		return zap.DebugLevel, slog.LevelDebug
+	case "warn":
+		return zap.WarnLevel, slog.LevelWarn
+	case "error":
+		return zap.ErrorLevel, slog.LevelError
+	default:
+		return zap.InfoLevel, slog.LevelInfo
 	}
 }
