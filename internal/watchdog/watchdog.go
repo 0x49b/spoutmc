@@ -3,117 +3,103 @@ package watchdog
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"go.uber.org/zap"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
-	"spoutmc/internal/plugins"
-	"spoutmc/internal/utils"
-	"time"
 )
 
-var containerIds = []string{}
-
-// Todo this has to be refatored with a client used for all different docker operations, currently against DRY principle
-var ctx = context.Background()
-var cli, _ = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-var logger = log.GetLogger()
-var stopped = false
-
-func Start() {
-	stopped = false
-	runWatchdog()
+type Watchdog struct {
+	cli          *client.Client
+	logger       *zap.Logger
+	excluded     map[string]struct{}
+	pollInterval time.Duration
 }
 
-func Shutdown() error {
-	logger.Info("Should now end watchdog")
-	stopped = true
-	return nil
-}
-
-func ExcludeFromWatchdog(containerId string) {
-	containerIds = append(containerIds, containerId)
-	logger.Debug(fmt.Sprintf("[WatchDog] added %s", containerId))
-}
-
-func IncludeToWatchdog(containerId string) {
-	containerIds = utils.Remove(containerIds, containerId)
-	logger.Debug(fmt.Sprintf("[WatchDog] removed %s", containerId))
-}
-
-func runWatchdog() {
-loop:
-	for {
-		if !stopped {
-			networkContainer, err := docker.GetNetworkContainers()
-			if err != nil {
-				logger.Error("[Watchdog] Cannot find any Containers")
-			}
-
-			for _, container := range networkContainer {
-				containerInfo, err := cli.ContainerInspect(ctx, container.ID)
-				if err != nil {
-					logger.Error("", zap.Error(err))
-				}
-
-				logger.Debug(fmt.Sprintf("[WatchDog] Server %s in State %s", containerInfo.Config.Hostname, containerInfo.State.Status))
-
-				// States: Can be one of "created", "running", "paused", "restarting", "removing", "exited", or "dead"
-				if containerInfo.State.Status != "running" {
-
-					// only restart container if not stoppeb by user
-					if !utils.CheckInStringSlice(containerIds, containerInfo.ID) {
-						logger.Warn(fmt.Sprintf("[WatchDog] detected container %s in state %s", containerInfo.Config.Hostname, containerInfo.State.Status))
-
-						switch containerInfo.State.Status {
-						case "exited":
-						case "dead":
-							startContainer(containerInfo.ID, containerInfo.Config.Hostname)
-							break
-						case "paused":
-						}
-
-						if containerInfo.State.Status == "exited" || containerInfo.State.Status == "dead" {
-							startContainer(containerInfo.ID, containerInfo.Config.Hostname)
-						}
-					}
-
-				}
-			}
-		} else {
-			break loop
-		}
-
-		// Sleep Time before Watchdog checks container
-		time.Sleep(15 * time.Second)
-
-	}
-}
-
-func startContainer(containerId string, containerName string) {
-	logger.Info(fmt.Sprintf("[WatchDog] try starting container %s", containerName))
-
-	//checkForServerTapPlugin(containerId)
-
-	err := cli.ContainerStart(ctx, containerId, container.StartOptions{})
+func NewWatchdog(pollInterval time.Duration) (*Watchdog, error) {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		logger.Error("[WatchDog] Could not start container !!!")
+		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}
-	logger.Info(fmt.Sprintf("[WatchDog] started container %s", containerName))
+
+	return &Watchdog{
+		cli:          cli,
+		logger:       log.GetLogger(),
+		excluded:     make(map[string]struct{}),
+		pollInterval: pollInterval,
+	}, nil
 }
 
-func checkForServerTapPlugin(containerId string) {
+func (w *Watchdog) Exclude(containerID string) {
+	w.excluded[containerID] = struct{}{}
+	w.logger.Debug("🐺 excluded container", zap.String("containerID", containerID))
+}
 
-	c, _ := docker.GetContainerById(containerId)
-	proxy, _ := docker.GetProxyContainer()
+func (w *Watchdog) Include(containerID string) {
+	delete(w.excluded, containerID)
+	w.logger.Debug("🐺 included container", zap.String("containerID", containerID))
+}
 
-	// Do this plugin check only if it's not the proxy container
-	if c.ID != proxy.ID {
-		p, _ := plugins.CheckForServerTap(c.Mounts[0].Source)
+func (w *Watchdog) Start(ctx context.Context) {
+	ticker := time.NewTicker(w.pollInterval)
+	defer ticker.Stop()
 
-		if !p {
-			plugins.DownloadServerTap(c.Mounts[0].Source)
+	w.logger.Info("🐺 watchdog started")
+
+	for {
+		select {
+		case <-ctx.Done():
+			w.logger.Info("🐺 watchdog shutting down")
+			return
+		case <-ticker.C:
+			w.checkContainers(ctx)
 		}
+	}
+}
+
+func (w *Watchdog) checkContainers(ctx context.Context) {
+	containers, err := docker.GetNetworkContainers()
+	if err != nil {
+		w.logger.Error("🐺 error getting network containers", zap.Error(err))
+		return
+	}
+
+	for _, c := range containers {
+		if _, excluded := w.excluded[c.ID]; excluded {
+			continue
+		}
+
+		info, err := w.cli.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			w.logger.Error("🐺 error inspecting container", zap.String("id", c.ID), zap.Error(err))
+			continue
+		}
+
+		status := info.State.Status
+		w.logger.Debug("🐺 container status",
+			zap.String("hostname", info.Config.Hostname),
+			zap.String("status", status),
+		)
+
+		if status == "exited" || status == "dead" {
+			w.logger.Warn("🐺 restarting container",
+				zap.String("hostname", info.Config.Hostname),
+				zap.String("status", status),
+			)
+			w.startContainer(ctx, c.ID, info.Config.Hostname)
+		}
+	}
+}
+
+func (w *Watchdog) startContainer(ctx context.Context, containerID, containerName string) {
+	w.logger.Info("🐺 starting container", zap.String("container", containerName))
+	err := w.cli.ContainerStart(ctx, containerID, container.StartOptions{})
+	if err != nil {
+		w.logger.Error("🐺 failed to start container", zap.String("container", containerName), zap.Error(err))
+	} else {
+		w.logger.Info("🐺 container started", zap.String("container", containerName))
 	}
 }
