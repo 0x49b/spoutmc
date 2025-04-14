@@ -7,17 +7,18 @@ import '@app/app.css';
 import { Provider } from 'react-redux';
 import { store } from '@app/store/store';
 import { WebSocketProvider } from '@app/connection/WebSocketContext';
+import { MqttProvider } from '@app/connection/MqttContext';
 
 
 const App: React.FunctionComponent = () => (
   <Provider store={store}>
-    <WebSocketProvider>
+    <MqttProvider>
       <Router>
         <AppLayout>
           <AppRoutes />
         </AppLayout>
       </Router>
-    </WebSocketProvider>
+    </MqttProvider>
   </Provider>
 );
 

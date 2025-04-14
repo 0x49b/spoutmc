@@ -17,9 +17,9 @@ import (
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
+	"spoutmc/internal/mqtt"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
-	"spoutmc/internal/webserver/mqtt"
 	"strings"
 	"syscall"
 	"time"
@@ -111,8 +111,8 @@ func main() {
 
 	shutdownOrder := []string{
 		"watchdog",
-		"webserver",
 		"mqtt-broker",
+		"webserver",
 		"containers",
 	}
 

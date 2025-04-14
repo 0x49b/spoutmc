@@ -3,7 +3,7 @@ import { useCallback, useEffect } from 'react';
 import { ReadyState } from 'react-use-websocket';
 import { Button, Flex, Icon, Label, PageSection, Skeleton, Title } from '@patternfly/react-core';
 import { Server } from '@app/model/server';
-import { Subscription, WsCommand, WsCommandType } from '@app/model/wsCommand';
+import { Subscription, WsCommand, WsCommandType, WsReply } from '@app/model/wsCommand';
 import {
   ActionsColumn,
   IAction,
@@ -18,13 +18,39 @@ import {
 import StopIcon from '@patternfly/react-icons/dist/esm/icons/stop-icon';
 import PlayIcon from '@patternfly/react-icons/dist/esm/icons/play-icon';
 import { Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@app/store/store';
-import { registerSubscriptions, useSharedWebSocket } from '@app/connection/WebSocketContext';
+import { registerSubscriptions } from '@app/connection/WebSocketContext';
+import { useMqtt } from '@app/connection/MqttContext';
+import { setServers } from '@app/store/serverSlice';
 
 const ServerList: React.FunctionComponent = () => {
 
-  const { sendMessage, readyState } = useSharedWebSocket();
+  const { subscribe, publish, isConnected } = useMqtt();
+  const [readyState, setReadyState] = React.useState<number>();
+
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const handleMsg = (msg: string) => {
+      const messageJSON: WsReply = JSON.parse(msg);
+      // @ts-ignore
+      dispatch(setServers(messageJSON.data));
+    };
+
+    if (isConnected) {
+      subscribe('server', handleMsg);
+      setReadyState(1);
+    }
+
+    return () => {
+      // Optional cleanup if needed
+    };
+  }, [isConnected]);
+
+  //const { sendMessage, readyState } = useSharedWebSocket();
+  const sendMessage = (s: string) => {
+  };
   const servers = useSelector((state: RootState) => state.server.servers);
 
   //Table
@@ -59,6 +85,9 @@ const ServerList: React.FunctionComponent = () => {
       containerId: id
     };
     sendMessage(JSON.stringify(commandMessage));
+
+    (isConnected) ? publish('server', JSON.stringify(commandMessage)) : '';
+
   };
 
   const startServer = (id: string) => {
@@ -86,10 +115,12 @@ const ServerList: React.FunctionComponent = () => {
   };
 
   const loadServerlist = useCallback(() => {
-    const commandMessage: WsCommand = {
+    /*const commandMessage: WsCommand = {
       type: WsCommandType.CONTAINERLIST
     };
     (readyState === ReadyState.OPEN) ? sendMessage(JSON.stringify(commandMessage)) : '';
+    */
+
   }, []);
 
   useEffect(() => {
@@ -111,7 +142,7 @@ const ServerList: React.FunctionComponent = () => {
     <PageSection hasBodyWrapper={false}>
       <Title headingLevel="h1" size="lg">Serverlist</Title>
 
-      {servers.length > 0 ?
+      {servers && servers.length > 0 ?
 
         <Table aria-label="Serverlist" variant={'compact'}>
           <Thead>

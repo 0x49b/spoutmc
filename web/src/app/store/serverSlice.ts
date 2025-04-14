@@ -1,8 +1,8 @@
-import {createSlice, PayloadAction} from '@reduxjs/toolkit';
-import {Server} from '@app/model/server';
-import {ServerStats} from "@app/model/serverstats";
-import {WsReply} from "@app/model/wsCommand";
-import stripAnsi from "strip-ansi";
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { Server } from '@app/model/server';
+import { ServerStats } from '@app/model/serverstats';
+import { WsReply } from '@app/model/wsCommand';
+import stripAnsi from 'strip-ansi';
 
 // Initial state
 interface ServerState {
@@ -18,7 +18,7 @@ const initialState: ServerState = {
   server: undefined,
   serversStats: [],
   serverStats: undefined,
-  serverLogs: {},
+  serverLogs: {}
 };
 
 //\u001b[0;39m
@@ -58,12 +58,12 @@ const serverSlice = createSlice({
           // @ts-ignore
           (action.payload.data as string[]).forEach((item) => {
 
-            item = stripAnsi(item)
+            item = stripAnsi(item);
             item = stripWeird(item);
 
             // @ts-ignore
             newData.push(item);
-          })
+          });
         }
 
         if (cid in state.serverLogs) {
@@ -75,8 +75,8 @@ const serverSlice = createSlice({
         }
 
       }
-    },
-  },
+    }
+  }
 });
 
 export const {
