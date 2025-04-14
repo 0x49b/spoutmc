@@ -18,7 +18,6 @@ import (
 	"spoutmc/internal/models"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -26,33 +25,51 @@ import (
 var spoutConfiguration models.SpoutConfiguration
 var logger = log.GetLogger()
 
+type operation func(ctx context.Context) error
+
 func main() {
 	printBanner()
 	logger.Info("Starting SpoutNetwork")
 
-	if isDockerRunning() {
-		go watchdog.Start()
-		//go database.Start()
-		go startSpout()
-		c := webserver.Start()
-
-		wait := registerShutdown(context.Background(), 30*time.Second, map[string]operation{
-			"containers": func(ctx context.Context) error {
-				return docker.ShutdownContainers()
-			},
-			"webserver": func(ctx context.Context) error {
-				return webserver.Shutdown(c)
-			},
-			"watchdog": func(ctx context.Context) error {
-				return watchdog.Shutdown()
-			},
-		})
-		<-wait
-	} else {
+	if !isDockerRunning() {
 		log.HandleError(errors.New("docker runtime is not running. Cannot start SpoutMC"))
 		os.Exit(1)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go watchdog.Start()
+	go startSpout()
+
+	c := webserver.Start()
+
+	<-ctx.Done() // wait for shutdown signal
+	logger.Info("Shutdown signal received")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	shutdownOps := map[string]operation{
+		"containers": func(ctx context.Context) error {
+			return docker.ShutdownContainers()
+		},
+		"webserver": func(ctx context.Context) error {
+			return webserver.Shutdown(c)
+		},
+		"watchdog": func(ctx context.Context) error {
+			return watchdog.Shutdown()
+		},
+	}
+
+	for key, op := range shutdownOps {
+		logger.Info(fmt.Sprintf("cleaning up: %s", key))
+		if err := op(shutdownCtx); err != nil {
+			log.HandleError(err)
+		} else {
+			logger.Info(fmt.Sprintf("%s was shut down gracefully", key))
+		}
+	}
 }
 
 func isDockerRunning() bool {
@@ -67,7 +84,7 @@ func isDockerRunning() bool {
 func startSpout() {
 	err := readConfiguration()
 	if err != nil {
-		logger.Error("Cannot open/read configuration", zap.Error(err))
+		log.HandleError(err)
 		os.Exit(1)
 	}
 
@@ -168,47 +185,4 @@ func printBanner() {
 	fmt.Println("        |||      /____/ .___/\\____/\\__,_/\\__/_/  /_/\\____/   ")
 	fmt.Println("        |||          /_/                            0.0.1    ")
 	fmt.Println()
-}
-
-type operation func(ctx context.Context) error
-
-func registerShutdown(ctx context.Context, timeout time.Duration, ops map[string]operation) <-chan struct{} {
-	wait := make(chan struct{})
-	go func() {
-		s := make(chan os.Signal, 1)
-		signal.Notify(s, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-		<-s
-
-		logger.Info("shutting down initiated")
-		timeoutFunc := time.AfterFunc(timeout, func() {
-			logger.Info(fmt.Sprintf("timeout %d ms has been elapsed, force exit", timeout.Milliseconds()))
-			os.Exit(0)
-		})
-
-		defer timeoutFunc.Stop()
-
-		var wg sync.WaitGroup
-		for key, op := range ops {
-			wg.Add(1)
-			innerOp := op
-			innerKey := key
-			go func() {
-				defer wg.Done()
-
-				logger.Info(fmt.Sprintf("cleaning up: %s", innerKey))
-				if err := innerOp(ctx); err != nil {
-					logger.Error(err.Error())
-					return
-				}
-
-				logger.Info(fmt.Sprintf("%s was shutdown gracefully", innerKey))
-			}()
-		}
-
-		wg.Wait()
-
-		close(wait)
-	}()
-
-	return wait
 }
