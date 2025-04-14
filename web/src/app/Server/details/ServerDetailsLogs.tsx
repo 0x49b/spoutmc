@@ -23,17 +23,19 @@ import { useSharedWebSocket } from '@app/connection/WebSocketContext';
 
 export const ServerDetailsLogs: React.FC = () => {
   const { serverId } = useParams<{ serverId: string }>();
-  const { sendMessage } = useSharedWebSocket();
+  const { sendMessage, readyState } = useSharedWebSocket();
   const serverLogs = useSelector((state: RootState) => state.server.serverLogs);
   const [logContent, setLogContent] = useState<string>('');
   const [serverCommand, setServerCommand] = useState<string>('');
-  const readyState = useSelector((state: RootState) => state.socket.readyState);
 
   const editorRef = useRef<any>(null); // Ref to Monaco editor instance
 
+
   useEffect(() => {
-    loadServerLogs();
-  }, [serverId]);
+    if (readyState === ReadyState.OPEN) {
+      loadServerLogs();
+    }
+  }, [readyState, serverId]);
 
   useEffect(() => {
     if (serverId) {

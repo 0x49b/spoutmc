@@ -13,7 +13,7 @@ export enum WsCommandType {
   SUBSCRIBE_CONTAINER_STATS = 'subscribe_container_stats',
   UNSUBSCRIBE_CONTAINER_STATS = 'unsubscribe_container_stats',
   REGISTER_SUBSCRIPTIONS = 'register_subscription',
-  UNREGISTER_SUBSCRIPTIONS = 'unregister_subscription',
+  UNREGISTER_SUBSCRIPTIONS = 'unregister_subscriptions',
   EXEC_REQUEST = 'exec_request',
   EXEC_RESPONSE = 'exec_response'
 

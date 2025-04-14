@@ -17,19 +17,15 @@ import {
 } from '@patternfly/react-table';
 import StopIcon from '@patternfly/react-icons/dist/esm/icons/stop-icon';
 import PlayIcon from '@patternfly/react-icons/dist/esm/icons/play-icon';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '@app/store/store';
 import { registerSubscriptions, useSharedWebSocket } from '@app/connection/WebSocketContext';
 
 const ServerList: React.FunctionComponent = () => {
 
-  const { sendMessage } = useSharedWebSocket();
-  const navigate = useNavigate();
-
-  // Store
+  const { sendMessage, readyState } = useSharedWebSocket();
   const servers = useSelector((state: RootState) => state.server.servers);
-  const readyState = useSelector((state: RootState) => state.socket.readyState);
 
   //Table
   const columnNames = {
@@ -40,6 +36,21 @@ const ServerList: React.FunctionComponent = () => {
     state: 'State',
     status: 'Status'
   };
+
+  // use this to unsubscribe from serverdetails when moving away of this component
+  useEffect(() => {
+    // When unmounting this component, send an unsubscribe
+    return () => {
+      if (readyState === ReadyState.OPEN) {
+
+        const commandMessage: WsCommand = {
+          type: WsCommandType.UNREGISTER_SUBSCRIPTIONS,
+          subscriptions: [Subscription.SUB_DETAIL, Subscription.SUB_LOGS, Subscription.SUB_STATS, Subscription.SUB_LIST]
+        };
+        sendMessage(JSON.stringify(commandMessage));
+      }
+    };
+  }, [readyState]);
 
 
   const stopServer = (id: string) => {
@@ -78,7 +89,7 @@ const ServerList: React.FunctionComponent = () => {
     const commandMessage: WsCommand = {
       type: WsCommandType.CONTAINERLIST
     };
-    sendMessage(JSON.stringify(commandMessage));
+    (readyState === ReadyState.OPEN) ? sendMessage(JSON.stringify(commandMessage)) : '';
   }, []);
 
   useEffect(() => {

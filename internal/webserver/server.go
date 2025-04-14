@@ -15,7 +15,7 @@ import (
 
 var logger = log.GetLogger()
 
-func Start() *echo.Echo {
+func Start() (*echo.Echo, error) {
 
 	logger.Info("Starting Webserver")
 
@@ -47,9 +47,8 @@ func Start() *echo.Echo {
 	e.GET("ws", ws.WebsocketHandler)
 
 	go func() {
-		logger.Info("Webserver started")
 		if err := e.Start(":3000"); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("shutting down the server")
+			logger.Fatal("shutting down webserver")
 		}
 	}()
 
@@ -63,7 +62,7 @@ func Start() *echo.Echo {
 	if err := e.Shutdown(ctx); err != nil {
 		logger.Fatal("", zap.Error(err))
 	}
-	return e
+	return e, nil
 }
 
 func Shutdown(e *echo.Echo) error {

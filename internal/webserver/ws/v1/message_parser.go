@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/websocket"
 	"spoutmc/internal/docker"
-	"spoutmc/internal/watchdog"
+	"spoutmc/internal/global"
 )
 
 func messageParser(message []byte, ws *websocket.Conn) {
@@ -18,9 +18,9 @@ func messageParser(message []byte, ws *websocket.Conn) {
 	switch messageData.Command {
 	case START:
 		docker.StartContainerById(messageData.ContainerId)
-		watchdog.IncludeToWatchdog(messageData.ContainerId)
+		global.Watchdog.Include(messageData.ContainerId)
 	case STOP:
-		watchdog.ExcludeFromWatchdog(messageData.ContainerId)
+		global.Watchdog.Exclude(messageData.ContainerId)
 		docker.StopContainerById(messageData.ContainerId)
 	case RESTART:
 		docker.RestartContainerById(messageData.ContainerId)
@@ -32,6 +32,8 @@ func messageParser(message []byte, ws *websocket.Conn) {
 		sendHeartbeat(ws)
 	case LOGS:
 		sendContainerLogs(ws, messageData.ContainerId)
+	case CONTAINERLIST:
+		sendContainerList(ws)
 	case CONTAINERDETAIL:
 		sendContainerDetails(ws, messageData.ContainerId)
 	case CONTAINERSTATS:

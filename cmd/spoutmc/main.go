@@ -7,23 +7,29 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"go.uber.org/zap"
+	"github.com/labstack/echo/v4"
 	"io"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"spoutmc/internal/docker"
+	"spoutmc/internal/global"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
+	"spoutmc/internal/webserver/mqtt"
+	"strings"
 	"syscall"
 	"time"
 )
 
 var spoutConfiguration models.SpoutConfiguration
 var logger = log.GetLogger()
+var c *echo.Echo
+var err error
+var wd *watchdog.Watchdog
 
 type operation func(ctx context.Context) error
 
@@ -39,10 +45,47 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	go watchdog.Start()
-	go startSpout()
+	startupOps := map[string]operation{
+		"spoutmc": func(ctx context.Context) error {
+			err = startSpoutMC()
+			return nil
+		},
+		"mqttbroker": func(ctx context.Context) error {
+			go mqtt.StartMQTT()
+			return nil
+		},
+		"webserver": func(ctx context.Context) error {
+			c, err = webserver.Start()
+			return nil
+		},
+		"watchdog": func(ctx context.Context) error {
+			wd, err = watchdog.NewWatchdog(15 * time.Second)
+			if err != nil {
+				log.HandleError(fmt.Errorf("failed to create watchdog: %w", err))
+				return err
+			}
 
-	c := webserver.Start()
+			global.Watchdog = wd
+
+			go wd.Start(ctx)
+			return nil
+		},
+	}
+
+	startupOrder := []string{
+		"spoutmc",
+		"watchdog",
+		"mqttbroker",
+		"webserver",
+	}
+
+	for _, key := range startupOrder {
+		logger.Info(fmt.Sprintf("starting: %s", key))
+		if err := startupOps[key](ctx); err != nil {
+			log.HandleError(fmt.Errorf("%s failed to start: %w", key, err))
+			os.Exit(1)
+		}
+	}
 
 	<-ctx.Done() // wait for shutdown signal
 	logger.Info("Shutdown signal received")
@@ -51,23 +94,34 @@ func main() {
 	defer cancel()
 
 	shutdownOps := map[string]operation{
+		"watchdog": func(ctx context.Context) error {
+			logger.Info(fmt.Sprintf("🐺 watchdog will stop via context cancel"))
+			return nil
+		},
 		"containers": func(ctx context.Context) error {
 			return docker.ShutdownContainers()
 		},
 		"webserver": func(ctx context.Context) error {
 			return webserver.Shutdown(c)
 		},
-		"watchdog": func(ctx context.Context) error {
-			return watchdog.Shutdown()
+		"mqtt-broker": func(ctx context.Context) error {
+			return mqtt.ShutdownMQTT()
 		},
 	}
 
-	for key, op := range shutdownOps {
-		logger.Info(fmt.Sprintf("cleaning up: %s", key))
-		if err := op(shutdownCtx); err != nil {
+	shutdownOrder := []string{
+		"watchdog",
+		"webserver",
+		"mqtt-broker",
+		"containers",
+	}
+
+	for _, key := range shutdownOrder {
+		logger.Warn(fmt.Sprintf("initiate stopping of: %s", key))
+		if err := shutdownOps[key](shutdownCtx); err != nil {
 			log.HandleError(err)
 		} else {
-			logger.Info(fmt.Sprintf("%s was shut down gracefully", key))
+			logger.Info(fmt.Sprintf("%s shut down gracefully", key))
 		}
 	}
 }
@@ -81,15 +135,16 @@ func isDockerRunning() bool {
 	return true
 }
 
-func startSpout() {
+func startSpoutMC() error {
 	err := readConfiguration()
 	if err != nil {
 		log.HandleError(err)
-		os.Exit(1)
+		return err
 	}
 
 	docker.CreateSpoutNetwork("spoutnetwork") // todo get this from config
-	startContainers()                         // Todo only do a restart if really needed. On Start of SpoutMC, the WatchDog checks for exited containers and restarts them [label needed]
+	startContainers()
+	return nil
 }
 
 func readConfiguration() error {
@@ -170,7 +225,8 @@ func startContainers() {
 	}
 
 	for _, spoutContainer := range containers {
-		logger.Info(fmt.Sprintf("Running spoutContainer %s", spoutContainer.Names[0]), zap.String("image", spoutContainer.Image), zap.String("containerShortId", spoutContainer.ID[:10]))
+		logger.Info(fmt.Sprintf("🚀 Running %s (%s) with %s", strings.Trim(spoutContainer.Names[0], "/"), spoutContainer.ID[:10], spoutContainer.Image))
+
 	}
 
 }

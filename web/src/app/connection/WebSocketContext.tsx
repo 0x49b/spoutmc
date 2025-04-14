@@ -1,15 +1,26 @@
+// src/app/connection/WebSocketContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { useDispatch } from 'react-redux';
 import { setSocketState } from '@app/store/socketSlice';
 import { setMessage } from '@app/store/messageSlice';
-import { setServer, setServers, setServersLogs, setServerStats } from '@app/store/serverSlice';
+import {
+  setServer,
+  setServers,
+  setServersLogs,
+  setServerStats,
+} from '@app/store/serverSlice';
 import { Subscription, WsCommand, WsCommandType, WsReply } from '@app/model/wsCommand';
 
 const WS_URL = 'ws://localhost:3000/ws/';
 const RECONNECT_INTERVAL = 1000;
 
-const WebSocketContext = createContext<any>(null);
+interface IWebSocketContext {
+  sendMessage: (msg: string) => void;
+  readyState: ReadyState;
+}
+
+const WebSocketContext = createContext<IWebSocketContext | null>(null);
 
 export const WebSocketProvider = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useDispatch();
@@ -28,6 +39,20 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
     [ReadyState.CLOSED]: 'Closed',
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated'
   }[readyState];
+
+  // handlre tab close, refresh
+  useEffect(() => {
+    const handleUnload = () => {
+      if (readyState === ReadyState.OPEN) {
+        sendMessage(JSON.stringify({ type: 'UNREGISTER' })); // or your custom disconnect logic
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [readyState]);
 
   // Update Redux store with connection state
   useEffect(() => {
@@ -73,7 +98,11 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
   );
 };
 
-export const useSharedWebSocket = () => useContext(WebSocketContext);
+export const useSharedWebSocket = () => {
+  const context = useContext(WebSocketContext);
+  if (!context) throw new Error('useSharedWebSocket must be used within a WebSocketProvider');
+  return context;
+};
 
 export const registerSubscriptions = (sendMessage: (msg: string) => void, sub: Subscription[], cId?: string) => {
   const commandMessage: WsCommand = {

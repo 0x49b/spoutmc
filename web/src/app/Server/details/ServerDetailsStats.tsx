@@ -6,15 +6,19 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@app/store/store';
 import { Card, CardBody, CardTitle, Flex, FlexItem, Skeleton } from '@patternfly/react-core';
 import { registerSubscriptions, useSharedWebSocket } from '@app/connection/WebSocketContext';
+import { ReadyState } from 'react-use-websocket';
 
 export const ServerDetailsStats: React.FC = () => {
   const { serverId } = useParams<{ serverId: string }>();
-  const { sendMessage } = useSharedWebSocket();
+  const { sendMessage, readyState } = useSharedWebSocket();
   const serverStats: ServerStats | undefined = useSelector((state: RootState) => state.server.serverStats);
+  
 
   useEffect(() => {
-    registerSubscriptions(sendMessage, [Subscription.SUB_STATS], serverId);
-  }, [serverId]);
+    if (readyState === ReadyState.OPEN) {
+      registerSubscriptions(sendMessage, [Subscription.SUB_STATS], serverId);
+    }
+  }, [readyState, serverId]);
 
   useEffect(() => {
     return () => {

@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"go.uber.org/zap"
 	"golang.org/x/net/websocket"
 	"spoutmc/internal/docker"
@@ -32,6 +33,17 @@ func executeCommands(ws *websocket.Conn, message WsMessage) {
 			ContainerId: message.ContainerId,
 		}
 		sendReply(ws, reply)
+	}
+}
+
+func sendContainerList(ws *websocket.Conn) {
+	replyJson, err := prepareContainerListAsJson()
+	if err != nil {
+		log.HandleError(err)
+	}
+
+	if !safeSend(ws, string(replyJson)) {
+		log.HandleError(errors.New("failed to send reply for container list"))
 	}
 }
 

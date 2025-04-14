@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"go.uber.org/zap"
 	"spoutmc/internal/docker"
+	"spoutmc/internal/log"
 	"time"
 )
 
@@ -47,6 +48,7 @@ func broadcastContainerStats() {
 				stats, err := docker.GetContainerStats(sub.ContainerId)
 				if err != nil {
 					logger.Error("Stats fetch failed", zap.String("id", sub.ContainerId), zap.Error(err))
+					log.HandleError(err)
 					continue
 				}
 				reply := WsReply{

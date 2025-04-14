@@ -31,7 +31,7 @@
       ]
     },
     {
-      "name": "spoutlobby",
+      "name": "lobby",
       "image": "itzg/minecraft-server",
       "lobby": true,
       "env": {
@@ -58,7 +58,7 @@
       ]
     },
     {
-      "name": "spoutskyblock",
+      "name": "skyblock",
       "image": "itzg/minecraft-server",
       "ports": [
         {

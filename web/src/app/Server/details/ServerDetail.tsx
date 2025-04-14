@@ -29,22 +29,20 @@ enum ActiveTab {
 
 const ServerDetail: React.FunctionComponent = () => {
   // const
-  const { sendMessage } = useSharedWebSocket();
+  const { sendMessage, readyState } = useSharedWebSocket();
   const { serverId } = useParams<{ serverId: string }>();
   const server = useSelector((state: RootState) => state.server.server);
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
-  const readyState = useSelector((state: RootState) => state.socket.readyState);
 
 
   //Effects
   useEffect(() => {
-    if (readyState !== ReadyState.OPEN) {
-      console.error('WebSocket not open');
-      return;
+    if (readyState === ReadyState.OPEN) {
+      loadServerDetail();
+      registerSubscriptions(sendMessage, [Subscription.SUB_DETAIL, Subscription.SUB_STATS], serverId);
     }
-    registerSubscriptions(sendMessage, [Subscription.SUB_DETAIL, Subscription.SUB_STATS], serverId);
-    loadServerDetail();
-  }, [serverId]);
+  }, [readyState]);
+
 
   // Functions
   const loadServerDetail = () => {

@@ -3,7 +3,6 @@ package docker
 import (
 	"bufio"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"go.uber.org/zap"
 	"io"
-	"os"
 	"path/filepath"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
@@ -25,44 +23,6 @@ import (
 var ctx = context.Background()
 
 var logger = log.GetLogger()
-
-func StreamLogsFromContainer(containerName string) {
-
-	cid, err := GetContainer(containerName)
-	if err != nil {
-		return
-	}
-
-	i, err := cli.ContainerLogs(context.Background(), cid.ID, container.LogsOptions{
-		ShowStderr: true,
-		ShowStdout: true,
-		Timestamps: false,
-		Follow:     true,
-		Tail:       "40",
-	})
-	if err != nil {
-		logger.Error("", zap.Error(err))
-	}
-	hdr := make([]byte, 8)
-	for {
-		_, err := i.Read(hdr)
-		if err != nil {
-			logger.Error("", zap.Error(err))
-		}
-		var w io.Writer
-		switch hdr[0] {
-		case 1:
-			w = os.Stdout
-		default:
-			w = os.Stderr
-		}
-		count := binary.BigEndian.Uint32(hdr[4:])
-		dat := make([]byte, count)
-		_, err = i.Read(dat)
-		fmt.Fprint(w, string(dat))
-	}
-
-}
 
 func isImageExisting(imageName string) bool {
 	images, err := cli.ImageList(ctx, image.ListOptions{All: true})
@@ -244,7 +204,6 @@ func StartContainer(s models.SpoutServer) {
 
 		//todo check for configuration switch here if it should restart
 
-		logger.Info(fmt.Sprintf("re/start container %s", s.Name))
 		startContainer, err := GetContainer(s.Name)
 		if err != nil {
 			logger.Error(err.Error())
@@ -252,11 +211,13 @@ func StartContainer(s models.SpoutServer) {
 
 		if startContainer.State == "exited" {
 			err := cli.ContainerStart(ctx, startContainer.ID, container.StartOptions{})
+			logger.Info(fmt.Sprintf("start container %s", s.Name))
 			if err != nil {
 				logger.Error(err.Error())
 			}
 		} else {
 			err := cli.ContainerRestart(ctx, startContainer.ID, container.StopOptions{})
+			logger.Info(fmt.Sprintf("restart container %s", s.Name))
 			if err != nil {
 				logger.Error(err.Error())
 			}
@@ -266,9 +227,6 @@ func StartContainer(s models.SpoutServer) {
 }
 
 func ShutdownContainers() error {
-
-	fmt.Println("In Shutdown Containers")
-
 	containers, err := GetNetworkContainers()
 	if err != nil {
 		return err
