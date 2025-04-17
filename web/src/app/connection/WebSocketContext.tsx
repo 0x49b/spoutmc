@@ -40,7 +40,7 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
     [ReadyState.UNINSTANTIATED]: 'Uninstantiated'
   }[readyState];
 
-  // handlre tab close, refresh
+  // handle tab close, refresh
   useEffect(() => {
     const handleUnload = () => {
       if (readyState === ReadyState.OPEN) {

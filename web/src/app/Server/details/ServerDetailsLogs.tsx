@@ -23,19 +23,23 @@ import { useSharedWebSocket } from '@app/connection/WebSocketContext';
 
 export const ServerDetailsLogs: React.FC = () => {
   const { serverId } = useParams<{ serverId: string }>();
-  const { sendMessage, readyState } = useSharedWebSocket();
+  //const { sendMessage, readyState } = useSharedWebSocket();
   const serverLogs = useSelector((state: RootState) => state.server.serverLogs);
   const [logContent, setLogContent] = useState<string>('');
   const [serverCommand, setServerCommand] = useState<string>('');
 
   const editorRef = useRef<any>(null); // Ref to Monaco editor instance
 
+  const [readyState, setReadyState] = useState<ReadyState>(ReadyState.CLOSED)
 
-  useEffect(() => {
+
+ /* useEffect(() => {
     if (readyState === ReadyState.OPEN) {
       loadServerLogs();
     }
   }, [readyState, serverId]);
+
+  */
 
   useEffect(() => {
     if (serverId) {
@@ -59,7 +63,7 @@ export const ServerDetailsLogs: React.FC = () => {
   };
 
   const loadServerLogs = () => {
-    if (readyState !== ReadyState.OPEN) {
+   /* if (readyState !== ReadyState.OPEN) {
       console.error('WebSocket not open');
       return;
     }
@@ -67,7 +71,7 @@ export const ServerDetailsLogs: React.FC = () => {
       type: WsCommandType.LOGS,
       containerId: serverId
     };
-    sendMessage(JSON.stringify(commandMessage));
+    sendMessage(JSON.stringify(commandMessage));*/
   };
 
   const onEditorDidMount = (editor, monaco) => {
@@ -100,7 +104,7 @@ export const ServerDetailsLogs: React.FC = () => {
 
     console.log(JSON.stringify(commandMessage));
 
-    sendMessage(JSON.stringify(commandMessage));
+    // sendMessage(JSON.stringify(commandMessage));
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {

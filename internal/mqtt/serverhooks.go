@@ -2,9 +2,15 @@ package mqtt
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	mqtt "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/packets"
+	"regexp"
+	"spoutmc/internal/docker"
+	"spoutmc/internal/log"
+	"sync"
+	"time"
 )
 
 type ServerHookOptions struct {
@@ -17,8 +23,10 @@ type ServerHook struct {
 	subscriptions map[string][]string
 }
 
+var subscriptionsMu sync.RWMutex
+
 func (h *ServerHook) ID() string {
-	return "server-hook"
+	return "server-stats-hook"
 }
 
 func (h *ServerHook) Provides(b byte) bool {
@@ -40,6 +48,8 @@ func (h *ServerHook) Init(config any) error {
 	}
 
 	h.config = config.(*ServerHookOptions)
+	h.StartStatsBroadcaster()
+
 	if h.config.Broker == nil {
 		return mqtt.ErrInvalidConfigType
 	}
@@ -53,16 +63,6 @@ func (h *ServerHook) subscribeCallback(cl *mqtt.Client, sub packets.Subscription
 
 func (h *ServerHook) OnConnect(cl *mqtt.Client, pk packets.Packet) error {
 	h.Log.Info("client connected", "client", cl.ID)
-
-	// Example demonstrating how to subscribe to a topic within the hook.
-	h.config.Broker.Subscribe("hook/direct/publish", 1, h.subscribeCallback)
-
-	// Example demonstrating how to publish a message within the hook
-	err := h.config.Broker.Publish("hook/direct/publish", []byte("packet hook message"), false, 0)
-	if err != nil {
-		h.Log.Error("hook.publish", "error", err)
-	}
-
 	return nil
 }
 
@@ -80,44 +80,119 @@ func (h *ServerHook) OnSubscribed(cl *mqtt.Client, pk packets.Packet, reasonCode
 	for _, f := range pk.Filters {
 		topics = append(topics, f.Filter)
 	}
+
+	subscriptionsMu.Lock()
 	h.subscriptions[cl.ID] = append(h.subscriptions[cl.ID], topics...)
+	subscriptionsMu.Unlock()
+
 	h.Log.Info(fmt.Sprintf("subscribed qos=%v", reasonCodes), "client", cl.ID, "filters", pk.Filters)
 }
 
 func (h *ServerHook) OnUnsubscribed(cl *mqtt.Client, pk packets.Packet) {
+	subscriptionsMu.Lock()
+	defer subscriptionsMu.Unlock()
+
 	current := h.subscriptions[cl.ID]
 	newList := []string{}
-
-	// Remove the unsubscribed filters
 	for _, topic := range current {
-		shouldKeep := true
+		keep := true
 		for _, f := range pk.Filters {
 			if topic == f.Filter {
-				shouldKeep = false
+				keep = false
 				break
 			}
 		}
-		if shouldKeep {
+		if keep {
 			newList = append(newList, topic)
 		}
 	}
-
 	h.subscriptions[cl.ID] = newList
 	h.Log.Info("unsubscribed", "client", cl.ID, "filters", pk.Filters)
 }
 
 func (h *ServerHook) OnPublish(cl *mqtt.Client, pk packets.Packet) (packets.Packet, error) {
-	h.Log.Info("received from client", "client", cl.ID, "payload", string(pk.Payload))
-
-	pkx := pk
-	if string(pk.Payload) == "hello" {
-		pkx.Payload = []byte("hello world")
-		h.Log.Info("received modified packet from client", "client", cl.ID, "payload", string(pkx.Payload))
+	// exclude inline client to not get loops
+	if cl.ID == "inline" {
+		return pk, nil // or just return early
 	}
 
-	return pkx, nil
+	h.Log.Info("received from client", "client", cl.ID, "payload", string(pk.Payload))
+
+	return pk, nil
 }
 
 func (h *ServerHook) OnPublished(cl *mqtt.Client, pk packets.Packet) {
+
+	// exclude inline client to not get loops
+	if cl.ID == "inline" {
+		return
+	}
 	h.Log.Info("published to client", "client", cl.ID, "payload", string(pk.Payload))
+}
+
+func (h *ServerHook) BroadcastToChannel(topic string, payload []byte) error {
+
+	err := h.config.Broker.Publish(topic, payload, false, 2)
+	if err != nil {
+		h.Log.Error("failed to broadcast", "topic", topic, "error", err)
+		return err
+	}
+	h.Log.Info("broadcasted message", "topic", topic, "payload", string(payload))
+	return nil
+}
+
+func (h *ServerHook) StartStatsBroadcaster() {
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			<-ticker.C
+
+			fmt.Println(h.subscriptions)
+
+			// Lock for reading the subscriptions map
+			subscriptionsMu.RLock()
+			for _, topics := range h.subscriptions {
+				for _, topic := range topics {
+
+					containerId, err := getServerIDFromTopic(topic)
+					if err != nil {
+						log.HandleError(err)
+					}
+					containerStats, err := docker.GetContainerStats(containerId)
+					if err != nil {
+						log.HandleError(err)
+
+					}
+
+					replyJson, err := json.Marshal(containerStats)
+					if err != nil {
+						log.HandleError(err)
+					}
+
+					// Broadcast dummy stats to each topic
+					err = h.BroadcastToChannel(topic, replyJson)
+					if err != nil {
+						h.Log.Error("error broadcasting stats", "topic", topic, "err", err)
+					}
+				}
+			}
+			subscriptionsMu.RUnlock()
+		}
+	}()
+}
+
+func topicContainsId(path string) bool {
+	re := regexp.MustCompile(`^server/[a-f0-9]{64}/stats$`)
+	return re.MatchString(path)
+}
+
+func getServerIDFromTopic(topic string) (string, error) {
+	re := regexp.MustCompile(`/([a-f0-9]{64})/`)
+	match := re.FindStringSubmatch(topic)
+	if len(match) < 2 {
+		return "", fmt.Errorf("no container ID found in: %s", topic)
+	}
+	return match[1], nil
 }

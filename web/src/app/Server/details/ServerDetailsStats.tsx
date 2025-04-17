@@ -1,32 +1,54 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { Subscription, WsCommand, WsCommandType } from '@app/model/wsCommand';
 import { CpuStats, PrecpuStats, ServerStats } from '@app/model/serverstats';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@app/store/store';
 import { Card, CardBody, CardTitle, Flex, FlexItem, Skeleton } from '@patternfly/react-core';
-import { registerSubscriptions, useSharedWebSocket } from '@app/connection/WebSocketContext';
-import { ReadyState } from 'react-use-websocket';
+import { useMqtt } from '@app/connection/MqttContext';
+import { setServerStats } from '@app/store/serverSlice';
 
 export const ServerDetailsStats: React.FC = () => {
   const { serverId } = useParams<{ serverId: string }>();
-  const { sendMessage, readyState } = useSharedWebSocket();
+  //const { sendMessage, readyState } = useSharedWebSocket();
+  const { subscribe, publish, isConnected, unsubscribe } = useMqtt();
+  const dispatch = useDispatch();
+  const [topic, setTopic] = useState('');
   const serverStats: ServerStats | undefined = useSelector((state: RootState) => state.server.serverStats);
-  
 
-  useEffect(() => {
+
+  /*useEffect(() => {
     if (readyState === ReadyState.OPEN) {
       registerSubscriptions(sendMessage, [Subscription.SUB_STATS], serverId);
     }
-  }, [readyState, serverId]);
+  }, [readyState, serverId]);*/
+
 
   useEffect(() => {
-    return () => {
-      if (serverId) {
-        unsubscribeFromStats(serverId);
+    if (!isConnected) return;
+
+    setTopic(`server/${serverId}/stats`);
+
+    const handleMsg = (msg: string) => {
+      const messageJSON: ServerStats = JSON.parse(msg);
+      dispatch(setServerStats(messageJSON));
+    };
+
+    subscribe(topic, handleMsg);
+  }, [isConnected]);
+
+  useEffect(() => {
+    const handleUnload = () => {
+      if (isConnected) {
+        unsubscribe(topic);
+        setTopic('');
       }
     };
-  }, [serverId]);
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [isConnected]);
 
 
   const bytesToGb = (b: number) => {
@@ -45,14 +67,6 @@ export const ServerDetailsStats: React.FC = () => {
     const online_cpus = cpu.online_cpus;
 
     return Number((delta_container_cpu / delta_system_cpu) * online_cpus * 100).toFixed(2);
-  };
-
-  const unsubscribeFromStats = (containerId: string) => {
-    const commandMessage: WsCommand = {
-      type: WsCommandType.UNSUBSCRIBE_CONTAINER_STATS,
-      containerId: containerId
-    };
-    sendMessage(JSON.stringify(commandMessage));
   };
 
   return (

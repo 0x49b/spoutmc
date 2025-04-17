@@ -40,28 +40,44 @@ func containerListsEqual(a, b []container.InspectResponse) bool {
 }
 
 func broadcastContainerList() {
-	var lastList []container.InspectResponse
+	//var lastList []container.InspectResponse
 
 	for {
 		currentList := getContainerListWithDetails()
 
-		if !containerListsEqual(lastList, currentList) {
-			replyJson, err := json.Marshal(WsReply{
-				Command: CONTAINERLIST,
-				Data:    currentList,
-				Ts:      time.Now().Unix(),
-			})
-			if err != nil {
-				log.HandleError(err)
-				continue
-			}
-			err = Broker.Publish(SERVERLIST, replyJson, false, 0)
-			if err != nil {
-				log.HandleError(err)
-				continue
-			}
-			lastList = currentList
+		//if !containerListsEqual(lastList, currentList) {
+		replyJson, err := json.Marshal(WsReply{
+			Command: CONTAINERLIST,
+			Data:    currentList,
+			Ts:      time.Now().Unix(),
+		})
+		if err != nil {
+			log.HandleError(err)
+			continue
 		}
+		err = Broker.Publish(SERVERLIST, replyJson, false, 0)
+		if err != nil {
+			log.HandleError(err)
+			continue
+		}
+		//lastList = currentList
+		//}
 		time.Sleep(1 * time.Second)
+	}
+}
+
+func sendContainerList() {
+	currentList := getContainerListWithDetails()
+	replyJson, err := json.Marshal(WsReply{
+		Command: CONTAINERLIST,
+		Data:    currentList,
+		Ts:      time.Now().Unix(),
+	})
+	if err != nil {
+		log.HandleError(err)
+	}
+	err = Broker.Publish(SERVERLIST, replyJson, false, 0)
+	if err != nil {
+		log.HandleError(err)
 	}
 }

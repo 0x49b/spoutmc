@@ -32,6 +32,9 @@ const ServerList: React.FunctionComponent = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+
+    if (!isConnected) return;
+
     const handleMsg = (msg: string) => {
       const messageJSON: WsReply = JSON.parse(msg);
       // @ts-ignore
@@ -46,7 +49,7 @@ const ServerList: React.FunctionComponent = () => {
     return () => {
       // Optional cleanup if needed
     };
-  }, []);
+  }, [isConnected]);
 
   //const { sendMessage, readyState } = useSharedWebSocket();
   const sendMessage = (s: string) => {

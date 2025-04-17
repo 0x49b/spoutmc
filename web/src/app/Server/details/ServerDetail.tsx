@@ -14,34 +14,37 @@ import { ArrowLeftIcon } from '@patternfly/react-icons';
 import { useParams } from 'react-router';
 import { useSelector } from 'react-redux';
 import { RootState } from '@app/store/store';
-import { Subscription, WsCommand, WsCommandType } from '@app/model/wsCommand';
+import { WsCommand, WsCommandType, WsReply } from '@app/model/wsCommand';
 import { ServerDetailsInspect } from '@app/Server/details/ServerDetailsInspect';
 import { ServerDetailsStats } from '@app/Server/details/ServerDetailsStats';
 import { ServerDetailsLogs } from '@app/Server/details/ServerDetailsLogs';
-import { ReadyState } from 'react-use-websocket';
-import { registerSubscriptions, useSharedWebSocket } from '@app/connection/WebSocketContext';
+import { useMqtt } from '@app/connection/MqttContext';
 
 enum ActiveTab {
-  STATS = 2,
+  STATS = 0,
   INSPECT = 1,
-  LOGS = 0,
+  LOGS = 2,
 }
 
 const ServerDetail: React.FunctionComponent = () => {
   // const
-  const { sendMessage, readyState } = useSharedWebSocket();
+  //const { subscribe, publish, isConnected } = useMqtt();
   const { serverId } = useParams<{ serverId: string }>();
   const server = useSelector((state: RootState) => state.server.server);
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
 
 
-  //Effects
-  useEffect(() => {
-    if (readyState === ReadyState.OPEN) {
-      loadServerDetail();
-      registerSubscriptions(sendMessage, [Subscription.SUB_DETAIL, Subscription.SUB_STATS], serverId);
-    }
-  }, [readyState]);
+  /*useEffect(() => {
+    if (!isConnected) return;
+
+    const handleMsg = (msg: string) => {
+      const messageJSON: WsReply = JSON.parse(msg);
+
+      // to do: anything with the data
+    };
+
+    subscribe(`server/${serverId}`, handleMsg);
+  }, [isConnected]);*/
 
 
   // Functions
@@ -50,7 +53,7 @@ const ServerDetail: React.FunctionComponent = () => {
       type: WsCommandType.CONTAINERDETAIL,
       containerId: serverId
     };
-    sendMessage(JSON.stringify(commandMessage));
+    //sendMessage(JSON.stringify(commandMessage));
   };
 
   const handleTabClick = (

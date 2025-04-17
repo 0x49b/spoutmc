@@ -35,6 +35,7 @@ func StartMQTT() {
 	err := Broker.AddHook(new(ServerHook), &ServerHookOptions{
 		Broker: Broker,
 	})
+
 	if err != nil {
 		log.HandleError(err)
 	}
@@ -59,9 +60,6 @@ func StartMQTT() {
 	}()
 
 	logger.Info("🚀 Embedded MQTT broker running on ports 1883 (TCP) and 9001 (WS)")
-
-	go broadcastContainerList()
-
 	<-done
 }
 

@@ -71,6 +71,7 @@ export const MqttProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     subscribersRef.current[topic].push(callback);
+    console.log(`[MQTT] Subscribed to topic: ${topic}`);
   };
 
   const unsubscribe = (topic: string) => {
