@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"spoutmc/internal/log"
+	"spoutmc/internal/webserver/api"
 	ws "spoutmc/internal/webserver/ws/v1"
 	"time"
 )
@@ -46,11 +48,19 @@ func Start() (*echo.Echo, error) {
 	// FrontendHandler WS based
 	e.GET("ws", ws.WebsocketHandler)
 
+	// Register API routes
+	api.RegisterAPI(e)
+
 	go func() {
 		if err := e.Start(":3000"); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("shutting down webserver")
 		}
 	}()
+
+	err := writeRoutes(e)
+	if err != nil {
+		return nil, err
+	}
 
 	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
 	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
@@ -67,6 +77,18 @@ func Start() (*echo.Echo, error) {
 
 func Shutdown(e *echo.Echo) error {
 	err := e.Shutdown(context.Background())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeRoutes(e *echo.Echo) error {
+	data, err := json.MarshalIndent(e.Routes(), "", "  ")
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile("routes.json", data, 0644)
 	if err != nil {
 		return err
 	}

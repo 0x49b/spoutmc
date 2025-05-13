@@ -1,0 +1,29 @@
+# .air.toml
+
+# Config for air
+root = "."                             # Project root
+tmp_dir = "tmp"                        # Temp build directory
+
+[build]
+cmd = "go build -o ./tmp/spoutmc ./cmd/spoutmc"  # Compile binary
+bin = "tmp/spoutmc"                        # Path to binary
+full_bin = ""                           # Leave empty unless custom full path
+include_ext = ["go", "tpl", "tmpl", "html"]
+exclude_dir = ["assets", "testservers", "node_modules", "web/node_modules", "tmp", "logs"]
+exclude_file = []
+follow_symlink = true
+kill_delay = 500                       # ms
+log = "build.log"
+delay = 1000                           # ms
+
+[log]
+time = true
+
+[color]
+main = "yellow"
+watcher = "cyan"
+build = "green"
+runner = "magenta"
+
+[misc]
+clean_on_exit = true
