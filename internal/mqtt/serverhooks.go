@@ -149,7 +149,7 @@ func (h *ServerHook) StartStatsBroadcaster() {
 		for {
 			<-ticker.C
 
-			fmt.Println(h.subscriptions)
+			//fmt.Println(h.subscriptions)
 
 			// Lock for reading the subscriptions map
 			subscriptionsMu.RLock()
