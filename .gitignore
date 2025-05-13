@@ -29,3 +29,4 @@ routes.json
 /testservers/data/restcheck/*
 !/testservers/data/restcheck/server.properties
 /testservers/data
+!/routes.json
