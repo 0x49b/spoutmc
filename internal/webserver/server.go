@@ -88,6 +88,9 @@ func writeRoutes(e *echo.Echo) error {
 	if err != nil {
 		return err
 	}
-	os.WriteFile("routes.json", data, 0644)
+	err = os.WriteFile("routes.json", data, 0644)
+	if err != nil {
+		return err
+	}
 	return nil
 }
