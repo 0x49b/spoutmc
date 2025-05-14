@@ -17,7 +17,6 @@ import (
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/mqtt"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
 	"strings"
@@ -50,10 +49,6 @@ func main() {
 			err = startSpoutMC()
 			return nil
 		},
-		"mqttbroker": func(ctx context.Context) error {
-			go mqtt.StartMQTT()
-			return nil
-		},
 		"webserver": func(ctx context.Context) error {
 			c, err = webserver.Start()
 			return nil
@@ -75,7 +70,6 @@ func main() {
 	startupOrder := []string{
 		"spoutmc",
 		"watchdog",
-		"mqttbroker",
 		"webserver",
 	}
 
@@ -104,14 +98,10 @@ func main() {
 		"webserver": func(ctx context.Context) error {
 			return webserver.Shutdown(c)
 		},
-		"mqtt-broker": func(ctx context.Context) error {
-			return mqtt.ShutdownMQTT()
-		},
 	}
 
 	shutdownOrder := []string{
 		"watchdog",
-		"mqtt-broker",
 		"webserver",
 		"containers",
 	}
