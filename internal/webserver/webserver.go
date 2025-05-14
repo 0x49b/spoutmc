@@ -19,8 +19,6 @@ var logger = log.GetLogger()
 
 func Start() (*echo.Echo, error) {
 
-	logger.Info("Starting Webserver")
-
 	e := echo.New()
 
 	e.HideBanner = true
@@ -31,7 +29,7 @@ func Start() (*echo.Echo, error) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:3000", "http://localhost:4200"},
+		AllowOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
 	}))
 	e.Use(middleware.Secure())
 	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))

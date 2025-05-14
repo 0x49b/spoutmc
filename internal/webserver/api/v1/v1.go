@@ -3,6 +3,7 @@ package v1
 import (
 	"github.com/labstack/echo/v4"
 	"net/http"
+	"spoutmc/internal/webserver/api/v1/server"
 )
 
 func RegisterV1(g *echo.Group) {
@@ -11,5 +12,5 @@ func RegisterV1(g *echo.Group) {
 		return c.String(http.StatusOK, "pong")
 	})
 
-	RegisterServerRoutes(v1)
+	server.RegisterServerRoutes(v1)
 }
