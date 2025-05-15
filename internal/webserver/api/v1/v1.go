@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"spoutmc/internal/webserver/api/v1/server"
+	"spoutmc/internal/webserver/api/v1/user"
 )
 
 func RegisterV1(g *echo.Group) {
@@ -13,4 +14,5 @@ func RegisterV1(g *echo.Group) {
 	})
 
 	server.RegisterServerRoutes(v1)
+	user.RegisterUserRoutes(v1)
 }

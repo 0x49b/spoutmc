@@ -28,7 +28,14 @@ type Event struct {
 	Timestamp int64
 }
 
-// RegisterServerRoutes registers routes related to the /server endpoint
+// RegisterServerRoutes registers container/server-related API endpoints.
+//
+// @Tags server
+// @Router /server [get]
+// @Router /server/{id} [get]
+// @Router /server/{id}/stats [get]
+// @Router /server/{id}/logs [get]
+// @Produce json
 func RegisterServerRoutes(g *echo.Group) {
 	// REST
 	g.GET("/server", getServers)
@@ -39,6 +46,14 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server/:id/logs", getServerLogs)
 }
 
+// @Summary Get real-time container stats
+// @Description Server-Sent Events (SSE) for real-time container statistics
+// @Tags server
+// @Produce text/event-stream
+// @Param id path string true "Container ID"
+// @Success 200 {string} string "Stream of container stats"
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/stats [get]
 func getServerStats(c echo.Context) error {
 
 	w := c.Response()
@@ -80,6 +95,14 @@ func getServerStats(c echo.Context) error {
 
 }
 
+// @Summary Stream container logs
+// @Description Server-Sent Events (SSE) for container logs
+// @Tags server
+// @Produce text/event-stream
+// @Param id path string true "Container ID"
+// @Success 200 {string} string "Stream of container logs"
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/logs [get]
 func getServerLogs(c echo.Context) error {
 	logger.Info("SSE Client connected", zap.String("ip", c.RealIP()))
 
@@ -121,6 +144,14 @@ func getServerLogs(c echo.Context) error {
 
 }
 
+// @Summary Get server details
+// @Description Retrieve information about a specific Docker container
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} interface{}
+// @Failure 500 {object} map[string]string
+// @Router /server/{id} [get]
 func getServer(c echo.Context) error {
 	lock.Lock()
 	defer lock.Unlock()
@@ -133,6 +164,13 @@ func getServer(c echo.Context) error {
 	return c.JSON(http.StatusOK, container)
 }
 
+// @Summary Get list of servers
+// @Description Returns a list of servers in the network
+// @Tags server
+// @Produce json
+// @Success 200 {array} interface{}
+// @Failure 500 {object} map[string]string
+// @Router /server [get]
 func getServers(c echo.Context) error {
 
 	lock.Lock()

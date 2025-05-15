@@ -1,0 +1,9 @@
+//### POST request to create a user
+POST http://localhost:3000/api/v1/user
+Content-Type: application/json
+
+{
+  "display_name": "admin",
+  "email": "admin@example.com",
+  "password": "password"
+}

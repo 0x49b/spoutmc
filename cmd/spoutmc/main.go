@@ -17,6 +17,7 @@ import (
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
+	"spoutmc/internal/storage"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
 	"strings"
@@ -53,6 +54,10 @@ func main() {
 			c, err = webserver.Start()
 			return nil
 		},
+		"database": func(ctx context.Context) error {
+			err = storage.InitDB()
+			return nil
+		},
 		"watchdog": func(ctx context.Context) error {
 			wd, err = watchdog.NewWatchdog(15 * time.Second)
 			if err != nil {
@@ -68,6 +73,7 @@ func main() {
 	}
 
 	startupOrder := []string{
+		"database",
 		"spoutmc",
 		"watchdog",
 		"webserver",

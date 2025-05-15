@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -17,6 +18,24 @@ import (
 
 var logger = log.GetLogger()
 
+// @title SpoutMC Web Server API
+// @version 1.0
+// @description This is the API documentation for the SpoutMC Web Server.
+// @termsOfService http://spoutmc.com/terms/
+
+// @contact.name API Support
+// @contact.url http://spoutmc.com/support
+// @contact.email support@spoutmc.com
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:3000
+// @BasePath /
+
+// Start @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func Start() (*echo.Echo, error) {
 
 	e := echo.New()
@@ -43,7 +62,15 @@ func Start() (*echo.Echo, error) {
 		},
 	}))
 
-	// FrontendHandler WS based
+	//swagger
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
+	// @Summary WebSocket Endpoint
+	// @Description Upgrade connection to WebSocket
+	// @Tags websocket
+	// @Produce plain
+	// @Success 101 {string} string "Switching Protocols"
+	// @Router /ws [get]
 	e.GET("ws", ws.WebsocketHandler)
 
 	// Register API routes
