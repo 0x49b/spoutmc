@@ -3,7 +3,7 @@ POST http://localhost:3000/api/v1/user
 Content-Type: application/json
 
 {
-  "display_name": "admin",
-  "email": "admin@example.com",
-  "password": "password"
+  "display_name": "flind_",
+  "email": "example@example.com",
+  "password": "Password"
 }
