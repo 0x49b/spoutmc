@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/global"
+	"spoutmc/internal/kubernetes"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"spoutmc/internal/storage"
@@ -58,6 +59,9 @@ func main() {
 			err = storage.InitDB()
 			return nil
 		},
+		"kubernetes": func(ctx context.Context) error {
+			return kubernetes.StartKubeClient()
+		},
 		"watchdog": func(ctx context.Context) error {
 			wd, err = watchdog.NewWatchdog(15 * time.Second)
 			if err != nil {
@@ -73,6 +77,7 @@ func main() {
 	}
 
 	startupOrder := []string{
+		"kubernetes",
 		"database",
 		"spoutmc",
 		"watchdog",
