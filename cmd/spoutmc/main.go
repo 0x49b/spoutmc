@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -38,10 +37,10 @@ func main() {
 	printBanner()
 	logger.Info("Starting SpoutNetwork")
 
-	if !isDockerRunning() {
+	/*if !isDockerRunning() {
 		log.HandleError(errors.New("docker runtime is not running. Cannot start SpoutMC"))
 		os.Exit(1)
-	}
+	}*/
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -76,11 +75,17 @@ func main() {
 		},
 	}
 
+	/**
+	original order:
+	"kubernetes",
+	"database",
+	"spoutmc",
+	"watchdog",
+	"webserver",
+	*/
 	startupOrder := []string{
 		"kubernetes",
 		"database",
-		"spoutmc",
-		"watchdog",
 		"webserver",
 	}
 
