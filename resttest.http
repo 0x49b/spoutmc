@@ -1,4 +1,4 @@
-//### POST request to create a user
+### POST request to create a user
 POST http://localhost:3000/api/v1/user
 Content-Type: application/json
 
@@ -7,3 +7,13 @@ Content-Type: application/json
   "email": "example@example.com",
   "password": "Password"
 }
+
+
+### DELETE request to delete a namespace
+DELETE http://localhost:3000/api/v1/kube/namespace/spoutmc
+
+### PATCH request to reset kube
+PATCH http://localhost:3000/api/v1/kube/reset/spoutmc
+
+### GET request to update replicas
+GET http://localhost:3000/api/v1/kube/replicas/skyblock/1

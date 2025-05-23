@@ -42,22 +42,22 @@ func createDeployment(deploymentName string) error {
 			Name: deploymentName,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: pointer.Int32Ptr(2),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": "demo",
+					"app": deploymentName,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": "demo",
+						"app": deploymentName,
 					},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "skyblock",
+							Name:  deploymentName,
 							Image: "itzg/minecraft-server:latest",
 							Ports: []corev1.ContainerPort{
 								{
@@ -96,5 +96,28 @@ func createDeployment(deploymentName string) error {
 	}
 
 	logger.Info(fmt.Sprintf("🚢 Created deployment %s/%s", result.GetObjectMeta().GetNamespace(), result.GetObjectMeta().GetName()))
+	return nil
+}
+
+func UpdateDeploymentReplicas(deploymentName string, replicas int32) error {
+	logger.Info(fmt.Sprintf("🔄 Updating replicas for Deployment %s to %d", deploymentName, replicas))
+	deploymentsClient := clientset.AppsV1().Deployments(spoutNamespace)
+
+	// Retrieve the existing Deployment
+	deployment, err := deploymentsClient.Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get deployment: %w", err)
+	}
+
+	// Update the replicas
+	deployment.Spec.Replicas = &replicas
+
+	// Apply the update
+	_, err = deploymentsClient.Update(context.TODO(), deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update deployment: %w", err)
+	}
+
+	logger.Info(fmt.Sprintf("✅ Successfully updated replicas for deployment %s to %d", deploymentName, replicas))
 	return nil
 }

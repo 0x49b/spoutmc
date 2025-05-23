@@ -11,7 +11,9 @@ import (
 	"io"
 	"net/http"
 	"spoutmc/internal/docker"
+	"spoutmc/internal/kubernetes"
 	"spoutmc/internal/log"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -41,6 +43,7 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server", getServers)
 	g.GET("/server/:id", getServer)
 	g.GET("/server/:id/stats", getServerStats)
+	g.GET("/server/:name/replicas/:replicas", updateReplicas)
 
 	//SSE
 	g.GET("/server/:id/logs", getServerLogs)
@@ -226,4 +229,14 @@ func (ev *Event) MarshalTo(w io.Writer) error {
 	}
 
 	return nil
+}
+
+func updateReplicas(c echo.Context) error {
+
+	replicas, _ := strconv.ParseInt(c.Param("replicas"), 10, 32)
+	err := kubernetes.UpdateDeploymentReplicas(c.Param("name"), int32(replicas))
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, replicas)
 }

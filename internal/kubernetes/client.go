@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	"path/filepath"
@@ -16,31 +17,36 @@ import (
 )
 
 var kubeconfig string
+var config *rest.Config
 var logger = log.GetLogger()
 var spoutNamespace = "spoutmc"
 var clientset *kubernetes.Clientset
 var skyblockDeployment = "skyblock"
+var err error
+
+func init() {
+
+	// Kube Context for lima on macOS
+	if runtime.GOOS == "darwin" {
+		kubeconfig = filepath.Join(homedir.HomeDir(), ".lima", "k3s", "copied-from-guest", "kubeconfig.yaml")
+	} else {
+		kubeconfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
+	}
+
+	config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	clientset, err = kubernetes.NewForConfig(config)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+}
 
 func StartKubeClient() error {
 
 	go func() {
-
-		// Kube Context for lima on macOS
-		if runtime.GOOS == "darwin" {
-			kubeconfig = filepath.Join(homedir.HomeDir(), ".lima", "k3s", "copied-from-guest", "kubeconfig.yaml")
-		} else {
-			kubeconfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
-		}
-
-		config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			logger.Error(err.Error())
-		}
-
-		clientset, err = kubernetes.NewForConfig(config)
-		if err != nil {
-			logger.Error(err.Error())
-		}
 
 		if err := checkNamespace(); err != nil {
 			if err := createNamespace(); err != nil {
@@ -106,10 +112,25 @@ func StartKubeClient() error {
 
 			}
 
+			getMetrics()
+
 			time.Sleep(10 * time.Second)
 		}
 	}()
 
 	return nil
+}
 
+func ResetKube(namespace string) error {
+	err := DeleteNamespace(namespace)
+	if err != nil {
+		return err
+	}
+
+	err = StartKubeClient()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

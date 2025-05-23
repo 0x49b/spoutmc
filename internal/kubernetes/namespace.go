@@ -29,3 +29,12 @@ func createNamespace() error {
 	_, err := clientset.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
 	return err
 }
+
+func DeleteNamespace(namespace string) error {
+	err := clientset.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+	if errors.IsNotFound(err) {
+		// Namespace already deleted or doesn't exist
+		return nil
+	}
+	return err
+}
