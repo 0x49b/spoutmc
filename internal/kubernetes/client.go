@@ -26,6 +26,10 @@ var err error
 
 func init() {
 
+}
+
+func StartKubeClient() error {
+
 	// Kube Context for lima on macOS
 	if runtime.GOOS == "darwin" {
 		kubeconfig = filepath.Join(homedir.HomeDir(), ".lima", "k3s", "copied-from-guest", "kubeconfig.yaml")
@@ -42,9 +46,6 @@ func init() {
 	if err != nil {
 		logger.Error(err.Error())
 	}
-}
-
-func StartKubeClient() error {
 
 	go func() {
 

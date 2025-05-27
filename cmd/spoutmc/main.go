@@ -84,8 +84,9 @@ func main() {
 	"webserver",
 	*/
 	startupOrder := []string{
-		"kubernetes",
 		"database",
+		"spoutmc",
+		"watchdog",
 		"webserver",
 	}
 

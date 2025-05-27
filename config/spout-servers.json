@@ -66,8 +66,8 @@
           "containerPort": "25565"
         },
         {
-          "hostPort": "25575",
-          "containerPort": "25575"
+          "hostPort": "4567",
+          "containerPort": "4567"
         }
       ],
       "env": {
