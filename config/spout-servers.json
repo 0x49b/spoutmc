@@ -6,7 +6,7 @@
   "servers": [
     {
       "name": "spoutproxy",
-      "image": "itzg/bungeecord",
+      "image": "itzg/mc-proxy",
       "proxy": true,
       "ports": [
         {
@@ -44,7 +44,8 @@
         "GUI": "FALSE",
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",
-        "TZ": "Europe/Zurich"
+        "TZ": "Europe/Zurich",
+        "PLUGINS": "https://github.com/aymond/hive.minecraftrest/releases/download/v1.0.1/minecraft-rest-1.0.1.jar"
       },
       "volumes": [
         {
@@ -81,7 +82,8 @@
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",
         "TZ": "Europe/Zurich",
-        "CREATE_CONSOLE_IN_PIPE": "TRUE"
+        "CREATE_CONSOLE_IN_PIPE": "TRUE",
+        "PLUGINS": "https://github.com/aymond/hive.minecraftrest/releases/download/v1.0.1/minecraft-rest-1.0.1.jar"
       },
       "volumes": [
         {

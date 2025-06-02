@@ -72,7 +72,7 @@ func main() {
 	}
 
 	for _, key := range startupOrder {
-		logger.Info(fmt.Sprintf("starting: %s", key))
+		logger.Info(fmt.Sprintf("⚔️ starting: %s", key))
 		if err := startupOps[key](ctx); err != nil {
 			log.HandleError(fmt.Errorf("%s failed to start: %w", key, err))
 			os.Exit(1)
@@ -105,11 +105,11 @@ func main() {
 	}
 
 	for _, key := range shutdownOrder {
-		logger.Warn(fmt.Sprintf("initiate stopping of: %s", key))
+		logger.Warn(fmt.Sprintf("⚔️ initiate stopping of: %s", key))
 		if err := shutdownOps[key](shutdownCtx); err != nil {
 			log.HandleError(err)
 		} else {
-			logger.Info(fmt.Sprintf("%s shut down gracefully", key))
+			logger.Info(fmt.Sprintf("⚔️ %s shut down gracefully", key))
 		}
 	}
 }
@@ -178,9 +178,6 @@ func readServersToStart() (models.SpoutConfiguration, error) {
 }
 
 func startContainers() {
-
-	logger.Info("Starting Containers")
-
 	ctx := context.Background()
 	cli, err := docker.GetDockerClient()
 	if err != nil {
@@ -204,7 +201,7 @@ func startContainers() {
 	}
 
 	for _, spoutContainer := range containers {
-		logger.Info(fmt.Sprintf("🚀 Running %s (%s) with %s",
+		logger.Info(fmt.Sprintf("⛏️ Running %s (%s) with %s",
 			strings.Trim(spoutContainer.Names[0], "/"),
 			spoutContainer.ID[:10],
 			spoutContainer.Image))

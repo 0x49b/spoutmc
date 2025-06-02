@@ -211,13 +211,13 @@ func StartContainer(s models.SpoutServer) {
 
 		if startContainer.State == "exited" {
 			err := cli.ContainerStart(ctx, startContainer.ID, container.StartOptions{})
-			logger.Info(fmt.Sprintf("start container %s", s.Name))
+			logger.Info(fmt.Sprintf("⛏️ start container %s", s.Name))
 			if err != nil {
 				logger.Error(err.Error())
 			}
 		} else {
 			err := cli.ContainerRestart(ctx, startContainer.ID, container.StopOptions{})
-			logger.Info(fmt.Sprintf("restart container %s", s.Name))
+			logger.Info(fmt.Sprintf("⛏️ restart container %s", s.Name))
 			if err != nil {
 				logger.Error(err.Error())
 			}
@@ -233,7 +233,9 @@ func ShutdownContainers() error {
 	}
 
 	for _, c := range containers {
-		logger.Info(fmt.Sprintf("shutting down container %s", c.Names[0]))
+		logger.Info(fmt.Sprintf("⛏️ shutting down container %s (%s)",
+			strings.Trim(c.Names[0], "/"),
+			c.ID[:10]))
 		err := cli.ContainerStop(ctx, c.ID, container.StopOptions{})
 		if err != nil {
 			return err
