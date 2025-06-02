@@ -20,9 +20,9 @@ type Watchdog struct {
 }
 
 func NewWatchdog(pollInterval time.Duration) (*Watchdog, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	cli, err := docker.GetDockerClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Docker client: %w", err)
+		return nil, fmt.Errorf("failed to get Docker client: %w", err)
 	}
 
 	return &Watchdog{

@@ -5,16 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	"github.com/labstack/echo/v4"
 	"io"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/global"
-	"spoutmc/internal/kubernetes"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"spoutmc/internal/storage"
@@ -37,29 +34,21 @@ func main() {
 	printBanner()
 	logger.Info("Starting SpoutNetwork")
 
-	/*if !isDockerRunning() {
-		log.HandleError(errors.New("docker runtime is not running. Cannot start SpoutMC"))
-		os.Exit(1)
-	}*/
-
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	startupOps := map[string]operation{
 		"spoutmc": func(ctx context.Context) error {
 			err = startSpoutMC()
-			return nil
+			return err
 		},
 		"webserver": func(ctx context.Context) error {
 			c, err = webserver.Start()
-			return nil
+			return err
 		},
 		"database": func(ctx context.Context) error {
 			err = storage.InitDB()
-			return nil
-		},
-		"kubernetes": func(ctx context.Context) error {
-			return kubernetes.StartKubeClient()
+			return err
 		},
 		"watchdog": func(ctx context.Context) error {
 			wd, err = watchdog.NewWatchdog(15 * time.Second)
@@ -75,14 +64,6 @@ func main() {
 		},
 	}
 
-	/**
-	original order:
-	"kubernetes",
-	"database",
-	"spoutmc",
-	"watchdog",
-	"webserver",
-	*/
 	startupOrder := []string{
 		"database",
 		"spoutmc",
@@ -119,8 +100,8 @@ func main() {
 
 	shutdownOrder := []string{
 		"watchdog",
-		"webserver",
 		"containers",
+		"webserver",
 	}
 
 	for _, key := range shutdownOrder {
@@ -131,15 +112,6 @@ func main() {
 			logger.Info(fmt.Sprintf("%s shut down gracefully", key))
 		}
 	}
-}
-
-func isDockerRunning() bool {
-	cmd := exec.Command("docker", "version")
-	err := cmd.Run()
-	if err != nil {
-		return false
-	}
-	return true
 }
 
 func startSpoutMC() error {
@@ -210,7 +182,7 @@ func startContainers() {
 	logger.Info("Starting Containers")
 
 	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	cli, err := docker.GetDockerClient()
 	if err != nil {
 		panic(err)
 	}
@@ -232,8 +204,10 @@ func startContainers() {
 	}
 
 	for _, spoutContainer := range containers {
-		logger.Info(fmt.Sprintf("🚀 Running %s (%s) with %s", strings.Trim(spoutContainer.Names[0], "/"), spoutContainer.ID[:10], spoutContainer.Image))
-
+		logger.Info(fmt.Sprintf("🚀 Running %s (%s) with %s",
+			strings.Trim(spoutContainer.Names[0], "/"),
+			spoutContainer.ID[:10],
+			spoutContainer.Image))
 	}
 
 }

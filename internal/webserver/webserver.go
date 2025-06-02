@@ -3,10 +3,12 @@ package webserver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	echoSwagger "github.com/swaggo/echo-swagger"
 	"go.uber.org/zap"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -76,13 +78,19 @@ func Start() (*echo.Echo, error) {
 	// Register API routes
 	api.RegisterAPI(e)
 
+	ln, err := net.Listen("tcp", ":3000")
+	if err != nil {
+		return nil, fmt.Errorf("❌ failed to bind to port: %w", err)
+	}
+	logger.Info("🤵🏻‍♂️ webserver started on http://localhost:3000")
+
 	go func() {
-		if err := e.Start(":3000"); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("shutting down webserver")
+		if err := e.Server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("❌ shutting down webserver", zap.Error(err))
 		}
 	}()
 
-	err := writeRoutes(e)
+	err = writeRoutes(e)
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +102,13 @@ func Start() (*echo.Echo, error) {
 	<-quit
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	if err := e.Shutdown(ctx); err != nil {
-		logger.Fatal("", zap.Error(err))
+		logger.Error("🤵🏻‍♂️ Error during webserver shutdown", zap.Error(err))
+	} else {
+		logger.Info("🤵🏻‍♂️ Webserver shutdown complete")
 	}
+
 	return e, nil
 }
 
