@@ -1,0 +1,12 @@
+# MinecraftREST Configuration
+
+# API Configuration
+api-port: 4567  # The port on which the HTTP API will run
+
+# Security Configuration
+security:
+  jwt-secret: "your-secret-key-here"  # Change this to a secure random string
+  max-requests-per-minute: 60  # Rate limiting threshold
+  admin-credentials:
+    username: "admin"  # Change this to a secure username
+    password: "change-this-password"  # Change this to a secure password 
