@@ -1,5 +1,7 @@
 package models
 
+import "gorm.io/gorm"
+
 type SpoutConfiguration struct {
 	ContainerNetworkID uint                  `json:"container-network-id,omitempty"`
 	ContainerNetwork   SpoutContainerNetwork `json:"container-network,omitempty"`
@@ -12,24 +14,28 @@ type SpoutContainerNetwork struct {
 }
 
 type SpoutServer struct {
+	gorm.Model
 	SpoutConfigurationID uint                 `json:"spout-configuration-id,omitempty"`
 	Name                 string               `json:"name"`
 	Image                string               `json:"image"`
 	Proxy                bool                 `json:"proxy,omitempty"`
 	Lobby                bool                 `json:"lobby,omitempty"`
 	EnvID                uint                 `json:"env-id,omitempty"`
-	Env                  map[string]string    `json:"env,omitempty"`
+	Env                  StringMap            `gorm:"type:text" json:"env,omitempty"`
 	PortsID              uint                 `json:"ports-id,omitempty"`
-	Ports                []SpoutServerPorts   `json:"ports,omitempty"`
-	Volumes              []SpoutServerVolumes `json:"volumes,omitempty"`
+	Port                 uint                 `json:"port,omitempty"`
+	Ports                []SpoutServerPorts   `gorm:"many2many:server_ports" json:"ports,omitempty"`
+	Volumes              []SpoutServerVolumes `gorm:"many2many:server_volumes" json:"volumes,omitempty"`
 }
 
 type SpoutServerVolumes struct {
-	Hostpath      []string `json:"hostpath"`
-	Containerpath string   `json:"containerpath"`
+	gorm.Model
+	Hostpath      StringSlice `gorm:"type:text" json:"hostpath"`
+	Containerpath string      `json:"containerpath"`
 }
 
 type SpoutServerPorts struct {
+	gorm.Model
 	HostPort      string `json:"hostPort"`
 	ContainerPort string `json:"containerPort"`
 }

@@ -32,7 +32,7 @@ func InitDB() error {
 
 	logger.Info("💾 Successfully connected to SQLite database")
 
-	err = db.AutoMigrate(&models.User{})
+	err = db.AutoMigrate(&models.User{}, &models.SpoutServer{})
 	if err != nil {
 		return fmt.Errorf("💾 failed to migrate database schema: %w", err)
 	}
