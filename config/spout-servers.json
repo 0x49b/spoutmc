@@ -16,6 +16,10 @@
         {
           "hostPort": "4567",
           "containerPort": "4567"
+        },
+        {
+          "hostPort": "31337",
+          "containerPort": "31337"
         }
       ],
       "env": {
@@ -48,8 +52,7 @@
         "GUI": "FALSE",
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",
-        "TZ": "Europe/Zurich",
-        "PLUGINS": "https://github.com/aymond/hive.minecraftrest/releases/download/v1.0.1/minecraft-rest-1.0.1.jar"
+        "TZ": "Europe/Zurich"
       },
       "volumes": [
         {
@@ -75,9 +78,7 @@
         "GUI": "FALSE",
         "CONSOLE": "FALSE",
         "LOG_TIMESTAMP": "TRUE",
-        "TZ": "Europe/Zurich",
-        "CREATE_CONSOLE_IN_PIPE": "TRUE",
-        "PLUGINS": "https://github.com/aymond/hive.minecraftrest/releases/download/v1.0.1/minecraft-rest-1.0.1.jar"
+        "TZ": "Europe/Zurich"
       },
       "volumes": [
         {
