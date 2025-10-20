@@ -10,7 +10,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
-	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/pelletier/go-toml v1.9.5
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/samber/slog-zap v1.0.0
 	github.com/samber/slog-zap/v2 v2.6.2
@@ -28,7 +28,7 @@ require (
 	k8s.io/apimachinery v0.33.1
 	k8s.io/client-go v0.33.1
 	k8s.io/metrics v0.33.1
-	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
+	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 )
 
 require (
