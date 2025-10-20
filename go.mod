@@ -13,6 +13,7 @@ require (
 	github.com/pelletier/go-toml v1.9.5
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/samber/slog-zap v1.0.0
+	github.com/samber/slog-zap/v2 v2.6.2
 	github.com/swaggo/echo-swagger v1.4.1
 	github.com/swaggo/swag v1.16.4
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
