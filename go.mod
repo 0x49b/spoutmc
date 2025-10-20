@@ -14,7 +14,7 @@ require (
 	github.com/samber/slog-zap v1.0.0
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/swaggo/echo-swagger v1.4.1
-	github.com/swaggo/swag v1.16.4
+	github.com/swaggo/swag v1.16.6
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	github.com/twistedasylummc/minime v0.0.4
 	go.uber.org/zap v1.27.0
