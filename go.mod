@@ -22,7 +22,7 @@ require (
 	golang.org/x/exp v0.0.0-20250531010427-b6e5de432a8b
 	golang.org/x/net v0.40.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	gorm.io/gorm v1.30.0
+	gorm.io/gorm v1.31.0
 )
 
 require (
