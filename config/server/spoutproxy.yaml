@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spoutproxy-config
+data:
+  name: "spoutproxy"
+  image: "itzg/mc-proxy"
+  proxy: "true"
+  ports.yaml: |-
+    - hostPort: "25565"
+      containerPort: "25565"
+    - hostPort: "4567"
+      containerPort: "4567"
+    - hostPort: "31337"
+      containerPort: "31337"
+  env.yaml: |-
+    TZ: "Europe/Zurich"
+    TYPE: "VELOCITY"
+    MAX_MEMORY: "1G"
+  volumes.yaml: |-
+    - hostpath:
+        - "testservers"
+        - "data"
+        - "spoutproxy"
+      containerpath: "/server"
