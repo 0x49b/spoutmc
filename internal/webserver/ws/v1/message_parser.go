@@ -3,10 +3,11 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
-	"golang.org/x/net/websocket"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/global"
+
+	"go.uber.org/zap"
+	"golang.org/x/net/websocket"
 )
 
 func messageParser(message []byte, ws *websocket.Conn) {

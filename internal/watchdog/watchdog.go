@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"spoutmc/internal/docker"
+	"spoutmc/internal/log"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"go.uber.org/zap"
-	"spoutmc/internal/docker"
-	"spoutmc/internal/log"
 )
 
 type Watchdog struct {

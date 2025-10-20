@@ -2,8 +2,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/pelletier/go-toml"
 	"os"
+
+	"github.com/pelletier/go-toml"
 )
 
 func parser() {

@@ -3,8 +3,6 @@ package user
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 	"image"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +12,9 @@ import (
 	"spoutmc/internal/security"
 	"spoutmc/internal/storage"
 	"sync"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
 )
 
 var lock = sync.Mutex{}

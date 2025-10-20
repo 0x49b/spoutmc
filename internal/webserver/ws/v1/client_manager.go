@@ -1,8 +1,9 @@
 package v1
 
 import (
-	"golang.org/x/net/websocket"
 	"sync"
+
+	"golang.org/x/net/websocket"
 )
 
 var (

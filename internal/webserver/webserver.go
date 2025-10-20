@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	echoSwagger "github.com/swaggo/echo-swagger"
-	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"os"
@@ -16,6 +12,11 @@ import (
 	"spoutmc/internal/webserver/api"
 	ws "spoutmc/internal/webserver/ws/v1"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
+	"go.uber.org/zap"
 )
 
 var logger = log.GetLogger()

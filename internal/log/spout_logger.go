@@ -2,13 +2,14 @@ package log
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
+	"runtime"
+
 	slogzap "github.com/samber/slog-zap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"log/slog"
-	"os"
-	"runtime"
 )
 
 type LogType string

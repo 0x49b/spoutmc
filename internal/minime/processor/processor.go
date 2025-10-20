@@ -5,14 +5,15 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/nfnt/resize"
-	"github.com/twistedasylummc/minime"
 	"image"
 	"image/png"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/nfnt/resize"
+	"github.com/twistedasylummc/minime"
 )
 
 func LoadImage(input string, isURL bool) (image.Image, error) {

@@ -3,11 +3,12 @@ package main
 import (
 	_ "embed"
 	"fmt"
-	"github.com/twistedasylummc/minime"
 	"image"
 	"image/png"
 	"os"
 	"path/filepath"
+
+	"github.com/twistedasylummc/minime"
 )
 
 func main() {

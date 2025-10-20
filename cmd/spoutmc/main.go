@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/api/types/container"
-	"github.com/labstack/echo/v4"
 	"io"
 	"os"
 	"os/signal"
@@ -20,6 +18,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/labstack/echo/v4"
 )
 
 var spoutConfiguration models.SpoutConfiguration
@@ -65,7 +66,7 @@ func main() {
 	}
 
 	startupOrder := []string{
-		"database",
+		//"database",
 		"spoutmc",
 		"watchdog",
 		"webserver",

@@ -1,10 +1,11 @@
 package v1
 
 import (
+	"spoutmc/internal/log"
+
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 	"golang.org/x/net/websocket"
-	"spoutmc/internal/log"
 )
 
 var logger = log.GetLogger()

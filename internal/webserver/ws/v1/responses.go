@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"go.uber.org/zap"
-	"golang.org/x/net/websocket"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
 	"time"
+
+	"go.uber.org/zap"
+	"golang.org/x/net/websocket"
 )
 
 func executeCommands(ws *websocket.Conn, message WsMessage) {

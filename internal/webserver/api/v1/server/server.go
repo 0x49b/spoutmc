@@ -5,15 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/teris-io/shortid"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
 	"sync"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	"github.com/teris-io/shortid"
+	"go.uber.org/zap"
 )
 
 var lock = sync.Mutex{}

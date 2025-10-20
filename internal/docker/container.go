@@ -11,11 +11,12 @@ import (
 import (
 	"bufio"
 	"fmt"
+	"spoutmc/internal/models"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"go.uber.org/zap"
-	"spoutmc/internal/models"
 )
 
 func addToProxyConfig(newServerName string) {

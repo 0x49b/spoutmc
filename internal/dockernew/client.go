@@ -1,21 +1,41 @@
-package docker
+package dockernew
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
 	"spoutmc/internal/log"
 	"sync"
 
-	"go.uber.org/zap"
-
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
+	"go.uber.org/zap"
 )
 
 var (
 	cli  *client.Client
 	once sync.Once
+	//TODO do we really need to declare this here?
+	logger *zap.Logger
 )
+
+// Create cli client on start of application
+func init() {
+	_, err := createDockerClient()
+	if err != nil {
+		logger.Error("docker client not available", zap.Error(err))
+	}
+}
+
+func isDockerRunning() bool {
+	cmd := exec.Command("docker", "version")
+	err := cmd.Run()
+	if err != nil {
+		return false
+	}
+	return true
+}
 
 // createDockerClient creates the Docker Client as singleton
 func createDockerClient() (*client.Client, error) {
@@ -28,6 +48,7 @@ func createDockerClient() (*client.Client, error) {
 	once.Do(func() {
 		cli, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	})
+
 	return cli, err
 }
 
@@ -35,19 +56,12 @@ func GetDockerClient() (*client.Client, error) {
 	return createDockerClient()
 }
 
-func isDockerRunning() bool {
-	cmd := exec.Command("docker", "version")
-	err := cmd.Run()
-	if err != nil {
-		return false
-	}
-	return true
-}
+func GetDockerInfo() (system.Info, error) {
+	ctx := context.Background()
 
-// Create cli client on start of application
-func init() {
-	_, err := createDockerClient()
+	info, err := cli.Info(ctx)
 	if err != nil {
-		logger.Error("docker client not available", zap.Error(err))
+		return system.Info{}, err
 	}
+	return info, nil
 }

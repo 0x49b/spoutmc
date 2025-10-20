@@ -2,12 +2,13 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/docker/docker/api/types/container"
-	"go.uber.org/zap"
-	"golang.org/x/net/websocket"
 	"spoutmc/internal/docker"
 	"sync"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"go.uber.org/zap"
+	"golang.org/x/net/websocket"
 )
 
 func getContainerListWithDetails() []container.InspectResponse {

@@ -6,17 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"path/filepath"
+	"spoutmc/internal/log"
+	"spoutmc/internal/models"
+	"strings"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"go.uber.org/zap"
-	"io"
-	"path/filepath"
-	"spoutmc/internal/log"
-	"spoutmc/internal/models"
-	"strings"
 )
 
 // ALways run Docker commands in Background Context

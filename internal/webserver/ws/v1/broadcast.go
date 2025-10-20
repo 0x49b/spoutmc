@@ -2,10 +2,11 @@ package v1
 
 import (
 	"encoding/json"
-	"go.uber.org/zap"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func broadcastContainerList() {

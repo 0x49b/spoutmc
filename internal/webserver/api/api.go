@@ -1,8 +1,9 @@
 package api
 
 import (
-	"github.com/labstack/echo/v4"
 	"spoutmc/internal/webserver/api/v1"
+
+	"github.com/labstack/echo/v4"
 )
 
 func RegisterAPI(e *echo.Echo) {

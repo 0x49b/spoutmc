@@ -2,11 +2,12 @@ package docker
 
 import (
 	"fmt"
-	"github.com/docker/go-connections/nat"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"spoutmc/internal/models"
+
+	"github.com/docker/go-connections/nat"
+	"go.uber.org/zap"
 )
 
 func MapExposedPorts(ports []models.SpoutServerPorts) (nat.PortSet, nat.PortMap) {
