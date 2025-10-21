@@ -1,7 +1,5 @@
 package models
 
-import "gorm.io/gorm"
-
 type SpoutConfiguration struct {
 	ContainerNetworkID uint                  `json:"container-network-id,omitempty"`
 	ContainerNetwork   SpoutContainerNetwork `json:"container-network,omitempty"`
@@ -14,7 +12,6 @@ type SpoutContainerNetwork struct {
 }
 
 type SpoutServer struct {
-	gorm.Model
 	SpoutConfigurationID uint                 `json:"spout-configuration-id,omitempty"`
 	Name                 string               `json:"name"`
 	Image                string               `json:"image"`
@@ -29,13 +26,11 @@ type SpoutServer struct {
 }
 
 type SpoutServerVolumes struct {
-	gorm.Model
 	Hostpath      StringSlice `gorm:"type:text" json:"hostpath"`
 	Containerpath string      `json:"containerpath"`
 }
 
 type SpoutServerPorts struct {
-	gorm.Model
 	HostPort      string `json:"hostPort"`
 	ContainerPort string `json:"containerPort"`
 }

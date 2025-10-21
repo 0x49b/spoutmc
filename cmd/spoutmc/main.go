@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"spoutmc/internal/config"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
@@ -20,7 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/labstack/echo/v4"
 )
 
@@ -118,25 +116,6 @@ func main() {
 
 func startSpoutMC() error {
 
-	mem, err := config.LoadConfigRepo(config.LoadOptions{
-		RepoURL:  "https://github.com/0x49b/spoutmc-config.git",
-		Ref:      "master",
-		PAT:      os.Getenv("GITHUB_TOKEN"),
-		Subdir:   "server",
-		Username: "0x49b"})
-	if err != nil {
-		logger.Error(err.Error())
-	}
-
-	if mem != nil {
-		logger.Info("Waiting mem")
-		for _, file := range mem.ByKind["ConfigMap"] {
-			logger.Info(file.SourcePath)
-		}
-	} else {
-		logger.Error("GitConfig is nil")
-	}
-
 	err = readConfiguration()
 	if err != nil {
 		log.HandleError(err)
@@ -200,13 +179,6 @@ func readServersToStart() (models.SpoutConfiguration, error) {
 }
 
 func startContainers() {
-	ctx := context.Background()
-	cli, err := docker.GetDockerClient()
-	if err != nil {
-		panic(err)
-	}
-	defer cli.Close()
-
 	spoutServers, err := readServersToStart()
 
 	if err != nil {
@@ -217,7 +189,8 @@ func startContainers() {
 		docker.StartContainer(s)
 	}
 
-	containers, err := cli.ContainerList(ctx, container.ListOptions{})
+	containers, err := docker.GetNetworkContainers()
+
 	if err != nil {
 		panic(err)
 	}

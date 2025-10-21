@@ -1,8 +1,4 @@
 {
-  "container-network": {
-    "name": "spoutnetwork",
-    "driver": "bridge"
-  },
   "servers": [
     {
       "name": "spoutproxy",
