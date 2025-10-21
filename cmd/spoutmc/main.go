@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"spoutmc/internal/config"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
@@ -116,7 +117,11 @@ func main() {
 }
 
 func startSpoutMC() error {
-	err := readConfiguration()
+
+	mem, err := config.LoadConfigRepo(config.LoadOptions{RepoURL: "https://github.com/0x49b/spoutmc-config", Ref: "master"})
+	fmt.Println(mem)
+
+	err = readConfiguration()
 	if err != nil {
 		log.HandleError(err)
 		return err

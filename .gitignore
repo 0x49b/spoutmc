@@ -23,6 +23,8 @@ dist/
 /testservers/data/**/plugins/
 /testservers/data/**/crash-reports/*
 /testservers/data/**/lang/
+/testservers/**
+/spoutmc/testservers/**
 
 .var*
 
