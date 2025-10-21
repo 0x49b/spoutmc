@@ -118,8 +118,24 @@ func main() {
 
 func startSpoutMC() error {
 
-	mem, err := config.LoadConfigRepo(config.LoadOptions{RepoURL: "https://github.com/0x49b/spoutmc-config", Ref: "master"})
-	fmt.Println(mem)
+	mem, err := config.LoadConfigRepo(config.LoadOptions{
+		RepoURL:  "https://github.com/0x49b/spoutmc-config.git",
+		Ref:      "master",
+		PAT:      os.Getenv("GITHUB_TOKEN"),
+		Subdir:   "server",
+		Username: "0x49b"})
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	if mem != nil {
+		logger.Info("Waiting mem")
+		for _, file := range mem.ByKind["ConfigMap"] {
+			logger.Info(file.SourcePath)
+		}
+	} else {
+		logger.Error("GitConfig is nil")
+	}
 
 	err = readConfiguration()
 	if err != nil {

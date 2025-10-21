@@ -8,18 +8,22 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strings"
-
 	"spoutmc/internal/log"
+	"strings"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	httpgit "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
+
+var logger = log.GetLogger()
 
 // ------------------------------- Data Models ------------------------------- //
 
@@ -70,9 +74,11 @@ type LoadOptions struct {
 	IncludeGlobs []string // default **/*.yaml, **/*.yml
 	IgnoreGlobs  []string // default **/.git/**
 	Validate     bool
+	// Auth (for private HTTPS repos with a Personal Access Token)
+	// If PAT is set, Username defaults to "git" if empty (GitHub accepts any non-empty username).
+	PAT      string
+	Username string
 }
-
-var logger = log.GetLogger()
 
 // ------------------------------- Main Loader -------------------------------- //
 
@@ -90,11 +96,22 @@ func LoadConfigRepo(opts LoadOptions) (*InMemoryConfig, error) {
 	// Clone repo entirely in memory
 	storer := memory.NewStorage()
 	fs := memfs.New()
-	repo, err := git.Clone(storer, fs, &git.CloneOptions{
-		URL:   opts.RepoURL,
-		Depth: 1,
-	})
+	co := &git.CloneOptions{
+		URL: opts.RepoURL,
+	}
+
+	// Set HTTP auth if PAT provided (for private repos over HTTPS)
+	if opts.PAT != "" {
+		user := opts.Username
+		if user == "" {
+			user = "git"
+		}
+		co.Auth = &httpgit.BasicAuth{Username: user, Password: opts.PAT}
+		logger.Info("Setting up auth for git clone")
+	}
+	repo, err := git.Clone(storer, fs, co)
 	if err != nil {
+		logger.Error("clone failes", zap.Error(err))
 		return nil, fmt.Errorf("clone failed: %w", err)
 	}
 
@@ -102,19 +119,38 @@ func LoadConfigRepo(opts LoadOptions) (*InMemoryConfig, error) {
 	if opts.Ref != "" {
 		w, err := repo.Worktree()
 		if err != nil {
+			logger.Error("get worktree fail", zap.Error(err))
 			return nil, err
 		}
 		// Try resolving as branch/tag/commit
 		// First fetch the ref (shallow)
-		if err := repo.Fetch(&git.FetchOptions{Depth: 1, RefSpecs: []config.RefSpec{"+refs/*:refs/*"}, Tags: git.AllTags, Force: true}); err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+		if err := repo.Fetch(&git.FetchOptions{
+			Depth:    1,
+			RefSpecs: []config.RefSpec{config.RefSpec("+refs/*:refs/*")},
+			Tags:     git.AllTags,
+			Force:    true,
+			Auth: func() transport.AuthMethod {
+				if opts.PAT == "" {
+					return nil
+				}
+				user := opts.Username
+				if user == "" {
+					user = "git"
+				}
+				return &httpgit.BasicAuth{Username: user, Password: opts.PAT}
+			}(),
+		}); err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+			logger.Error("fetch fail", zap.Error(err))
 			return nil, fmt.Errorf("fetch ref failed: %w", err)
 		}
 		// Try different ref formats
 		hash, err := resolveRef(repo, opts.Ref)
 		if err != nil {
+			logger.Error("resolve ref fail", zap.Error(err))
 			return nil, fmt.Errorf("resolve ref '%s': %w", opts.Ref, err)
 		}
 		if err := w.Checkout(&git.CheckoutOptions{Hash: hash}); err != nil {
+			logger.Error("checkout fail", zap.Error(err))
 			return nil, fmt.Errorf("checkout %s: %w", opts.Ref, err)
 		}
 	}
@@ -126,6 +162,7 @@ func LoadConfigRepo(opts LoadOptions) (*InMemoryConfig, error) {
 	}
 	files, err := discoverFiles(fs, root, opts.IncludeGlobs, opts.IgnoreGlobs)
 	if err != nil {
+		logger.Error("discover fail", zap.Error(err))
 		return nil, err
 	}
 
@@ -134,6 +171,7 @@ func LoadConfigRepo(opts LoadOptions) (*InMemoryConfig, error) {
 	for _, f := range files {
 		b, err := readAll(fs, f)
 		if err != nil {
+			logger.Error("read fail", zap.Error(err))
 			return nil, fmt.Errorf("read %s: %w", f, err)
 		}
 		dec := yaml.NewDecoder(bytes.NewReader(b))
@@ -162,7 +200,8 @@ func LoadConfigRepo(opts LoadOptions) (*InMemoryConfig, error) {
 	if opts.Validate {
 		warnings := basicValidate(mem)
 		if len(warnings) > 0 {
-			fmt.Fprintln(io.Discard) // placeholder: keep function pure; log elsewhere if needed
+			logger.Error("validate fail", zap.Any("warnings", warnings))
+			//fmt.Fprintln(io.Discard) // placeholder: keep function pure; log elsewhere if needed
 		}
 	}
 	return mem, nil
@@ -352,7 +391,7 @@ func basicValidate(mem *InMemoryConfig) []DocWarning {
 			}
 		}
 		if d.Kind() == "ConfigMap" {
-			_, ok := d.Content["data"].(map[string]any)
+			_, ok := d.Content["data"].(map[string]any) // todo removed data here
 			if !ok {
 				out = append(out, DocWarning{Location: loc(d), Message: "ConfigMap.data must be a mapping"})
 			}
