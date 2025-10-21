@@ -34,3 +34,4 @@ routes.json
 /.env
 /spoutdb.db
 
+!/testservers/

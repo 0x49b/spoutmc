@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"spoutmc/internal/log"
 	"spoutmc/internal/webserver/api"
-	ws "spoutmc/internal/webserver/ws/v1"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -21,24 +20,6 @@ import (
 
 var logger = log.GetLogger()
 
-// @title SpoutMC Web Server API
-// @version 1.0
-// @description This is the API documentation for the SpoutMC Web Server.
-// @termsOfService http://spoutmc.com/terms/
-
-// @contact.name API Support
-// @contact.url http://spoutmc.com/support
-// @contact.email support@spoutmc.com
-
-// @license.name MIT
-// @license.url https://opensource.org/licenses/MIT
-
-// @host localhost:3000
-// @BasePath /
-
-// Start @securityDefinitions.apikey ApiKeyAuth
-// @in header
-// @name Authorization
 func Start() (*echo.Echo, error) {
 
 	e := echo.New()
@@ -54,7 +35,7 @@ func Start() (*echo.Echo, error) {
 		AllowOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
 	}))
 	e.Use(middleware.Secure())
-	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))
+	//e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))
 	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogURI:    true,
@@ -67,14 +48,6 @@ func Start() (*echo.Echo, error) {
 
 	//swagger
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
-
-	// @Summary WebSocket Endpoint
-	// @Description Upgrade connection to WebSocket
-	// @Tags websocket
-	// @Produce plain
-	// @Success 101 {string} string "Switching Protocols"
-	// @Router /ws [get]
-	e.GET("ws", ws.WebsocketHandler)
 
 	// Register API routes
 	api.RegisterAPI(e)
