@@ -15,23 +15,17 @@ func MapExposedPorts(ports []models.SpoutServerPorts) (nat.PortSet, nat.PortMap)
 	containerPortBinding := nat.PortMap{}
 
 	for _, p := range ports {
-		// Skip zero values
 		if p.HostPort == "" || p.ContainerPort == "" {
 			continue
 		}
-
 		port := nat.Port(p.ContainerPort + "/tcp")
 		exposedPorts[port] = struct{}{}
-
 		hostBinding := nat.PortBinding{
 			HostIP:   "0.0.0.0",
 			HostPort: p.HostPort,
 		}
-
 		containerPortBinding[port] = append(containerPortBinding[port], hostBinding)
-
 	}
-
 	return exposedPorts, containerPortBinding
 }
 
@@ -50,7 +44,6 @@ func MapVolumeBindings(volumes []models.SpoutServerVolumes) []string {
 	var spoutVolumes []string
 
 	for _, v := range volumes {
-		logger.Info(fmt.Sprintf("Testing new path creation --> %s", createHostPath(v.Hostpath)))
 		spoutVolumes = append(spoutVolumes, createHostPath(v.Hostpath)+":"+v.Containerpath)
 	}
 	return spoutVolumes

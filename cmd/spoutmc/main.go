@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"spoutmc/internal/config"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
-	"spoutmc/internal/models"
 	"spoutmc/internal/storage"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
@@ -18,19 +17,18 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"gopkg.in/yaml.v3"
 )
 
 var logger = log.GetLogger()
 var c *echo.Echo
 var wd *watchdog.Watchdog
-var spoutConfiguration models.SpoutConfiguration
 
 type operation func(ctx context.Context) error
 
 func main() {
 	printBanner()
-	err := readConfiguration()
+
+	err := config.ReadConfiguration()
 	if err != nil {
 		log.HandleError(err)
 		os.Exit(1)
@@ -132,49 +130,19 @@ func startSpoutMC() error {
 	return nil
 }
 
-func readConfiguration() error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	candidates := []string{
-		filepath.Join(wd, "config", "spoutmc.yaml"),
-		filepath.Join(wd, "config", "spoutmc.yml"),
-	}
-
-	var data []byte
-	var usedPath string
-	for _, candidate := range candidates {
-		if _, statErr := os.Stat(candidate); statErr == nil {
-			usedPath = candidate
-			data, err = os.ReadFile(candidate)
-			if err != nil {
-				return err
-			}
-			break
-		}
-	}
-
-	if usedPath == "" {
-		return fmt.Errorf("no config file found (looked for spout-servers.yaml/.yml)")
-	}
-
-	if err := yaml.Unmarshal(data, &spoutConfiguration); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func startContainers() {
 
-	if len(spoutConfiguration.Servers) == 0 {
+	cfg := config.All()
+
+	if len(cfg.Servers) == 0 {
 		panic("spoutmc: no servers found in Configuration")
 	}
 
-	for _, s := range spoutConfiguration.Servers {
-		docker.StartContainer(s)
+	for _, s := range cfg.Servers {
+		err := docker.RecreateContainer(s)
+		if err != nil {
+			logger.Error(fmt.Sprintf("❌ failed to start %s: %s", s.Name, err.Error()))
+		}
 	}
 
 	containers, err := docker.GetNetworkContainers()

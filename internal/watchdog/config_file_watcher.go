@@ -3,6 +3,7 @@ package watchdog
 import (
 	"os"
 	"path/filepath"
+	"spoutmc/internal/config"
 	"spoutmc/internal/log"
 
 	"github.com/fsnotify/fsnotify"
@@ -34,9 +35,15 @@ func StartFileWatcher() {
 				if !ok {
 					return
 				}
-				logger.Info("📁 file event detected", zap.String("event", event.String()))
 				if event.Has(fsnotify.Write) {
-					logger.Info("modified file:", zap.String("file", event.Name))
+					logger.Info("Configuration has been modified, reloading...")
+					currentConfig := config.All()
+					err := config.ReadConfiguration()
+					if err != nil {
+						logger.Error("📁 error reloading configuration", zap.Error(err))
+					}
+					newConfig := config.All()
+					config.ApplyConfigChanges(currentConfig, newConfig)
 				}
 
 			case err, ok := <-watcher.Errors:
@@ -75,5 +82,4 @@ func StartFileWatcher() {
 		logger.Error("📁 error adding file to watcher", zap.Error(err))
 	}
 	<-make(chan struct{})
-
 }

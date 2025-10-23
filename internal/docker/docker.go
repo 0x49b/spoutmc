@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
@@ -353,4 +354,54 @@ func FetchDockerLogs(ctx context.Context, id string) (<-chan string, error) {
 	}()
 
 	return logChan, nil
+}
+
+func RemoveLocalVolumeDataForContainer(containerId string) {
+	containerVolume, err := GetContainerById(containerId)
+	if err != nil {
+		logger.Error("cannot load container", zap.Error(err))
+	}
+
+	for _, c := range containerVolume.Mounts {
+		logger.Info(c.Source)
+		dir, err := os.ReadDir(c.Source)
+		if err != nil {
+			logger.Error("cannot read dir", zap.Error(err))
+		}
+		for _, d := range dir {
+			err := os.RemoveAll(filepath.Join(c.Source, d.Name()))
+			if err != nil {
+				logger.Error("cannot remove volume", zap.Error(err))
+			}
+		}
+	}
+}
+
+func RemoveContainerById(containerId string, removeVolume bool) error {
+	if removeVolume {
+		RemoveLocalVolumeDataForContainer(containerId)
+	}
+	return cli.ContainerRemove(ctx, containerId, container.RemoveOptions{
+		RemoveVolumes: removeVolume,
+	})
+}
+
+func RecreateContainer(containerConfig models.SpoutServer) error {
+	logger.Info("Recreating container", zap.String("containerName", containerConfig.Name))
+	recreateContainer, err := GetContainer(containerConfig.Name)
+	if err != nil {
+		logger.Error("cannot load container", zap.Error(err))
+	}
+	StopContainerById(recreateContainer.ID)
+	err = RemoveContainerById(recreateContainer.ID, false)
+	if err != nil {
+		return err
+	}
+	StartContainer(containerConfig)
+	return nil
+}
+
+func StopAndRemoveContainerById(containerId string) error {
+	StopContainerById(containerId)
+	return RemoveContainerById(containerId, true)
 }
