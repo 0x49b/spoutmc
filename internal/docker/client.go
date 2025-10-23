@@ -31,8 +31,15 @@ func createDockerClient() (*client.Client, error) {
 	return cli, err
 }
 
-func GetDockerClient() (*client.Client, error) {
-	return createDockerClient()
+func GetDockerClient() *client.Client {
+
+	dockerClient, err := createDockerClient()
+	if err != nil {
+		logger.Error("Cannot create docker client", zap.Error(err))
+		os.Exit(1)
+	}
+
+	return dockerClient
 }
 
 func isDockerRunning() bool {

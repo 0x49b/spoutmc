@@ -22,7 +22,6 @@ import (
 
 // ALways run Docker commands in Background Context
 var ctx = context.Background()
-
 var logger = log.GetLogger()
 
 func isImageExisting(imageName string) bool {
@@ -32,7 +31,6 @@ func isImageExisting(imageName string) bool {
 	}
 
 	for _, i := range images {
-
 		if len(i.RepoDigests) > 0 {
 			if strings.HasPrefix(i.RepoDigests[0], imageName) {
 				return true
@@ -50,7 +48,12 @@ func PullImage(imageName string) {
 		if err != nil {
 			return
 		}
-		defer pull.Close()
+		defer func(pull io.ReadCloser) {
+			err := pull.Close()
+			if err != nil {
+				logger.Error("Cannot close image pull", zap.Error(err))
+			}
+		}(pull)
 		if _, err := io.ReadAll(pull); err != nil {
 			logger.Error("Cannot pull image", zap.Error(err))
 		}

@@ -190,40 +190,12 @@ func collectOnce(ctx context.Context) Stats {
 
 	// Docker info (optional)
 	//var dockerInfo *DockerInfo
-	client, err := docker.GetDockerClient()
-	if err != nil {
-		logger.Error("Error getting docker client", zap.Error(err))
-	}
-
+	client := docker.GetDockerClient()
 	info, err := client.Info(ctx)
 
 	if err != nil {
 		logger.Error("Error getting docker info", zap.Error(err))
 	}
-
-	/* if cli, err := client.NewClientWithOpts(client.FromEnv); err == nil {
-		defer cli.Close()
-		if info, err := cli.Info(ctx); err == nil {
-			dockerInfo = &DockerInfo{
-				ServerVersion:       info.ServerVersion,
-				Containers:          info.Containers,
-				ContainersRunning:   info.ContainersRunning,
-				ContainersPaused:    info.ContainersPaused,
-				ContainersStopped:   info.ContainersStopped,
-				Images:              info.Images,
-				Driver:              info.Driver,
-				CgroupDriver:        info.CgroupDriver,
-				PluginsVolume:       info.Plugins.Volume,
-				PluginsNetwork:      info.Plugins.Network,
-				OperatingSystem:     info.OperatingSystem,
-				OSType:              info.OSType,
-				Architecture:        info.Architecture,
-				NCPU:                info.NCPU,
-				MemTotalBytes:       info.MemTotal,
-				SwarmClusterEnabled: info.Swarm.Cluster != nil,
-			}
-		}
-	}*/
 
 	return Stats{
 		Timestamp:      time.Now().UTC(),

@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -20,19 +18,23 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"gopkg.in/yaml.v3"
 )
 
-var spoutConfiguration models.SpoutConfiguration
 var logger = log.GetLogger()
 var c *echo.Echo
-var err error
 var wd *watchdog.Watchdog
+var spoutConfiguration models.SpoutConfiguration
 
 type operation func(ctx context.Context) error
 
 func main() {
 	printBanner()
-	logger.Info("Starting SpoutNetwork")
+	err := readConfiguration()
+	if err != nil {
+		log.HandleError(err)
+		os.Exit(1)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -62,12 +64,17 @@ func main() {
 			go wd.Start(ctx)
 			return nil
 		},
+		"fileWatcher": func(ctx context.Context) error {
+			go watchdog.StartFileWatcher()
+			return nil
+		},
 	}
 
 	startupOrder := []string{
-		//"database",
+		//database
 		"spoutmc",
 		"watchdog",
+		"fileWatcher",
 		"webserver",
 	}
 
@@ -86,6 +93,10 @@ func main() {
 	defer cancel()
 
 	shutdownOps := map[string]operation{
+		"fileWatcher": func(ctx context.Context) error {
+			logger.Info(fmt.Sprintf("📁 fileWatcher will stop via context cancel"))
+			return nil
+		},
 		"watchdog": func(ctx context.Context) error {
 			logger.Info(fmt.Sprintf("🐺 watchdog will stop via context cancel"))
 			return nil
@@ -99,6 +110,7 @@ func main() {
 	}
 
 	shutdownOrder := []string{
+		"fileWatcher",
 		"watchdog",
 		"containers",
 		"webserver",
@@ -115,14 +127,7 @@ func main() {
 }
 
 func startSpoutMC() error {
-
-	err = readConfiguration()
-	if err != nil {
-		log.HandleError(err)
-		return err
-	}
-
-	docker.CreateSpoutNetwork("spoutnetwork") // todo get this from config
+	docker.CreateSpoutNetwork("spoutnetwork")
 	startContainers()
 	return nil
 }
@@ -132,60 +137,43 @@ func readConfiguration() error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(wd, "config", "spout-servers.json")
-	logger.Debug(path)
-	jsonFile, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	logger.Info("Successfully opened configuration file")
 
-	defer jsonFile.Close()
-	byteValue, _ := io.ReadAll(jsonFile)
-	err = json.Unmarshal(byteValue, &spoutConfiguration)
-	if err != nil {
+	candidates := []string{
+		filepath.Join(wd, "config", "spoutmc.yaml"),
+		filepath.Join(wd, "config", "spoutmc.yml"),
+	}
+
+	var data []byte
+	var usedPath string
+	for _, candidate := range candidates {
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			usedPath = candidate
+			data, err = os.ReadFile(candidate)
+			if err != nil {
+				return err
+			}
+			break
+		}
+	}
+
+	if usedPath == "" {
+		return fmt.Errorf("no config file found (looked for spout-servers.yaml/.yml)")
+	}
+
+	if err := yaml.Unmarshal(data, &spoutConfiguration); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func readServersToStart() (models.SpoutConfiguration, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return models.SpoutConfiguration{}, err
-	}
-	path := filepath.Join(wd, "config", "spout-servers.json")
-
-	jsonFile, err := os.Open(path)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	defer func(jsonFile *os.File) {
-		err := jsonFile.Close()
-		if err != nil {
-			fmt.Println(err)
-		}
-	}(jsonFile)
-
-	byteValue, _ := io.ReadAll(jsonFile)
-	var spoutServers models.SpoutConfiguration
-	err = json.Unmarshal(byteValue, &spoutServers)
-	if err != nil {
-		return models.SpoutConfiguration{}, err
-	}
-	return spoutServers, nil
-}
-
 func startContainers() {
-	spoutServers, err := readServersToStart()
 
-	if err != nil {
-		panic(err)
+	if len(spoutConfiguration.Servers) == 0 {
+		panic("spoutmc: no servers found in Configuration")
 	}
 
-	for _, s := range spoutServers.Servers {
+	for _, s := range spoutConfiguration.Servers {
 		docker.StartContainer(s)
 	}
 

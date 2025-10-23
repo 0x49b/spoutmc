@@ -1,0 +1,60 @@
+servers:
+  - name: spoutproxy
+    image: itzg/mc-proxy
+    proxy: true
+    ports:
+      - hostPort: '25565'
+        containerPort: '25565'
+      - hostPort: '4567'
+        containerPort: '4567'
+      - hostPort: '31337'
+        containerPort: '31337'
+    env:
+      TZ: Europe/Zurich
+      TYPE: VELOCITY
+      MAX_MEMORY: 1G
+    volumes:
+      - hostpath:
+          - testservers
+          - data
+          - spoutproxy
+        containerpath: "/server"
+  - name: lobby
+    image: itzg/minecraft-server
+    lobby: true
+    env:
+      EULA: 'TRUE'
+      TYPE: PAPER
+      ONLINE_MODE: 'FALSE'
+      ENFORCE_SECURE_PROFILE: 'FALSE'
+      MAX_MEMORY: 4G
+      VERSION: 1.20.4
+      GUI: 'FALSE'
+      CONSOLE: 'FALSE'
+      LOG_TIMESTAMP: 'TRUE'
+      TZ: Europe/Zurich
+    volumes:
+      - hostpath:
+          - testservers
+          - data
+          - spoutlobby
+        containerpath: "/data"
+  - name: skyblock
+    image: itzg/minecraft-server
+    env:
+      EULA: 'TRUE'
+      TYPE: PAPER
+      ONLINE_MODE: 'FALSE'
+      ENFORCE_SECURE_PROFILE: 'FALSE'
+      MAX_MEMORY: 8G
+      VERSION: 1.20.4
+      GUI: 'FALSE'
+      CONSOLE: 'FALSE'
+      LOG_TIMESTAMP: 'TRUE'
+      TZ: Europe/Zurich
+    volumes:
+      - hostpath:
+          - testservers
+          - data
+          - spoutskyblock
+        containerpath: "/data"

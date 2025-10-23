@@ -2,7 +2,6 @@ package watchdog
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"spoutmc/internal/docker"
@@ -21,10 +20,7 @@ type Watchdog struct {
 }
 
 func NewWatchdog(pollInterval time.Duration) (*Watchdog, error) {
-	cli, err := docker.GetDockerClient()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Docker client: %w", err)
-	}
+	cli := docker.GetDockerClient()
 
 	return &Watchdog{
 		cli:          cli,

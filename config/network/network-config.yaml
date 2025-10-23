@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: container-network-config
-data:
-  name: "spoutnetwork"
-  driver: "bridge"
