@@ -1,7 +1,12 @@
 package models
 
 type SpoutConfiguration struct {
+	SpoutMC SpoutMc       `yaml:"spoutmc"`
 	Servers []SpoutServer `json:"servers,omitempty" yaml:"servers,omitempty"`
+}
+
+type SpoutMc struct {
+	ServerDataPath StringSlice `yaml:"serverDataPath,omitempty"`
 }
 
 type SpoutServer struct {

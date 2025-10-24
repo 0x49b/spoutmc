@@ -139,10 +139,10 @@ func startContainers() {
 	}
 
 	for _, s := range cfg.Servers {
-		err := docker.RecreateContainer(s)
-		if err != nil {
+		docker.StartContainer(s)
+		/*if err != nil {
 			logger.Error(fmt.Sprintf("❌ failed to start %s: %s", s.Name, err.Error()))
-		}
+		}*/
 	}
 
 	containers, err := docker.GetNetworkContainers()

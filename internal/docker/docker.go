@@ -13,7 +13,6 @@ import (
 	"spoutmc/internal/models"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
@@ -25,39 +24,21 @@ import (
 var ctx = context.Background()
 var logger = log.GetLogger()
 
-func isImageExisting(imageName string) bool {
-	images, err := cli.ImageList(ctx, image.ListOptions{All: true})
-	if err != nil {
-		logger.Error("Cannot read images", zap.Error(err))
-	}
-
-	for _, i := range images {
-		if len(i.RepoDigests) > 0 {
-			if strings.HasPrefix(i.RepoDigests[0], imageName) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func PullImage(imageName string) {
 
-	if !isImageExisting(imageName) {
-		logger.Info("Pulling ", zap.String("imageName", imageName))
-		pull, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
+	logger.Info("Pulling ", zap.String("imageName", imageName))
+	pull, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
+	if err != nil {
+		return
+	}
+	defer func(pull io.ReadCloser) {
+		err := pull.Close()
 		if err != nil {
-			return
+			logger.Error("Cannot close image pull", zap.Error(err))
 		}
-		defer func(pull io.ReadCloser) {
-			err := pull.Close()
-			if err != nil {
-				logger.Error("Cannot close image pull", zap.Error(err))
-			}
-		}(pull)
-		if _, err := io.ReadAll(pull); err != nil {
-			logger.Error("Cannot pull image", zap.Error(err))
-		}
+	}(pull)
+	if _, err := io.ReadAll(pull); err != nil {
+		logger.Error("Cannot pull image", zap.Error(err))
 	}
 
 }
@@ -65,13 +46,10 @@ func PullImage(imageName string) {
 func GetNetworkContainers() ([]container.Summary, error) {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("label", "io.spout.network=true")
-
 	list, err := cli.ContainerList(ctx, container.ListOptions{All: true, Filters: containerFilter})
-
 	if err != nil {
 		return []container.Summary{}, err
 	}
-
 	return list, nil
 }
 
@@ -84,18 +62,18 @@ func containerExists(containerName string) bool {
 	return len(containerList) > 0
 }
 
-func GetContainer(containerName string) (types.Container, error) {
+func GetContainer(containerName string) (container.Summary, error) {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("name", containerName)
 
 	containerList, err := cli.ContainerList(ctx, container.ListOptions{All: true, Filters: containerFilter})
 
 	if err != nil {
-		return types.Container{}, err
+		return container.Summary{}, err
 	}
 
 	if len(containerList) < 1 {
-		return types.Container{}, errors.New(fmt.Sprintf("Cannot find container for name %s", containerName))
+		return container.Summary{}, errors.New(fmt.Sprintf("Cannot find container for name %s", containerName))
 	}
 
 	return containerList[0], nil
@@ -115,7 +93,12 @@ func GetContainerStats(containerId string) (container.StatsResponse, error) {
 	if err != nil {
 		return container.StatsResponse{}, err
 	}
-	defer stats.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logger.Error("Cannot close container stats", zap.Error(err))
+		}
+	}(stats.Body)
 	var statsResponse container.StatsResponse
 	decoder := json.NewDecoder(stats.Body)
 	if err := decoder.Decode(&statsResponse); err != nil && err != io.EOF {
@@ -141,8 +124,12 @@ func getHostNetworkId() (network.Inspect, error) {
 
 func StartContainer(s models.SpoutServer) {
 
-	// Pull Image for Server
-	PullImage(s.Image)
+	// Check if image exists, if not pull it
+	_, err := cli.ImageInspect(context.Background(), s.Image)
+	if err != nil {
+		// Pull Image for Server
+		PullImage(s.Image)
+	}
 
 	if !containerExists(s.Name) {
 		logger.Info(fmt.Sprintf("Creating container %s", s.Name))
@@ -182,7 +169,7 @@ func StartContainer(s models.SpoutServer) {
 			ExposedPorts: exposedPorts,
 			Labels:       containerLabels,
 		}, &container.HostConfig{
-			Binds:        MapVolumeBindings(s.Volumes),
+			Binds:        MapVolumeBindings(s.Volumes, s.Name),
 			PortBindings: containerPortBinding,
 		}, &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{spoutNetwork.ID: {NetworkID: spoutNetwork.ID}}},
@@ -206,9 +193,6 @@ func StartContainer(s models.SpoutServer) {
 			logger.Error("Cannot start container", zap.Error(err))
 		}
 	} else {
-
-		//todo check for configuration switch here if it should restart
-
 		startContainer, err := GetContainer(s.Name)
 		if err != nil {
 			logger.Error(err.Error())
@@ -268,18 +252,18 @@ func RestartContainerById(containerId string) {
 	}
 }
 
-func GetProxyContainer() (types.Container, error) {
+func GetProxyContainer() (container.Summary, error) {
 	proxyContainer, err := filterForContainerLabel("io.spout.proxy")
 	if err != nil {
-		return types.Container{}, err
+		return container.Summary{}, err
 	}
 	return proxyContainer, nil
 }
 
-func GetLobbyContainer() (types.Container, error) {
+func GetLobbyContainer() (container.Summary, error) {
 	lobbyContainer, err := filterForContainerLabel("io.spout.lobby")
 	if err != nil {
-		return types.Container{}, err
+		return container.Summary{}, err
 	}
 	return lobbyContainer, nil
 }
@@ -300,16 +284,16 @@ func GetProxyConfigFilePath() string {
 	return filepath.Join(GetProxyVolumeMount(), "velocity.toml")
 }
 
-func filterForContainerLabel(label string) (types.Container, error) {
+func filterForContainerLabel(label string) (container.Summary, error) {
 	networkContainer, err := GetNetworkContainers()
 	if err != nil {
-		return types.Container{}, err
+		return container.Summary{}, err
 	}
 
 	for _, nc := range networkContainer {
 		containerDetails, err := cli.ContainerInspect(ctx, nc.ID)
 		if err != nil {
-			return types.Container{}, err
+			return container.Summary{}, err
 		}
 		_, check := containerDetails.Config.Labels[label]
 
@@ -317,7 +301,7 @@ func filterForContainerLabel(label string) (types.Container, error) {
 			return nc, nil
 		}
 	}
-	return types.Container{}, errors.New(fmt.Sprintf("no Server found for label %s", label))
+	return container.Summary{}, errors.New(fmt.Sprintf("no Server found for label %s", label))
 }
 
 func getContainerNameById(containerId string) string {
@@ -347,7 +331,6 @@ func FetchDockerLogs(ctx context.Context, id string) (<-chan string, error) {
 		for scanner.Scan() {
 			logChan <- scanner.Text()
 		}
-
 		if err := scanner.Err(); err != nil {
 			fmt.Printf("error reading logs: %v\n", err)
 		}
@@ -373,6 +356,10 @@ func RemoveLocalVolumeDataForContainer(containerId string) {
 			if err != nil {
 				logger.Error("cannot remove volume", zap.Error(err))
 			}
+		}
+		err = os.RemoveAll(c.Source)
+		if err != nil {
+			logger.Error("cannot remove volume", zap.Error(err))
 		}
 	}
 }
