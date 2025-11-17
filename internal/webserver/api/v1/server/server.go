@@ -7,9 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"spoutmc/internal/config"
 	"spoutmc/internal/docker"
+	"spoutmc/internal/git"
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
+	"spoutmc/internal/models"
 	"sync"
 	"time"
 
@@ -17,6 +22,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/teris-io/shortid"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
 var lock = sync.Mutex{}
@@ -42,6 +48,7 @@ type Event struct {
 func RegisterServerRoutes(g *echo.Group) {
 	// REST
 	g.GET("/server", getServers)
+	g.POST("/server", addServerHandler)
 	g.GET("/server/:id", getServer)
 	g.GET("/server/:id/stats", getServerStats)
 
@@ -219,6 +226,174 @@ type EnrichedContainer struct {
 type ContainerWithStats struct {
 	Container EnrichedContainer `json:"container"`
 	Stats     interface{}       `json:"stats,omitempty"`
+}
+
+// AddServerRequest represents the request body for adding a new server
+type AddServerRequest struct {
+	Name  string            `json:"name" binding:"required"`
+	Image string            `json:"image" binding:"required"`
+	Port  int               `json:"port" binding:"required"`
+	Env   map[string]string `json:"env"`
+}
+
+// @Summary Add a new server
+// @Description Creates a new server configuration and deploys it (via GitOps or local config)
+// @Tags server
+// @Accept json
+// @Produce json
+// @Param server body AddServerRequest true "Server configuration"
+// @Success 201 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server [post]
+func addServerHandler(c echo.Context) error {
+	var req AddServerRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+	}
+
+	if req.Name == "" || req.Image == "" || req.Port == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Name, image, and port are required fields",
+		})
+	}
+
+	logger.Info("Adding new server", zap.String("name", req.Name), zap.String("image", req.Image))
+
+	// Create new server model
+	newServer := models.SpoutServer{
+		Name:  req.Name,
+		Image: req.Image,
+		Env:   req.Env,
+		Ports: []models.SpoutServerPorts{
+			{
+				HostPort:      fmt.Sprintf("%d", req.Port),
+				ContainerPort: fmt.Sprintf("%d", req.Port),
+			},
+		},
+		Volumes: []models.SpoutServerVolumes{
+			{
+				Hostpath:      models.StringSlice{req.Name},
+				Containerpath: "/server",
+			},
+		},
+	}
+
+	// Check if GitOps is enabled
+	if config.IsGitOpsEnabled() {
+		logger.Info("GitOps enabled, adding server to git repository")
+		if err := addServerToGit(newServer); err != nil {
+			logger.Error("Failed to add server to git", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("Failed to add server to git: %v", err),
+			})
+		}
+	} else {
+		logger.Info("GitOps disabled, adding server to local config")
+		if err := addServerToLocalConfig(newServer); err != nil {
+			logger.Error("Failed to add server to local config", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("Failed to add server to local config: %v", err),
+			})
+		}
+	}
+
+	// Start the new container
+	docker.StartContainer(newServer)
+
+	return c.JSON(http.StatusCreated, map[string]string{
+		"status":  "success",
+		"message": "Server added successfully",
+		"name":    req.Name,
+	})
+}
+
+// addServerToGit adds a new server configuration to the git repository
+func addServerToGit(server models.SpoutServer) error {
+	gitConfig := config.GetGitConfig()
+	if gitConfig == nil {
+		return fmt.Errorf("git configuration not found")
+	}
+
+	// Create YAML content for the new server
+	serverConfig := models.SpoutConfiguration{
+		Servers: []models.SpoutServer{server},
+	}
+
+	yamlData, err := yaml.Marshal(serverConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal server config: %w", err)
+	}
+
+	// Write to git repo
+	repoPath := gitConfig.LocalPath
+	serverFilePath := filepath.Join(repoPath, fmt.Sprintf("%s.yaml", server.Name))
+
+	if err := os.WriteFile(serverFilePath, yamlData, 0644); err != nil {
+		return fmt.Errorf("failed to write server config file: %w", err)
+	}
+
+	// Commit and push changes
+	if err := git.CommitAndPushChanges(repoPath, fmt.Sprintf("Add server: %s", server.Name)); err != nil {
+		return fmt.Errorf("failed to commit and push changes: %w", err)
+	}
+
+	logger.Info("Server config added to git repository", zap.String("file", serverFilePath))
+	return nil
+}
+
+// addServerToLocalConfig adds a new server to the local spoutmc.yaml file
+func addServerToLocalConfig(server models.SpoutServer) error {
+	// Get current configuration
+	currentConfig := config.All()
+
+	// Add new server
+	currentConfig.Servers = append(currentConfig.Servers, server)
+
+	// Marshal to YAML
+	yamlData, err := yaml.Marshal(currentConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Get working directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Write to config file (try both .yaml and .yml)
+	configPaths := []string{
+		filepath.Join(wd, "config", "spoutmc.yaml"),
+		filepath.Join(wd, "config", "spoutmc.yml"),
+	}
+
+	var configPath string
+	for _, path := range configPaths {
+		if _, err := os.Stat(path); err == nil {
+			configPath = path
+			break
+		}
+	}
+
+	if configPath == "" {
+		// Default to .yaml if neither exists
+		configPath = configPaths[0]
+	}
+
+	if err := os.WriteFile(configPath, yamlData, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	// Reload configuration
+	if err := config.ReadConfiguration(); err != nil {
+		return fmt.Errorf("failed to reload configuration: %w", err)
+	}
+
+	logger.Info("Server added to local config", zap.String("path", configPath))
+	return nil
 }
 
 // @Summary Start a server

@@ -6,9 +6,11 @@ import (
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"strings"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"go.uber.org/zap"
 )
@@ -205,4 +207,145 @@ func (r *Repository) buildAuthURL() string {
 	}
 
 	return r.config.Repository
+}
+
+// CommitAndPush commits all changes and pushes to the remote repository
+func (r *Repository) CommitAndPush(message string) error {
+	if r.repo == nil {
+		return fmt.Errorf("repository not initialized")
+	}
+
+	logger.Info("Committing and pushing changes", zap.String("message", message))
+
+	// Get working tree
+	worktree, err := r.repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	// Add all changes
+	if err := worktree.AddWithOptions(&git.AddOptions{
+		All: true,
+	}); err != nil {
+		return fmt.Errorf("failed to add changes: %w", err)
+	}
+
+	// Commit changes
+	commit, err := worktree.Commit(message, &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "SpoutMC",
+			Email: "spoutmc@noreply.com",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to commit: %w", err)
+	}
+
+	logger.Info("Changes committed", zap.String("commit", commit.String()[:7]))
+
+	// Prepare push options
+	pushOpts := &git.PushOptions{
+		RemoteName: "origin",
+		Progress:   nil,
+	}
+
+	// Only add auth if token is provided
+	if r.config.Token != "" {
+		pushOpts.Auth = &http.BasicAuth{
+			Username: "token",
+			Password: r.config.Token,
+		}
+	}
+
+	// Push changes
+	if err := r.repo.Push(pushOpts); err != nil {
+		return fmt.Errorf("failed to push: %w", err)
+	}
+
+	// Update commit hash
+	if err := r.updateCommitHash(); err != nil {
+		return err
+	}
+
+	logger.Info("Changes pushed successfully", zap.String("commit", r.lastCommit[:7]))
+	return nil
+}
+
+// CommitAndPushChanges is a convenience function that commits and pushes changes to the git repository
+// It opens the repository at the given path, commits all changes, and pushes them
+func CommitAndPushChanges(repoPath, message string) error {
+	// Open the repository
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	// Get working tree
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	// Add all changes
+	if err := worktree.AddWithOptions(&git.AddOptions{
+		All: true,
+	}); err != nil {
+		return fmt.Errorf("failed to add changes: %w", err)
+	}
+
+	// Commit changes
+	commit, err := worktree.Commit(message, &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "SpoutMC",
+			Email: "spoutmc@noreply.com",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to commit: %w", err)
+	}
+
+	logger.Info("Changes committed", zap.String("commit", commit.String()[:7]))
+
+	// Get git config to check for token
+	gitConfig, err := repo.Config()
+	if err != nil {
+		return fmt.Errorf("failed to get git config: %w", err)
+	}
+
+	// Prepare push options
+	pushOpts := &git.PushOptions{
+		RemoteName: "origin",
+		Progress:   nil,
+	}
+
+	// Try to get token from environment or git config
+	// The token should have been embedded in the remote URL during clone
+	token := os.Getenv("GIT_TOKEN")
+	if token != "" {
+		pushOpts.Auth = &http.BasicAuth{
+			Username: "token",
+			Password: token,
+		}
+	} else if remoteConfig, exists := gitConfig.Remotes["origin"]; exists && len(remoteConfig.URLs) > 0 {
+		// Check if URL contains embedded token
+		url := remoteConfig.URLs[0]
+		if strings.Contains(url, "@") {
+			// Token is embedded, no need to add auth
+			logger.Debug("Using embedded token from remote URL")
+		}
+	}
+
+	// Push changes
+	if err := repo.Push(pushOpts); err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			logger.Debug("Repository already up to date")
+			return nil
+		}
+		return fmt.Errorf("failed to push: %w", err)
+	}
+
+	logger.Info("Changes pushed successfully")
+	return nil
 }

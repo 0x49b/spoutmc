@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"spoutmc/internal/config"
 	"spoutmc/internal/models"
 
 	"github.com/docker/go-connections/nat"
@@ -42,17 +41,13 @@ func MapExposedPorts(ports []models.SpoutServerPorts) (nat.PortSet, nat.PortMap)
 }*/
 
 func createHostPath(containerName string) string {
-	//todo how to get config without cyclic import
-	spoutConfiguration := config.All()
-	dataPath := spoutConfiguration.SpoutMC.ServerDataPath
-
 	wd, err := os.Getwd()
-
 	if err != nil {
 		logger.Error("Could not get cwd", zap.Error(err))
 		return ""
 	}
-	return filepath.Join(append([]string{wd, containerName}, dataPath...)...)
+	// Creates path: {workingDir}/{containerName}
+	return filepath.Join(wd, containerName)
 }
 
 func MapVolumeBindings(volumes []models.SpoutServerVolumes, containerName string) []string {

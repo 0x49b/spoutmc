@@ -10,6 +10,8 @@ SpoutMC is a Docker-based Minecraft Server Network manager written in Go with a 
 
 **DO NOT run `go build` automatically.** The developer will build the Go backend manually. Only suggest build commands when explicitly asked, but do not execute them.
 
+**DO NOT run the frontend (`npm run dev`) automatically.** The developer will run the frontend manually when needed. Only suggest frontend commands when explicitly asked, but do not execute them.
+
 ## Development Commands
 
 ### Go Backend
