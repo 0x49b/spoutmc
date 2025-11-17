@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"spoutmc/internal/config"
 	"spoutmc/internal/models"
 
 	"github.com/docker/go-connections/nat"
@@ -29,7 +30,7 @@ func MapExposedPorts(ports []models.SpoutServerPorts) (nat.PortSet, nat.PortMap)
 	return exposedPorts, containerPortBinding
 }
 
-func createHostPath(hostpath []string) string {
+/*func createHostPath(hostpath []string) string {
 	wd, err := os.Getwd()
 
 	if err != nil {
@@ -38,13 +39,27 @@ func createHostPath(hostpath []string) string {
 	}
 
 	return filepath.Join(append([]string{wd}, hostpath...)...)
+}*/
+
+func createHostPath(containerName string) string {
+	//todo how to get config without cyclic import
+	spoutConfiguration := config.All()
+	dataPath := spoutConfiguration.SpoutMC.ServerDataPath
+
+	wd, err := os.Getwd()
+
+	if err != nil {
+		logger.Error("Could not get cwd", zap.Error(err))
+		return ""
+	}
+	return filepath.Join(append([]string{wd, containerName}, dataPath...)...)
 }
 
-func MapVolumeBindings(volumes []models.SpoutServerVolumes) []string {
+func MapVolumeBindings(volumes []models.SpoutServerVolumes, containerName string) []string {
 	var spoutVolumes []string
 
 	for _, v := range volumes {
-		spoutVolumes = append(spoutVolumes, createHostPath(v.Hostpath)+":"+v.Containerpath)
+		spoutVolumes = append(spoutVolumes, createHostPath(containerName)+":"+v.Containerpath)
 	}
 	return spoutVolumes
 }
