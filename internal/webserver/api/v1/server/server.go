@@ -8,10 +8,12 @@ import (
 	"io"
 	"net/http"
 	"spoutmc/internal/docker"
+	"spoutmc/internal/global"
 	"spoutmc/internal/log"
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/labstack/echo/v4"
 	"github.com/teris-io/shortid"
 	"go.uber.org/zap"
@@ -43,7 +45,13 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server/:id", getServer)
 	g.GET("/server/:id/stats", getServerStats)
 
+	// Server Actions
+	g.POST("/server/:id/start", startServerHandler)
+	g.POST("/server/:id/stop", stopServerHandler)
+	g.POST("/server/:id/restart", restartServerHandler)
+
 	//SSE
+	g.GET("/server/stream", streamServers)
 	g.GET("/server/:id/logs", getServerLogs)
 }
 
@@ -182,7 +190,229 @@ func getServers(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, containers)
+	// Enrich containers with StartedAt timestamp
+	enrichedContainers := make([]EnrichedContainer, 0, len(containers))
+	for _, container := range containers {
+		enriched := EnrichedContainer{
+			Summary: container,
+		}
+
+		// Get detailed container info to extract StartedAt
+		inspectData, err := docker.GetContainerById(container.ID)
+		if err == nil && inspectData.State != nil {
+			enriched.StartedAt = inspectData.State.StartedAt
+		}
+
+		enrichedContainers = append(enrichedContainers, enriched)
+	}
+
+	return c.JSON(http.StatusOK, enrichedContainers)
+}
+
+// EnrichedContainer combines container summary with additional runtime info
+type EnrichedContainer struct {
+	container.Summary
+	StartedAt string `json:"StartedAt,omitempty"` // ISO 8601 timestamp when container was started
+}
+
+// ContainerWithStats combines container info with real-time stats
+type ContainerWithStats struct {
+	Container EnrichedContainer `json:"container"`
+	Stats     interface{}       `json:"stats,omitempty"`
+}
+
+// @Summary Start a server
+// @Description Starts a stopped container and includes it in watchdog monitoring
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/start [post]
+func startServerHandler(c echo.Context) error {
+	containerID := c.Param("id")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	logger.Info("Starting container", zap.String("id", containerID[:12]))
+
+	// Start the container
+	docker.StartContainerById(containerID)
+
+	// Include in watchdog monitoring
+	if global.Watchdog != nil {
+		global.Watchdog.Include(containerID)
+		logger.Info("Container included in watchdog monitoring", zap.String("id", containerID[:12]))
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Container started successfully",
+		"id":      containerID,
+	})
+}
+
+// @Summary Stop a server
+// @Description Stops a running container and excludes it from watchdog monitoring
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/stop [post]
+func stopServerHandler(c echo.Context) error {
+	containerID := c.Param("id")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	logger.Info("Stopping container", zap.String("id", containerID[:12]))
+
+	// Exclude from watchdog monitoring BEFORE stopping
+	// This prevents the watchdog from immediately restarting it
+	if global.Watchdog != nil {
+		global.Watchdog.Exclude(containerID)
+		logger.Info("Container excluded from watchdog monitoring", zap.String("id", containerID[:12]))
+	}
+
+	// Stop the container
+	docker.StopContainerById(containerID)
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Container stopped successfully",
+		"id":      containerID,
+	})
+}
+
+// @Summary Restart a server
+// @Description Restarts a container (remains in watchdog monitoring)
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/restart [post]
+func restartServerHandler(c echo.Context) error {
+	containerID := c.Param("id")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	logger.Info("Restarting container", zap.String("id", containerID[:12]))
+
+	// Restart the container
+	docker.RestartContainerById(containerID)
+
+	// Ensure it's included in watchdog monitoring after restart
+	if global.Watchdog != nil {
+		global.Watchdog.Include(containerID)
+		logger.Info("Container ensured in watchdog monitoring", zap.String("id", containerID[:12]))
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Container restarted successfully",
+		"id":      containerID,
+	})
+}
+
+// @Summary Stream server list updates
+// @Description Server-Sent Events (SSE) for real-time server list updates with stats
+// @Tags server
+// @Produce text/event-stream
+// @Success 200 {string} string "Stream of server list updates"
+// @Failure 500 {object} map[string]string
+// @Router /server/stream [get]
+func streamServers(c echo.Context) error {
+	logger.Info("SSE Client connected to server stream", zap.String("ip", c.RealIP()))
+
+	w := c.Response()
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.Request().Context().Done():
+			logger.Info("SSE client disconnected from server stream", zap.String("ip", c.RealIP()))
+			return nil
+		case <-ticker.C:
+			lock.Lock()
+			containers, err := docker.GetNetworkContainers()
+			lock.Unlock()
+
+			if err != nil {
+				logger.Error("Error fetching containers for stream", zap.Error(err))
+				continue
+			}
+
+			// Enrich containers with stats and StartedAt
+			enrichedContainers := make([]ContainerWithStats, 0, len(containers))
+			for _, container := range containers {
+				// Create enriched container with StartedAt
+				enrichedContainer := EnrichedContainer{
+					Summary: container,
+				}
+
+				// Get detailed container info to extract StartedAt
+				inspectData, err := docker.GetContainerById(container.ID)
+				if err == nil && inspectData.State != nil {
+					enrichedContainer.StartedAt = inspectData.State.StartedAt
+				}
+
+				containerData := ContainerWithStats{
+					Container: enrichedContainer,
+				}
+
+				// Try to fetch stats for this container (non-blocking)
+				stats, err := docker.GetContainerStats(container.ID)
+				if err != nil {
+					// Log but don't fail the whole stream
+					logger.Debug("Could not fetch stats for container",
+						zap.String("id", container.ID[:12]),
+						zap.Error(err))
+				} else {
+					containerData.Stats = stats
+				}
+
+				enrichedContainers = append(enrichedContainers, containerData)
+			}
+
+			id, _ := shortid.Generate()
+			data, err := json.Marshal(enrichedContainers)
+			if err != nil {
+				logger.Error("Error marshalling containers", zap.Error(err))
+				continue
+			}
+
+			event := Event{
+				ID:        []byte(id),
+				Data:      data,
+				Timestamp: time.Now().Unix(),
+			}
+			if err = event.MarshalTo(w); err != nil {
+				return err
+			}
+			w.Flush()
+		}
+	}
 }
 
 func (ev *Event) MarshalTo(w io.Writer) error {

@@ -1,0 +1,18 @@
+name: spoutproxy
+image: itzg/mc-proxy
+proxy: true
+ports:
+  - hostPort: '25565'
+    containerPort: '25565'
+  - hostPort: '4567'
+    containerPort: '4567'
+env:
+  TZ: Europe/Zurich
+  TYPE: VELOCITY
+  MAX_MEMORY: 1G
+volumes:
+  - hostpath:
+      - testservers
+      - data
+      - spoutproxy
+    containerpath: "/server"

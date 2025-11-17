@@ -1,0 +1,40 @@
+# Example SpoutMC Configuration with GitOps enabled
+
+git:
+  enabled: true
+  repository: "https://github.com/your-org/spoutmc-servers.git"
+  branch: "main"
+  token: "${SPOUTMC_GIT_TOKEN}"  # Use environment variable for security
+  poll_interval: 30s  # Check for changes every 30 seconds
+  webhook_secret: "${SPOUTMC_WEBHOOK_SECRET}"  # For webhook signature verification
+  local_path: "/tmp/spoutmc-git"  # Where to clone the repository
+
+# When GitOps is enabled, the servers section is optional and will be ignored.
+# Server configurations will be loaded from individual YAML files in the Git repository.
+#
+# Expected repository structure:
+# spoutmc-servers/
+# ├── servers/
+# │   ├── proxy.yaml
+# │   ├── lobby.yaml
+# │   ├── skyblock.yaml
+# │   └── bedwars.yaml
+# └── README.md
+#
+# Each server YAML file should contain a single server configuration:
+#
+# name: spoutproxy
+# image: itzg/mc-proxy
+# proxy: true
+# ports:
+#   - hostPort: '25565'
+#     containerPort: '25565'
+# env:
+#   TYPE: VELOCITY
+#   MAX_MEMORY: 1G
+# volumes:
+#   - hostpath:
+#       - testservers
+#       - data
+#       - spoutproxy
+#     containerpath: "/server"

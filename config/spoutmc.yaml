@@ -1,79 +1,8 @@
-servers:
-  - name: spoutproxy
-    image: itzg/mc-proxy
-    proxy: true
-    ports:
-      - hostPort: '25565'
-        containerPort: '25565'
-      - hostPort: '4567'
-        containerPort: '4567'
-      - hostPort: '31337'
-        containerPort: '31337'
-    env:
-      TZ: Europe/Zurich
-      TYPE: VELOCITY
-      MAX_MEMORY: 1G
-    volumes:
-      - hostpath:
-          - testservers
-          - data
-          - spoutproxy
-        containerpath: "/server"
-  - name: lobby
-    image: itzg/minecraft-server
-    lobby: true
-    env:
-      EULA: 'TRUE'
-      TYPE: PAPER
-      ONLINE_MODE: 'FALSE'
-      ENFORCE_SECURE_PROFILE: 'FALSE'
-      MAX_MEMORY: 4G
-      VERSION: 1.21.10
-      GUI: 'FALSE'
-      CONSOLE: 'FALSE'
-      LOG_TIMESTAMP: 'TRUE'
-      TZ: Europe/Zurich
-    volumes:
-      - hostpath:
-          - testservers
-          - data
-          - spoutlobby
-        containerpath: "/data"
-  - name: skyblock
-    image: itzg/minecraft-server
-    env:
-      EULA: 'TRUE'
-      TYPE: PAPER
-      ONLINE_MODE: 'FALSE'
-      ENFORCE_SECURE_PROFILE: 'FALSE'
-      MAX_MEMORY: 8G
-      VERSION: 1.21.10
-      GUI: 'FALSE'
-      CONSOLE: 'FALSE'
-      LOG_TIMESTAMP: 'TRUE'
-      TZ: Europe/Zurich
-    volumes:
-      - hostpath:
-          - testservers
-          - data
-          - spoutskyblock
-        containerpath: "/data"
-  - name: skybed
-    image: itzg/minecraft-server
-    env:
-      EULA: 'TRUE'
-      TYPE: PAPER
-      ONLINE_MODE: 'FALSE'
-      ENFORCE_SECURE_PROFILE: 'FALSE'
-      MAX_MEMORY: 8G
-      VERSION: 1.21.10
-      GUI: 'FALSE'
-      CONSOLE: 'FALSE'
-      LOG_TIMESTAMP: 'TRUE'
-      TZ: Europe/Zurich
-    volumes:
-      - hostpath:
-          - testservers
-          - data
-          - skybed
-        containerpath: "/data"
+git:
+  enabled: true
+  repository: "https://github.com/0x49b/spoutmc-config.git"
+  branch: "master"
+  token: "${SPOUTMC_GIT_TOKEN}"                 # Use environment variable for security
+  poll_interval: 30s                            # Check for changes every 30 seconds
+  webhook_secret: "${SPOUTMC_WEBHOOK_SECRET}"   # For webhook signature verification
+  local_path: "/tmp/spoutmc-git"                # Where to clone the repository

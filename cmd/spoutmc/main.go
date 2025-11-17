@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"spoutmc/internal/config"
 	"spoutmc/internal/docker"
+	"spoutmc/internal/git"
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
 	"spoutmc/internal/storage"
@@ -38,6 +39,20 @@ func main() {
 	defer stop()
 
 	startupOps := map[string]operation{
+		"gitSync": func(ctx context.Context) error {
+			// Only initialize if GitOps is enabled
+			if config.IsGitOpsEnabled() {
+				logger.Info("🗄️ GitOps is enabled, initializing Git sync")
+				if err := git.InitializeGitOps(); err != nil {
+					return fmt.Errorf("🗄️ failed to initialize GitOps: %w", err)
+				}
+				// Start Git poller in background
+				go git.StartGitPoller(ctx)
+			} else {
+				logger.Info("🗄️ GitOps is disabled, skipping Git sync")
+			}
+			return nil
+		},
 		"spoutmc": func(ctx context.Context) error {
 			err = startSpoutMC()
 			return err
@@ -63,14 +78,20 @@ func main() {
 			return nil
 		},
 		"fileWatcher": func(ctx context.Context) error {
-			go watchdog.StartFileWatcher()
+			// Only start file watcher if GitOps is disabled
+			if !config.IsGitOpsEnabled() {
+				go watchdog.StartFileWatcher()
+			} else {
+				logger.Info("GitOps is enabled, file watcher disabled")
+			}
 			return nil
 		},
 	}
 
 	startupOrder := []string{
 		//database
-		"spoutmc",
+		"gitSync", // Initialize GitOps first (loads config from Git)
+		"spoutmc", // Then start containers with loaded config
 		"watchdog",
 		"fileWatcher",
 		"webserver",
@@ -127,7 +148,31 @@ func main() {
 func startSpoutMC() error {
 	docker.CreateSpoutNetwork("spoutnetwork")
 	startContainers()
+	cleanupContainersNotInConfig()
 	return nil
+}
+
+func cleanupContainersNotInConfig() {
+	container, err := docker.GetNetworkContainers()
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	if len(container) == 0 {
+		return
+	}
+
+	for _, c := range container {
+		_, err := config.GetServerConfigForContainerName(strings.TrimLeft(c.Names[0], "/"))
+		if err != nil {
+			err := docker.RemoveContainerById(c.ID, true)
+			if err != nil {
+				logger.Error(err.Error())
+			}
+		}
+
+	}
+
 }
 
 func startContainers() {
@@ -137,10 +182,14 @@ func startContainers() {
 	if len(cfg.Servers) == 0 {
 		panic("spoutmc: no servers found in Configuration")
 	}
-
 	for _, s := range cfg.Servers {
 		err := docker.RecreateContainer(s)
 		if err != nil {
+			if strings.Contains(err.Error(), "Cannot find container") {
+				logger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
+				docker.StartContainer(s)
+				continue
+			}
 			logger.Error(fmt.Sprintf("❌ failed to start %s: %s", s.Name, err.Error()))
 		}
 	}

@@ -55,11 +55,30 @@ func All() models.SpoutConfiguration {
 }
 
 // GetServerConfigForContainerName looks up a server by its Name.
-func GetServerConfigForContainerName(name string) models.SpoutServer {
+func GetServerConfigForContainerName(name string) (models.SpoutServer, error) {
 	for _, s := range spoutConfiguration.Servers {
 		if s.Name == name {
-			return s
+			return s, nil
 		}
 	}
-	return models.SpoutServer{}
+	return models.SpoutServer{}, errors.New("No matching config found")
+}
+
+// UpdateConfiguration updates the package-scoped configuration.
+// This is used by GitOps to update configuration from Git repository.
+func UpdateConfiguration(newConfig models.SpoutConfiguration) {
+	spoutConfiguration = newConfig
+}
+
+// IsGitOpsEnabled checks if GitOps mode is enabled in the configuration.
+func IsGitOpsEnabled() bool {
+	return spoutConfiguration.Git != nil && spoutConfiguration.Git.Enabled
+}
+
+// GetGitConfig returns the Git configuration if GitOps is enabled.
+func GetGitConfig() *models.GitConfig {
+	if spoutConfiguration.Git != nil {
+		return spoutConfiguration.Git
+	}
+	return nil
 }

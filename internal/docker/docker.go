@@ -390,7 +390,7 @@ func RecreateContainer(containerConfig models.SpoutServer) error {
 	logger.Info("Recreating container", zap.String("containerName", containerConfig.Name))
 	recreateContainer, err := GetContainer(containerConfig.Name)
 	if err != nil {
-		logger.Error("cannot load container", zap.Error(err))
+		return err
 	}
 	StopContainerById(recreateContainer.ID)
 	err = RemoveContainerById(recreateContainer.ID, false)

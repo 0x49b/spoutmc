@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"spoutmc/internal/webserver/api/v1/git"
 	"spoutmc/internal/webserver/api/v1/host"
 	"spoutmc/internal/webserver/api/v1/server"
 	"spoutmc/internal/webserver/api/v1/user"
@@ -18,4 +19,5 @@ func RegisterV1(g *echo.Group) {
 	server.RegisterServerRoutes(v1)
 	user.RegisterUserRoutes(v1)
 	host.RegisterHostRoutes(v1)
+	git.RegisterGitRoutes(v1)
 }

@@ -6,6 +6,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+var networkName = "spoutnetwork"
+
+func GetNetworkName() string {
+	return networkName
+}
+
 func CreateSpoutNetwork(networkName string) network.Inspect {
 
 	networkList, err := cli.NetworkList(ctx, network.ListOptions{})
@@ -38,7 +44,6 @@ func CreateSpoutNetwork(networkName string) network.Inspect {
 
 func GetSpoutNetwork() network.Inspect {
 	networkList, _ := cli.NetworkList(ctx, network.ListOptions{})
-	networkName := "spoutnetwork" // todo get this from config
 	for _, n := range networkList {
 		if networkName == n.Name {
 			return n

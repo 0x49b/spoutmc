@@ -1,7 +1,20 @@
 package models
 
+import "time"
+
 type SpoutConfiguration struct {
+	Git     *GitConfig    `json:"git,omitempty" yaml:"git,omitempty"`
 	Servers []SpoutServer `json:"servers,omitempty" yaml:"servers,omitempty"`
+}
+
+type GitConfig struct {
+	Enabled       bool          `json:"enabled" yaml:"enabled"`
+	Repository    string        `json:"repository" yaml:"repository"`
+	Branch        string        `json:"branch" yaml:"branch"`
+	Token         string        `json:"token,omitempty" yaml:"token,omitempty"`
+	PollInterval  time.Duration `json:"poll_interval" yaml:"poll_interval"`
+	WebhookSecret string        `json:"webhook_secret,omitempty" yaml:"webhook_secret,omitempty"`
+	LocalPath     string        `json:"local_path" yaml:"local_path"`
 }
 
 type SpoutServer struct {
