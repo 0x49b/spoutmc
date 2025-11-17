@@ -202,3 +202,68 @@ Currently, no test files exist in the codebase. When adding tests:
 - Place in `*_test.go` files alongside source
 - Use standard Go testing package
 - Test container lifecycle operations with Docker test containers if needed
+
+## Recent Changes & Important Notes
+
+### Circular Import Fix
+- **Issue**: Circular dependency between `internal/config` and `internal/docker`
+- **Solution**: Removed `config` import from `internal/docker/mapper.go`
+- `createHostPath()` now simply returns `{workingDir}/{containerName}` without accessing config
+
+### Frontend Server Details Page
+- **Removed features**: Replica Status, Pods Tab, Scale Deployment
+- These were Kubernetes-oriented features not applicable to Docker-only setup
+- Simplified to show: Server Information, Resource Usage (CPU/Memory), Description
+- Updated skeleton components to match
+
+### SSE & Loading States
+- **SSE connection moved to ServerDetail component level** (was in OverviewTab)
+- Stats are loaded once and persist across tab switches
+- Skeleton only shows on initial page load, not when changing tabs
+- Applies to both OverviewTab and ConsoleTab
+
+### Console Scroll Fix
+- Console "scroll to bottom" now scrolls the console container, not the entire page
+- Changed from `scrollIntoView()` to direct `scrollTop` manipulation
+- Uses `logsContainerRef` to target the scrollable div
+
+### Add Server Modal & API
+**Frontend (`web/src/components/Servers/AddServerModal.tsx`)**:
+- Removed: IP Address, Location, Description, Plugins fields
+- Added: Docker Image field, Environment Variables (key:value pairs with add/remove)
+- Sends to backend: `{ name, image, port, env }`
+
+**Backend (`internal/webserver/api/v1/server/server.go`)**:
+- New endpoint: `POST /api/v1/server`
+- Creates server configuration with Docker-specific fields
+- **GitOps support**: Checks `config.IsGitOpsEnabled()`
+  - If enabled: Creates `{name}.yaml` in git repo, commits, and pushes
+  - If disabled: Appends to `config/spoutmc.yaml` and reloads
+- Automatically starts the Docker container after creation
+
+**Git Operations (`internal/git/repository.go`)**:
+- Added `CommitAndPush()` method to Repository struct
+- Added `CommitAndPushChanges()` convenience function
+- Uses PAT authentication embedded in remote URL
+- Format: `https://{token}@github.com/user/repo.git`
+
+### Server Model Structure
+Servers now have:
+- `name` - Container/server name
+- `image` - Docker image (e.g., `itzg/minecraft-server:latest`)
+- `env` - Map of environment variables
+- `ports` - Array of port mappings (host:container)
+- `volumes` - Array of volume bindings (defaults to `{name}:/server`)
+
+## TODO / Next Steps
+
+### Improve Server Creation Feature
+The current server creation feature needs enhancements:
+- **Multiple ports**: Allow users to add multiple port mappings (not just one)
+- **Volume configuration**: Let users customize volume bindings beyond the default
+- **Proxy/Lobby flags**: Add checkboxes to mark servers as proxy or lobby
+- **Validation**: Add better validation for server name, image format, port ranges
+- **Error handling**: Improve error messages and user feedback
+- **Port conflict detection**: Check if port is already in use before creating server
+- **Image validation**: Optionally verify Docker image exists before deployment
+- **Advanced options**: Consider adding options for network mode, restart policy, resource limits
