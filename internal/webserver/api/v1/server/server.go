@@ -20,6 +20,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/labstack/echo/v4"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/teris-io/shortid"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -472,6 +473,14 @@ func addServerHandler(c echo.Context) error {
 	// Start the new container
 	docker.StartContainer(newServer, dataPath)
 
+	// Update velocity.toml if this is not a proxy server
+	if !req.Proxy {
+		if err := updateVelocityTomlAddServer(req.Name, assignedPort, req.Lobby); err != nil {
+			logger.Error("Failed to update velocity.toml", zap.Error(err))
+			// Don't fail the entire operation, just log the error
+		}
+	}
+
 	return c.JSON(http.StatusCreated, map[string]string{
 		"status":  "success",
 		"message": "Server added successfully",
@@ -719,6 +728,23 @@ func deleteServerHandler(c echo.Context) error {
 	serverName := containerInfo.Name
 	if len(serverName) > 0 && serverName[0] == '/' {
 		serverName = serverName[1:] // Remove leading slash
+	}
+
+	// Check if this is a proxy server
+	isProxy := false
+	for _, env := range containerInfo.Config.Env {
+		if len(env) > 5 && env[:5] == "TYPE=" && env[5:] == "VELOCITY" {
+			isProxy = true
+			break
+		}
+	}
+
+	// Update velocity.toml if this is not a proxy server
+	if !isProxy {
+		if err := updateVelocityTomlRemoveServer(serverName); err != nil {
+			logger.Error("Failed to update velocity.toml", zap.Error(err))
+			// Don't fail the entire operation, just log the error
+		}
 	}
 
 	// Exclude from watchdog monitoring
@@ -1003,6 +1029,563 @@ func (ev *Event) MarshalTo(w io.Writer) error {
 	if _, err := fmt.Fprint(w, "\n"); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// @Summary List available config files
+// @Description Returns list of editable config files for a server (server.properties, spigot.yml)
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/config/files [get]
+func listConfigFilesHandler(c echo.Context) error {
+	containerID := c.Param("id")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	// Get container info to find server name and type
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Get server name
+	serverName := containerInfo.Name
+	if len(serverName) > 0 && serverName[0] == '/' {
+		serverName = serverName[1:] // Remove leading slash
+	}
+
+	// Get server type from environment variables
+	serverType := ""
+	for _, env := range containerInfo.Config.Env {
+		if len(env) > 5 && env[:5] == "TYPE=" {
+			serverType = env[5:]
+			break
+		}
+	}
+
+	// Only PAPER and VELOCITY servers have editable config files
+	if serverType != "PAPER" && serverType != "VELOCITY" {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"files": []string{},
+		})
+	}
+
+	// Get data path from configuration
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to determine data path",
+			})
+		}
+		dataPath = wd
+	}
+
+	// Build path to server data directory based on server type
+	var serverDataPath string
+	var configFiles []string
+
+	if serverType == "PAPER" {
+		// PAPER servers mount at /data
+		serverDataPath = filepath.Join(dataPath, serverName, "data")
+		configFiles = []string{"server.properties", "spigot.yml"}
+	} else if serverType == "VELOCITY" {
+		// VELOCITY proxy servers mount at /server
+		serverDataPath = filepath.Join(dataPath, serverName, "server")
+		configFiles = []string{"velocity.toml"}
+	}
+
+	// Check which config files exist
+	availableFiles := []string{}
+	for _, filename := range configFiles {
+		filePath := filepath.Join(serverDataPath, filename)
+		if _, err := os.Stat(filePath); err == nil {
+			availableFiles = append(availableFiles, filename)
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"files": availableFiles,
+	})
+}
+
+// @Summary Get config file content
+// @Description Returns the content of a server config file
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Param filename path string true "Config filename (server.properties or spigot.yml)"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/config/{filename} [get]
+func getConfigFileHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	filename := c.Param("filename")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	// Validate filename
+	if filename != "server.properties" && filename != "spigot.yml" && filename != "velocity.toml" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid config file. Only server.properties, spigot.yml, and velocity.toml are supported",
+		})
+	}
+
+	// Get container info to find server name and type
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Get server name
+	serverName := containerInfo.Name
+	if len(serverName) > 0 && serverName[0] == '/' {
+		serverName = serverName[1:] // Remove leading slash
+	}
+
+	// Get server type from environment variables
+	serverType := ""
+	for _, env := range containerInfo.Config.Env {
+		if len(env) > 5 && env[:5] == "TYPE=" {
+			serverType = env[5:]
+			break
+		}
+	}
+
+	// Get data path from configuration
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to determine data path",
+			})
+		}
+		dataPath = wd
+	}
+
+	// Build path to config file based on server type
+	var serverDataPath string
+	if serverType == "VELOCITY" {
+		// VELOCITY proxy servers mount at /server
+		serverDataPath = filepath.Join(dataPath, serverName, "server")
+	} else {
+		// PAPER servers mount at /data
+		serverDataPath = filepath.Join(dataPath, serverName, "data")
+	}
+	filePath := filepath.Join(serverDataPath, filename)
+
+	// Read file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		logger.Error("Failed to read config file",
+			zap.String("file", filePath),
+			zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Config file not found",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"filename": filename,
+		"content":  string(content),
+	})
+}
+
+// @Summary Update config file content
+// @Description Updates the content of a server config file
+// @Tags server
+// @Accept json
+// @Produce json
+// @Param id path string true "Container ID"
+// @Param filename path string true "Config filename (server.properties or spigot.yml)"
+// @Param body body map[string]string true "File content"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/config/{filename} [put]
+func updateConfigFileHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	filename := c.Param("filename")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	// Validate filename
+	if filename != "server.properties" && filename != "spigot.yml" && filename != "velocity.toml" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid config file. Only server.properties, spigot.yml, and velocity.toml are supported",
+		})
+	}
+
+	// Parse request body
+	var reqBody struct {
+		Content string `json:"content"`
+	}
+
+	if err := c.Bind(&reqBody); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+	}
+
+	if reqBody.Content == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Content is required",
+		})
+	}
+
+	// Get container info to find server name and type
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Get server name
+	serverName := containerInfo.Name
+	if len(serverName) > 0 && serverName[0] == '/' {
+		serverName = serverName[1:] // Remove leading slash
+	}
+
+	// Get server type from environment variables
+	serverType := ""
+	for _, env := range containerInfo.Config.Env {
+		if len(env) > 5 && env[:5] == "TYPE=" {
+			serverType = env[5:]
+			break
+		}
+	}
+
+	// Get data path from configuration
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to determine data path",
+			})
+		}
+		dataPath = wd
+	}
+
+	// Build path to config file based on server type
+	var serverDataPath string
+	if serverType == "VELOCITY" {
+		// VELOCITY proxy servers mount at /server
+		serverDataPath = filepath.Join(dataPath, serverName, "server")
+	} else {
+		// PAPER servers mount at /data
+		serverDataPath = filepath.Join(dataPath, serverName, "data")
+	}
+	filePath := filepath.Join(serverDataPath, filename)
+
+	// Create backup of existing file
+	backupPath := filePath + ".backup"
+	if _, err := os.Stat(filePath); err == nil {
+		if err := os.Rename(filePath, backupPath); err != nil {
+			logger.Error("Failed to create backup of config file",
+				zap.String("file", filePath),
+				zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to create backup of config file",
+			})
+		}
+	}
+
+	// Write new content
+	if err := os.WriteFile(filePath, []byte(reqBody.Content), 0644); err != nil {
+		logger.Error("Failed to write config file",
+			zap.String("file", filePath),
+			zap.Error(err))
+
+		// Restore backup if write failed
+		if _, statErr := os.Stat(backupPath); statErr == nil {
+			os.Rename(backupPath, filePath)
+		}
+
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to write config file",
+		})
+	}
+
+	// Remove backup after successful write
+	os.Remove(backupPath)
+
+	logger.Info("Config file updated successfully",
+		zap.String("server", serverName),
+		zap.String("file", filename))
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Config file updated successfully",
+	})
+}
+
+// VelocityConfig represents the structure of velocity.toml
+type VelocityConfig struct {
+	Servers     map[string]string      `toml:"servers"`
+	ForcedHosts map[string]interface{} `toml:"forced-hosts"`
+	RawConfig   map[string]interface{} `toml:",inline"`
+}
+
+// findProxyServer finds the proxy server container
+func findProxyServer() (*container.Summary, error) {
+	containers, err := docker.GetNetworkContainers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get containers: %w", err)
+	}
+
+	for _, c := range containers {
+		// Get detailed container info to check environment variables
+		containerInfo, err := docker.GetContainerById(c.ID)
+		if err != nil {
+			continue
+		}
+
+		// Check if this is a proxy server
+		for _, env := range containerInfo.Config.Env {
+			if len(env) > 5 && env[:5] == "TYPE=" && env[5:] == "VELOCITY" {
+				return &c, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no proxy server found")
+}
+
+// updateVelocityTomlAddServer adds a server to velocity.toml
+func updateVelocityTomlAddServer(serverName string, serverPort int, isLobby bool) error {
+	// Find proxy server
+	proxyContainer, err := findProxyServer()
+	if err != nil {
+		logger.Warn("No proxy server found, skipping velocity.toml update", zap.Error(err))
+		return nil // Don't fail the operation if no proxy exists
+	}
+
+	// Get proxy container name
+	proxyName := proxyContainer.Names[0]
+	if len(proxyName) > 0 && proxyName[0] == '/' {
+		proxyName = proxyName[1:] // Remove leading slash
+	}
+
+	// Get data path
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get working directory: %w", err)
+		}
+		dataPath = wd
+	}
+
+	// Path to velocity.toml
+	velocityTomlPath := filepath.Join(dataPath, proxyName, "server", "velocity.toml")
+
+	// Read current velocity.toml
+	data, err := os.ReadFile(velocityTomlPath)
+	if err != nil {
+		return fmt.Errorf("failed to read velocity.toml: %w", err)
+	}
+
+	// Parse TOML
+	var velocityConfig map[string]interface{}
+	if err := toml.Unmarshal(data, &velocityConfig); err != nil {
+		return fmt.Errorf("failed to parse velocity.toml: %w", err)
+	}
+
+	// Get or create servers section
+	servers, ok := velocityConfig["servers"].(map[string]interface{})
+	if !ok {
+		servers = make(map[string]interface{})
+		velocityConfig["servers"] = servers
+	}
+
+	// Add server (using container name as hostname since they're on same Docker network)
+	servers[serverName] = fmt.Sprintf("%s:%d", serverName, serverPort)
+
+	// Get or create forced-hosts section
+	forcedHosts, ok := velocityConfig["forced-hosts"].(map[string]interface{})
+	if !ok {
+		forcedHosts = make(map[string]interface{})
+		velocityConfig["forced-hosts"] = forcedHosts
+	}
+
+	// Add to forced-hosts
+	forcedHosts[serverName+".local"] = []string{serverName}
+
+	// If this is a lobby server, add to try list
+	if isLobby {
+		tryList, ok := forcedHosts["try"].([]interface{})
+		if !ok {
+			tryList = []interface{}{}
+		}
+		// Add lobby to try list if not already there
+		found := false
+		for _, item := range tryList {
+			if str, ok := item.(string); ok && str == serverName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			tryList = append(tryList, serverName)
+		}
+		forcedHosts["try"] = tryList
+	}
+
+	// Marshal back to TOML
+	updatedData, err := toml.Marshal(velocityConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal velocity.toml: %w", err)
+	}
+
+	// Write back to file
+	if err := os.WriteFile(velocityTomlPath, updatedData, 0644); err != nil {
+		return fmt.Errorf("failed to write velocity.toml: %w", err)
+	}
+
+	logger.Info("Added server to velocity.toml",
+		zap.String("server", serverName),
+		zap.Int("port", serverPort),
+		zap.Bool("lobby", isLobby))
+
+	// Restart proxy server
+	docker.RestartContainerById(proxyContainer.ID)
+	logger.Info("Proxy server restarted", zap.String("proxy", proxyName))
+
+	return nil
+}
+
+// updateVelocityTomlRemoveServer removes a server from velocity.toml
+func updateVelocityTomlRemoveServer(serverName string) error {
+	// Find proxy server
+	proxyContainer, err := findProxyServer()
+	if err != nil {
+		logger.Warn("No proxy server found, skipping velocity.toml update", zap.Error(err))
+		return nil // Don't fail the operation if no proxy exists
+	}
+
+	// Get proxy container name
+	proxyName := proxyContainer.Names[0]
+	if len(proxyName) > 0 && proxyName[0] == '/' {
+		proxyName = proxyName[1:] // Remove leading slash
+	}
+
+	// Get data path
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get working directory: %w", err)
+		}
+		dataPath = wd
+	}
+
+	// Path to velocity.toml
+	velocityTomlPath := filepath.Join(dataPath, proxyName, "server", "velocity.toml")
+
+	// Read current velocity.toml
+	data, err := os.ReadFile(velocityTomlPath)
+	if err != nil {
+		return fmt.Errorf("failed to read velocity.toml: %w", err)
+	}
+
+	// Parse TOML
+	var velocityConfig map[string]interface{}
+	if err := toml.Unmarshal(data, &velocityConfig); err != nil {
+		return fmt.Errorf("failed to parse velocity.toml: %w", err)
+	}
+
+	// Remove from servers section
+	if servers, ok := velocityConfig["servers"].(map[string]interface{}); ok {
+		delete(servers, serverName)
+	}
+
+	// Remove from forced-hosts section
+	if forcedHosts, ok := velocityConfig["forced-hosts"].(map[string]interface{}); ok {
+		delete(forcedHosts, serverName+".local")
+
+		// Remove from try list if present
+		if tryList, ok := forcedHosts["try"].([]interface{}); ok {
+			newTryList := []interface{}{}
+			for _, item := range tryList {
+				if str, ok := item.(string); ok && str != serverName {
+					newTryList = append(newTryList, str)
+				}
+			}
+			forcedHosts["try"] = newTryList
+		}
+	}
+
+	// Marshal back to TOML
+	updatedData, err := toml.Marshal(velocityConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal velocity.toml: %w", err)
+	}
+
+	// Write back to file
+	if err := os.WriteFile(velocityTomlPath, updatedData, 0644); err != nil {
+		return fmt.Errorf("failed to write velocity.toml: %w", err)
+	}
+
+	logger.Info("Removed server from velocity.toml", zap.String("server", serverName))
+
+	// Restart proxy server
+	docker.RestartContainerById(proxyContainer.ID)
+	logger.Info("Proxy server restarted", zap.String("proxy", proxyName))
 
 	return nil
 }
