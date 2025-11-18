@@ -13,8 +13,4 @@ env:
   LOG_TIMESTAMP: 'TRUE'
   TZ: Europe/Zurich
 volumes:
-  - hostpath:
-      - testservers
-      - data
-      - spoutlobby
-    containerpath: "/data"
+  - containerpath: "/data"

@@ -4,8 +4,10 @@ import (
 	"context"
 	"time"
 
+	"spoutmc/internal/config"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
+	"spoutmc/internal/models"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -58,6 +60,14 @@ func (w *Watchdog) Start(ctx context.Context) {
 }
 
 func (w *Watchdog) checkContainers(ctx context.Context) {
+	// Check existing containers for issues
+	w.checkExistingContainers(ctx)
+
+	// Check for missing servers (defined in config but not running)
+	w.checkMissingServers(ctx)
+}
+
+func (w *Watchdog) checkExistingContainers(ctx context.Context) {
 	containers, err := docker.GetNetworkContainers()
 	if err != nil {
 		w.logger.Error("🐺 error getting network containers", zap.Error(err))
@@ -76,19 +86,87 @@ func (w *Watchdog) checkContainers(ctx context.Context) {
 		}
 
 		status := info.State.Status
+		healthStatus := "none"
+		if info.State.Health != nil {
+			healthStatus = info.State.Health.Status
+		}
+
 		w.logger.Debug("🐺 container status",
 			zap.String("hostname", info.Config.Hostname),
 			zap.String("status", status),
+			zap.String("health", healthStatus),
 		)
 
+		// Restart if container is stopped or dead
 		if status == "exited" || status == "dead" {
-			w.logger.Warn("🐺 restarting container",
+			w.logger.Warn("🐺 container is stopped, restarting",
 				zap.String("hostname", info.Config.Hostname),
 				zap.String("status", status),
 			)
 			w.startContainer(ctx, c.ID, info.Config.Hostname)
+			continue
+		}
+
+		// Restart if container is unhealthy
+		if healthStatus == "unhealthy" {
+			w.logger.Warn("🐺 container is unhealthy, restarting",
+				zap.String("hostname", info.Config.Hostname),
+				zap.String("health", healthStatus),
+			)
+			w.restartContainer(ctx, c.ID, info.Config.Hostname)
 		}
 	}
+}
+
+func (w *Watchdog) checkMissingServers(ctx context.Context) {
+	// Get configuration
+	cfg := config.All()
+	if len(cfg.Servers) == 0 {
+		return
+	}
+
+	// Get data path for volume bindings
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	// Get list of running containers
+	containers, err := docker.GetNetworkContainers()
+	if err != nil {
+		w.logger.Error("🐺 error getting network containers", zap.Error(err))
+		return
+	}
+
+	// Create map of running container names
+	runningContainers := make(map[string]bool)
+	for _, c := range containers {
+		// Get container name (remove leading slash)
+		if len(c.Names) > 0 {
+			name := c.Names[0]
+			if len(name) > 0 && name[0] == '/' {
+				name = name[1:]
+			}
+			runningContainers[name] = true
+		}
+	}
+
+	// Check each configured server
+	for _, server := range cfg.Servers {
+		if !runningContainers[server.Name] {
+			w.logger.Warn("🐺 server defined in config but not running, creating",
+				zap.String("server", server.Name),
+			)
+			w.createMissingServer(server, dataPath)
+		}
+	}
+}
+
+func (w *Watchdog) createMissingServer(server models.SpoutServer, dataPath string) {
+	w.logger.Info("🐺 creating missing server", zap.String("server", server.Name))
+
+	// Use docker.StartContainer which handles creation if container doesn't exist
+	docker.StartContainer(server, dataPath)
 }
 
 func (w *Watchdog) startContainer(ctx context.Context, containerID, containerName string) {
@@ -98,5 +176,15 @@ func (w *Watchdog) startContainer(ctx context.Context, containerID, containerNam
 		w.logger.Error("🐺 failed to start container", zap.String("container", containerName), zap.Error(err))
 	} else {
 		w.logger.Info("🐺 container started", zap.String("container", containerName))
+	}
+}
+
+func (w *Watchdog) restartContainer(ctx context.Context, containerID, containerName string) {
+	w.logger.Info("🐺 restarting container", zap.String("container", containerName))
+	err := w.cli.ContainerRestart(ctx, containerID, container.StopOptions{})
+	if err != nil {
+		w.logger.Error("🐺 failed to restart container", zap.String("container", containerName), zap.Error(err))
+	} else {
+		w.logger.Info("🐺 container restarted", zap.String("container", containerName))
 	}
 }

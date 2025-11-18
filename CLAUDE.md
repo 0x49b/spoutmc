@@ -61,7 +61,10 @@ npm run preview
 
 The application starts components in this order (see cmd/spoutmc/main.go:71-77):
 1. **spoutmc** - Initializes Docker network and containers
-2. **watchdog** - Starts container health monitoring (15s poll interval)
+2. **watchdog** - Starts container health monitoring (15s poll interval):
+   - Monitors container status (stopped/dead)
+   - Monitors container health (unhealthy)
+   - Ensures all config servers are running
 3. **fileWatcher** - Monitors config/spoutmc.yaml for changes
 4. **webserver** - Starts Echo HTTP server on port 3000
 
@@ -82,9 +85,13 @@ The application starts components in this order (see cmd/spoutmc/main.go:71-77):
 - File watcher applies changes dynamically without restart
 
 **Watchdog (internal/watchdog/)**
-- `watchdog.go` - Monitors container health every 15s, restarts exited/dead containers
+- `watchdog.go` - Monitors container health every 15s with three checks:
+  1. **Stopped/Dead Containers**: Restarts containers in "exited" or "dead" state
+  2. **Unhealthy Containers**: Restarts containers with health check status "unhealthy"
+  3. **Missing Servers**: Creates/starts servers defined in config but not running
 - `config_file_watcher.go` - Watches config file, triggers hot-reload on changes
 - Can exclude specific containers from monitoring
+- Automatically ensures config state matches running state
 
 **Web Server (internal/webserver/)**
 - Echo framework on port 3000
@@ -97,6 +104,8 @@ The application starts components in this order (see cmd/spoutmc/main.go:71-77):
 - `spoutmodel.go` - Core config types (SpoutConfiguration, SpoutServer, etc.)
 - Servers can be proxy, lobby, or regular game servers
 - Each server has: name, image, env vars, ports, volumes
+- Volume host paths auto-generated: `{storage.data_path}/{server.name}/{containerpath}`
+- OS-specific path separators handled automatically via `filepath.Join`
 
 ### Container Lifecycle
 
@@ -171,6 +180,9 @@ See `GITOPS.md` for detailed documentation.
 The `config/spoutmc.yaml` defines the server network:
 
 ```yaml
+storage:
+  data_path: "/path/to/data"  # Base directory for server data
+
 servers:
   - name: spoutproxy          # Container name
     image: itzg/mc-proxy      # Docker image
@@ -181,9 +193,20 @@ servers:
     env:                      # Environment variables
       TYPE: VELOCITY
       MAX_MEMORY: 1G
-    volumes:                  # Volume bindings
-      - hostpath: [testservers, data, spoutproxy]
-        containerpath: "/server"
+    volumes:                  # Volume bindings (hostpath auto-generated)
+      - containerpath: "/server"   # → {data_path}/spoutproxy/server (default for proxy)
+
+  - name: lobby
+    image: itzg/minecraft-server:latest
+    lobby: true
+    ports:
+      - hostPort: '25566'
+        containerPort: '25566'
+    env:
+      TYPE: PAPER
+      VERSION: "1.21.10"
+    volumes:
+      - containerpath: "/data"     # → {data_path}/lobby/data (default for lobby/game)
 ```
 
 ## Important Notes
@@ -253,17 +276,117 @@ Servers now have:
 - `image` - Docker image (e.g., `itzg/minecraft-server:latest`)
 - `env` - Map of environment variables
 - `ports` - Array of port mappings (host:container)
-- `volumes` - Array of volume bindings (defaults to `{name}:/server`)
+- `volumes` - Array of volume bindings with only `containerpath`
+  - Host path auto-generated: `{storage.data_path}/{server.name}/{containerpath}`
+  - Default containerpath:
+    - Proxy servers: `/server`
+    - Lobby/Game servers: `/data`
+  - Example: If `data_path=/data`, `name=lobby`, `containerpath=/data` → hostpath: `/data/lobby/data`
+  - Multiple volumes supported: each containerpath gets its own subdirectory
+  - OS-specific separators handled automatically
+
+### Enhanced Add Server Feature (In Progress)
+
+The Add Server modal has been significantly enhanced with the following features:
+
+#### Server Type Selection
+- **Radio button group** for server type selection:
+  - **Proxy Server**: Main entry point (only one allowed)
+  - **Lobby Server**: Central hub (only one allowed)
+  - **Game Server**: Regular game servers (unlimited)
+- Automatic Docker image selection based on server type:
+  - Proxy: `itzg/mc-proxy:latest`
+  - Lobby/Game: `itzg/minecraft-server:latest`
+- **Disabled state** for proxy/lobby when one already exists in network
+- Visual feedback with descriptions explaining each type
+
+#### Validation & Constraints
+- **Frontend validation**: Radio buttons disabled when proxy/lobby exists
+- **Backend validation**: API endpoint validates and returns error if duplicate proxy/lobby
+- **Auto-correction**: Switches to game server if selected type becomes unavailable
+- Real-time validation with user-friendly error messages
+
+#### Dynamic Port Assignment
+- **Port field hidden** for lobby and game servers
+- **Port field shown** only for proxy servers (user-defined, defaults to 25565)
+- Backend automatically assigns ports starting from 25566 for lobby/game servers
+- `findNextAvailablePort()` function scans existing ports and finds next available
+- No port conflicts - system manages allocation automatically
+
+#### System-Managed Environment Variables
+**Proxy servers** get:
+- `TYPE=VELOCITY`
+
+**Lobby and game servers** get:
+- `EULA=TRUE`
+- `TYPE=PAPER`
+- `ONLINE_MODE=FALSE`
+- `GUI=FALSE`
+- `CONSOLE=FALSE`
+- `VERSION=<selected>`
+
+**Frontend warnings**:
+- Yellow border on env var inputs when user enters system-managed variable
+- Warning message: "This variable is system-managed. Your value will override the default"
+- Info box showing all system-managed variables for selected server type
+
+**Backend merging**:
+- Default env vars set based on server type
+- User-provided values override defaults
+- `mergeEnvVars()` function handles the merge logic
+
+#### Version Selection
+- **Dropdown/Select field** for Minecraft version (lobby/game servers only)
+- Versions loaded from `config/spoutmc.yaml` via API endpoint `GET /api/v1/versions`
+- 50+ PaperMC versions available (1.21.10 down to 1.8.8)
+- Selected version automatically added as `VERSION` env var
+- Listed as system-managed variable (can be overridden)
+- Versions always loaded from local config, even with GitOps enabled
+
+**GitOps integration**:
+- `LoadConfigurationFromGit()` preserves versions from local config
+- Servers come from Git, versions come from local `config/spoutmc.yaml`
+
+#### Form Management
+- **Auto-reset**: All fields clear when modal closes (any close method)
+- **Smart defaults**: Version defaults to first in list, server type to game
+- Clean state for next server creation
+
+#### API Changes
+**Request structure** (`POST /api/v1/server`):
+```json
+{
+  "name": "server-name",
+  "image": "itzg/minecraft-server:latest",
+  "port": 25565,  // Optional - only for proxy
+  "proxy": true,  // Optional
+  "lobby": false, // Optional
+  "env": {
+    "CUSTOM_VAR": "value"
+  }
+}
+```
+
+**New endpoint** (`GET /api/v1/versions`):
+Returns array of available Minecraft versions from config
+
+#### Configuration Structure
+```yaml
+# config/spoutmc.yaml
+versions:
+  - "1.21.10"
+  - "1.21.9"
+  # ... more versions
+
+servers:
+  - name: example
+    # ... server config
+```
 
 ## TODO / Next Steps
 
-### Improve Server Creation Feature
-The current server creation feature needs enhancements:
-- **Multiple ports**: Allow users to add multiple port mappings (not just one)
+### Future Server Creation Enhancements
+- **Multiple ports**: Allow users to add multiple port mappings
 - **Volume configuration**: Let users customize volume bindings beyond the default
-- **Proxy/Lobby flags**: Add checkboxes to mark servers as proxy or lobby
-- **Validation**: Add better validation for server name, image format, port ranges
-- **Error handling**: Improve error messages and user feedback
-- **Port conflict detection**: Check if port is already in use before creating server
-- **Image validation**: Optionally verify Docker image exists before deployment
-- **Advanced options**: Consider adding options for network mode, restart policy, resource limits
+- **Advanced options**: Network mode, restart policy, resource limits
+- **Image validation**: Verify Docker image exists before deployment

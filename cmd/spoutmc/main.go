@@ -182,12 +182,19 @@ func startContainers() {
 	if len(cfg.Servers) == 0 {
 		panic("spoutmc: no servers found in Configuration")
 	}
+
+	// Get data path from configuration
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
 	for _, s := range cfg.Servers {
-		err := docker.RecreateContainer(s)
+		err := docker.RecreateContainer(s, dataPath)
 		if err != nil {
 			if strings.Contains(err.Error(), "Cannot find container") {
 				logger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
-				docker.StartContainer(s)
+				docker.StartContainer(s, dataPath)
 				continue
 			}
 			logger.Error(fmt.Sprintf("❌ failed to start %s: %s", s.Name, err.Error()))

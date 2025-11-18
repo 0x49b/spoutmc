@@ -29,32 +29,37 @@ func MapExposedPorts(ports []models.SpoutServerPorts) (nat.PortSet, nat.PortMap)
 	return exposedPorts, containerPortBinding
 }
 
-/*func createHostPath(hostpath []string) string {
-	wd, err := os.Getwd()
-
-	if err != nil {
-		logger.Error("Could not get cwd", zap.Error(err))
-		return ""
+// createHostPath generates the host path for a volume binding
+// Format: {dataPath}/{containerName}/{containerPath}
+// Uses filepath.Join to handle OS-specific path separators (/ for Unix, \ for Windows)
+func createHostPath(dataPath, containerName, containerPath string) string {
+	if dataPath == "" {
+		// Fallback to working directory if no data path configured
+		wd, err := os.Getwd()
+		if err != nil {
+			logger.Error("Could not get cwd", zap.Error(err))
+			return ""
+		}
+		dataPath = wd
 	}
 
-	return filepath.Join(append([]string{wd}, hostpath...)...)
-}*/
-
-func createHostPath(containerName string) string {
-	wd, err := os.Getwd()
-	if err != nil {
-		logger.Error("Could not get cwd", zap.Error(err))
-		return ""
+	// Remove leading slash from containerPath to avoid double slashes
+	// filepath.Join handles this, but we'll clean it explicitly for clarity
+	cleanContainerPath := filepath.Clean(containerPath)
+	if len(cleanContainerPath) > 0 && cleanContainerPath[0] == '/' {
+		cleanContainerPath = cleanContainerPath[1:]
 	}
-	// Creates path: {workingDir}/{containerName}
-	return filepath.Join(wd, containerName)
+
+	// Creates path: {dataPath}/{containerName}/{containerPath}
+	return filepath.Join(dataPath, containerName, cleanContainerPath)
 }
 
-func MapVolumeBindings(volumes []models.SpoutServerVolumes, containerName string) []string {
+func MapVolumeBindings(volumes []models.SpoutServerVolumes, dataPath, containerName string) []string {
 	var spoutVolumes []string
 
 	for _, v := range volumes {
-		spoutVolumes = append(spoutVolumes, createHostPath(containerName)+":"+v.Containerpath)
+		hostPath := createHostPath(dataPath, containerName, v.Containerpath)
+		spoutVolumes = append(spoutVolumes, hostPath+":"+v.Containerpath)
 	}
 	return spoutVolumes
 }

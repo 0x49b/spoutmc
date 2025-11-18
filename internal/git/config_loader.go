@@ -132,8 +132,8 @@ func ValidateServerConfig(server *models.SpoutServer) error {
 
 	// Validate volume mappings if present
 	for i, volume := range server.Volumes {
-		if len(volume.Hostpath) == 0 || volume.Containerpath == "" {
-			return fmt.Errorf("server %s: volume mapping %d has empty host or container path", server.Name, i)
+		if volume.Containerpath == "" {
+			return fmt.Errorf("server %s: volume mapping %d has empty container path", server.Name, i)
 		}
 	}
 

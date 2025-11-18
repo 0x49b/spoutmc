@@ -122,7 +122,7 @@ func getHostNetworkId() (network.Inspect, error) {
 	return network.Inspect{}, nil
 }
 
-func StartContainer(s models.SpoutServer) {
+func StartContainer(s models.SpoutServer, dataPath string) {
 
 	// Check if image exists, if not pull it
 	_, err := cli.ImageInspect(context.Background(), s.Image)
@@ -169,7 +169,7 @@ func StartContainer(s models.SpoutServer) {
 			ExposedPorts: exposedPorts,
 			Labels:       containerLabels,
 		}, &container.HostConfig{
-			Binds:        MapVolumeBindings(s.Volumes, s.Name),
+			Binds:        MapVolumeBindings(s.Volumes, dataPath, s.Name),
 			PortBindings: containerPortBinding,
 		}, &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{spoutNetwork.ID: {NetworkID: spoutNetwork.ID}}},
@@ -373,7 +373,7 @@ func RemoveContainerById(containerId string, removeVolume bool) error {
 	})
 }
 
-func RecreateContainer(containerConfig models.SpoutServer) error {
+func RecreateContainer(containerConfig models.SpoutServer, dataPath string) error {
 	logger.Info("Recreating container", zap.String("containerName", containerConfig.Name))
 	recreateContainer, err := GetContainer(containerConfig.Name)
 	if err != nil {
@@ -384,7 +384,7 @@ func RecreateContainer(containerConfig models.SpoutServer) error {
 	if err != nil {
 		return err
 	}
-	StartContainer(containerConfig)
+	StartContainer(containerConfig, dataPath)
 	return nil
 }
 

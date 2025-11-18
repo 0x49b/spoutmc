@@ -11,8 +11,4 @@ env:
   TYPE: VELOCITY
   MAX_MEMORY: 1G
 volumes:
-  - hostpath:
-      - testservers
-      - data
-      - spoutproxy
-    containerpath: "/server"
+  - containerpath: "/server"

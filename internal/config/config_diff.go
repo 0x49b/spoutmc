@@ -92,9 +92,15 @@ func ApplyConfigChanges(oldConfig, newConfig models.SpoutConfiguration) {
 
 	changeSet := DiffServers(oldConfig.Servers, newConfig.Servers)
 
+	// Get data path from new configuration
+	dataPath := ""
+	if newConfig.Storage != nil {
+		dataPath = newConfig.Storage.DataPath
+	}
+
 	if len(changeSet.Updated) > 0 {
 		for _, changed := range changeSet.Updated {
-			err := docker.RecreateContainer(changed.After)
+			err := docker.RecreateContainer(changed.After, dataPath)
 			if err != nil {
 				logger.Error("cannot recreate container", zap.Error(err))
 			}
@@ -104,7 +110,7 @@ func ApplyConfigChanges(oldConfig, newConfig models.SpoutConfiguration) {
 
 	if len(changeSet.Added) > 0 {
 		for _, added := range changeSet.Added {
-			docker.StartContainer(added)
+			docker.StartContainer(added, dataPath)
 		}
 	}
 	if len(changeSet.Removed) > 0 {

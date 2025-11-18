@@ -5,6 +5,7 @@ import (
 	"spoutmc/internal/webserver/api/v1/git"
 	"spoutmc/internal/webserver/api/v1/host"
 	"spoutmc/internal/webserver/api/v1/server"
+	"spoutmc/internal/webserver/api/v1/setup"
 	"spoutmc/internal/webserver/api/v1/user"
 
 	"github.com/labstack/echo/v4"
@@ -20,4 +21,5 @@ func RegisterV1(g *echo.Group) {
 	user.RegisterUserRoutes(v1)
 	host.RegisterHostRoutes(v1)
 	git.RegisterGitRoutes(v1)
+	setup.RegisterSetupRoutes(v1)
 }

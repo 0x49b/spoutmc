@@ -87,9 +87,13 @@ func (p *Poller) reloadConfiguration() error {
 		return err
 	}
 
-	// Preserve Git config from current configuration
+	// Preserve Git config, versions, storage, and EULA from current configuration
+	// These should always come from local config/spoutmc.yaml
 	newConfig := *newServers
 	newConfig.Git = currentConfig.Git
+	newConfig.Versions = currentConfig.Versions
+	newConfig.Storage = currentConfig.Storage
+	newConfig.EULA = currentConfig.EULA
 
 	// Update package-level configuration
 	config.UpdateConfiguration(newConfig)

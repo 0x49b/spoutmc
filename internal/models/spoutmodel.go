@@ -3,8 +3,11 @@ package models
 import "time"
 
 type SpoutConfiguration struct {
-	Git     *GitConfig    `json:"git,omitempty" yaml:"git,omitempty"`
-	Servers []SpoutServer `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Git      *GitConfig     `json:"git,omitempty" yaml:"git,omitempty"`
+	Storage  *StorageConfig `json:"storage,omitempty" yaml:"storage,omitempty"`
+	EULA     *EULAConfig    `json:"eula,omitempty" yaml:"eula,omitempty"`
+	Versions []string       `json:"versions,omitempty" yaml:"versions,omitempty"`
+	Servers  []SpoutServer  `json:"servers,omitempty" yaml:"servers,omitempty"`
 }
 
 type GitConfig struct {
@@ -15,6 +18,15 @@ type GitConfig struct {
 	PollInterval  time.Duration `json:"poll_interval" yaml:"poll_interval"`
 	WebhookSecret string        `json:"webhook_secret,omitempty" yaml:"webhook_secret,omitempty"`
 	LocalPath     string        `json:"local_path" yaml:"local_path"`
+}
+
+type StorageConfig struct {
+	DataPath string `json:"data_path" yaml:"data_path"`
+}
+
+type EULAConfig struct {
+	Accepted   bool      `json:"accepted" yaml:"accepted"`
+	AcceptedOn time.Time `json:"accepted_on" yaml:"accepted_on"`
 }
 
 type SpoutServer struct {
@@ -32,8 +44,7 @@ type SpoutServer struct {
 }
 
 type SpoutServerVolumes struct {
-	Hostpath      StringSlice `json:"hostpath" yaml:"hostpath"`
-	Containerpath string      `json:"containerpath" yaml:"containerpath"`
+	Containerpath string `json:"containerpath" yaml:"containerpath"`
 }
 
 type SpoutServerPorts struct {

@@ -51,11 +51,18 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.POST("/server", addServerHandler)
 	g.GET("/server/:id", getServer)
 	g.GET("/server/:id/stats", getServerStats)
+	g.GET("/versions", getVersions)
+	g.DELETE("/server/:id", deleteServerHandler)
 
 	// Server Actions
 	g.POST("/server/:id/start", startServerHandler)
 	g.POST("/server/:id/stop", stopServerHandler)
 	g.POST("/server/:id/restart", restartServerHandler)
+
+	// Config Files
+	g.GET("/server/:id/config/files", listConfigFilesHandler)
+	g.GET("/server/:id/config/:filename", getConfigFileHandler)
+	g.PUT("/server/:id/config/:filename", updateConfigFileHandler)
 
 	//SSE
 	g.GET("/server/stream", streamServers)
@@ -216,6 +223,28 @@ func getServers(c echo.Context) error {
 	return c.JSON(http.StatusOK, enrichedContainers)
 }
 
+// @Summary Get available Minecraft versions
+// @Description Returns a list of available Minecraft versions from configuration
+// @Tags server
+// @Produce json
+// @Success 200 {array} string
+// @Failure 500 {object} map[string]string
+// @Router /versions [get]
+func getVersions(c echo.Context) error {
+	lock.Lock()
+	defer lock.Unlock()
+
+	cfg := config.All()
+
+	// Return versions from configuration
+	versions := cfg.Versions
+	if versions == nil {
+		versions = []string{} // Return empty array if not configured
+	}
+
+	return c.JSON(http.StatusOK, versions)
+}
+
 // EnrichedContainer combines container summary with additional runtime info
 type EnrichedContainer struct {
 	container.Summary
@@ -232,8 +261,80 @@ type ContainerWithStats struct {
 type AddServerRequest struct {
 	Name  string            `json:"name" binding:"required"`
 	Image string            `json:"image" binding:"required"`
-	Port  int               `json:"port" binding:"required"`
+	Port  int               `json:"port,omitempty"` // Optional - required for proxy, auto-assigned for lobby/game
+	Proxy bool              `json:"proxy,omitempty"`
+	Lobby bool              `json:"lobby,omitempty"`
 	Env   map[string]string `json:"env"`
+}
+
+// getDefaultEnvVars returns system-managed environment variables for each server type
+// These defaults can be overridden by user-provided values
+func getDefaultEnvVars(isProxy, isLobby bool) map[string]string {
+	if isProxy {
+		// Proxy server defaults
+		return map[string]string{
+			"TYPE": "VELOCITY",
+		}
+	} else {
+		// Lobby and game server defaults
+		return map[string]string{
+			"EULA":        "TRUE",
+			"TYPE":        "PAPER",
+			"ONLINE_MODE": "FALSE",
+			"GUI":         "FALSE",
+			"CONSOLE":     "FALSE",
+		}
+	}
+}
+
+// mergeEnvVars merges default environment variables with user-provided ones
+// User-provided values override defaults
+func mergeEnvVars(defaults, userProvided map[string]string) map[string]string {
+	merged := make(map[string]string)
+
+	// Start with defaults
+	for k, v := range defaults {
+		merged[k] = v
+	}
+
+	// Override with user-provided values
+	for k, v := range userProvided {
+		merged[k] = v
+	}
+
+	return merged
+}
+
+// findNextAvailablePort finds the next available port starting from 25566
+// Returns the next available port number
+func findNextAvailablePort() int {
+	existingConfig := config.All()
+	usedPorts := make(map[int]bool)
+
+	// Collect all ports currently in use
+	for _, server := range existingConfig.Servers {
+		for _, portMapping := range server.Ports {
+			// Parse host port as integer
+			if hostPort := portMapping.HostPort; hostPort != "" {
+				var port int
+				fmt.Sscanf(hostPort, "%d", &port)
+				if port > 0 {
+					usedPorts[port] = true
+				}
+			}
+		}
+	}
+
+	// Start from 25566 (25565 is typically for proxy) and find first available
+	startPort := 25566
+	for port := startPort; port <= 65535; port++ {
+		if !usedPorts[port] {
+			return port
+		}
+	}
+
+	// Fallback (should never happen unless all ports are used)
+	return startPort
 }
 
 // @Summary Add a new server
@@ -254,29 +355,90 @@ func addServerHandler(c echo.Context) error {
 		})
 	}
 
-	if req.Name == "" || req.Image == "" || req.Port == 0 {
+	if req.Name == "" || req.Image == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Name, image, and port are required fields",
+			"error": "Name and image are required fields",
 		})
 	}
 
-	logger.Info("Adding new server", zap.String("name", req.Name), zap.String("image", req.Image))
+	// Port is required for proxy servers
+	if req.Proxy && req.Port == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Port is required for proxy servers",
+		})
+	}
+
+	// Validate proxy/lobby constraints - only one of each allowed
+	existingConfig := config.All()
+	if req.Proxy {
+		for _, server := range existingConfig.Servers {
+			if server.Proxy {
+				logger.Warn("Attempt to add duplicate proxy server",
+					zap.String("existing", server.Name),
+					zap.String("requested", req.Name))
+				return c.JSON(http.StatusBadRequest, map[string]string{
+					"error": fmt.Sprintf("A proxy server already exists (%s). Only one proxy is allowed in the network.", server.Name),
+				})
+			}
+		}
+	}
+
+	if req.Lobby {
+		for _, server := range existingConfig.Servers {
+			if server.Lobby {
+				logger.Warn("Attempt to add duplicate lobby server",
+					zap.String("existing", server.Name),
+					zap.String("requested", req.Name))
+				return c.JSON(http.StatusBadRequest, map[string]string{
+					"error": fmt.Sprintf("A lobby server already exists (%s). Only one lobby is allowed in the network.", server.Name),
+				})
+			}
+		}
+	}
+
+	// Assign port dynamically if not provided (lobby/game servers)
+	assignedPort := req.Port
+	if assignedPort == 0 {
+		assignedPort = findNextAvailablePort()
+		logger.Info("Dynamically assigned port",
+			zap.String("name", req.Name),
+			zap.Int("port", assignedPort))
+	}
+
+	// Merge system-managed environment variables with user-provided ones
+	defaultEnvVars := getDefaultEnvVars(req.Proxy, req.Lobby)
+	mergedEnv := mergeEnvVars(defaultEnvVars, req.Env)
+
+	logger.Info("Adding new server",
+		zap.String("name", req.Name),
+		zap.String("image", req.Image),
+		zap.Int("port", assignedPort),
+		zap.Bool("proxy", req.Proxy),
+		zap.Bool("lobby", req.Lobby),
+		zap.Any("env", mergedEnv))
+
+	// Determine default containerpath based on server type
+	containerPath := "/data" // Default for lobby/game servers
+	if req.Proxy {
+		containerPath = "/server" // Proxy servers use /server
+	}
 
 	// Create new server model
 	newServer := models.SpoutServer{
 		Name:  req.Name,
 		Image: req.Image,
-		Env:   req.Env,
+		Proxy: req.Proxy,
+		Lobby: req.Lobby,
+		Env:   mergedEnv,
 		Ports: []models.SpoutServerPorts{
 			{
-				HostPort:      fmt.Sprintf("%d", req.Port),
-				ContainerPort: fmt.Sprintf("%d", req.Port),
+				HostPort:      fmt.Sprintf("%d", assignedPort),
+				ContainerPort: fmt.Sprintf("%d", assignedPort),
 			},
 		},
 		Volumes: []models.SpoutServerVolumes{
 			{
-				Hostpath:      models.StringSlice{req.Name},
-				Containerpath: "/server",
+				Containerpath: containerPath,
 			},
 		},
 	}
@@ -300,8 +462,15 @@ func addServerHandler(c echo.Context) error {
 		}
 	}
 
+	// Get data path from configuration
+	dataPath := ""
+	existingConfig = config.All()
+	if existingConfig.Storage != nil {
+		dataPath = existingConfig.Storage.DataPath
+	}
+
 	// Start the new container
-	docker.StartContainer(newServer)
+	docker.StartContainer(newServer, dataPath)
 
 	return c.JSON(http.StatusCreated, map[string]string{
 		"status":  "success",
@@ -317,19 +486,22 @@ func addServerToGit(server models.SpoutServer) error {
 		return fmt.Errorf("git configuration not found")
 	}
 
-	// Create YAML content for the new server
-	serverConfig := models.SpoutConfiguration{
-		Servers: []models.SpoutServer{server},
-	}
-
-	yamlData, err := yaml.Marshal(serverConfig)
+	// Marshal the server directly (without servers: wrapper)
+	yamlData, err := yaml.Marshal(server)
 	if err != nil {
 		return fmt.Errorf("failed to marshal server config: %w", err)
 	}
 
-	// Write to git repo
+	// Write to git repo under /servers directory
 	repoPath := gitConfig.LocalPath
-	serverFilePath := filepath.Join(repoPath, fmt.Sprintf("%s.yaml", server.Name))
+	serversDir := filepath.Join(repoPath, "servers")
+
+	// Create servers directory if it doesn't exist
+	if err := os.MkdirAll(serversDir, 0755); err != nil {
+		return fmt.Errorf("failed to create servers directory: %w", err)
+	}
+
+	serverFilePath := filepath.Join(serversDir, fmt.Sprintf("%s.yaml", server.Name))
 
 	if err := os.WriteFile(serverFilePath, yamlData, 0644); err != nil {
 		return fmt.Errorf("failed to write server config file: %w", err)
@@ -503,6 +675,207 @@ func restartServerHandler(c echo.Context) error {
 		"message": "Container restarted successfully",
 		"id":      containerID,
 	})
+}
+
+// @Summary Delete a server
+// @Description Stops, removes container, deletes data (optional), and removes from config
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Param removeData query boolean false "Remove server data directory" default(true)
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id} [delete]
+func deleteServerHandler(c echo.Context) error {
+	containerID := c.Param("id")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	// Get removeData query parameter (default: true)
+	removeData := true
+	if removeDataParam := c.QueryParam("removeData"); removeDataParam == "false" {
+		removeData = false
+	}
+
+	logger.Info("Deleting server",
+		zap.String("id", containerID[:12]),
+		zap.Bool("removeData", removeData))
+
+	// Get container details to find server name
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Get server name from container
+	serverName := containerInfo.Name
+	if len(serverName) > 0 && serverName[0] == '/' {
+		serverName = serverName[1:] // Remove leading slash
+	}
+
+	// Exclude from watchdog monitoring
+	if global.Watchdog != nil {
+		global.Watchdog.Exclude(containerID)
+		logger.Info("Container excluded from watchdog monitoring", zap.String("id", containerID[:12]))
+	}
+
+	// Stop and remove container
+	logger.Info("Stopping and removing container", zap.String("name", serverName))
+	if err := docker.StopAndRemoveContainerById(containerID); err != nil {
+		logger.Error("Failed to stop and remove container", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("Failed to remove container: %v", err),
+		})
+	}
+
+	// Remove data directory if requested
+	if removeData {
+		cfg := config.All()
+		dataPath := ""
+		if cfg.Storage != nil {
+			dataPath = cfg.Storage.DataPath
+		}
+
+		if dataPath != "" {
+			serverDataPath := filepath.Join(dataPath, serverName)
+			logger.Info("Removing server data directory",
+				zap.String("path", serverDataPath))
+
+			if err := os.RemoveAll(serverDataPath); err != nil {
+				logger.Warn("Failed to remove server data directory",
+					zap.String("path", serverDataPath),
+					zap.Error(err))
+				// Don't fail the entire operation if data removal fails
+			}
+		}
+	}
+
+	// Remove from configuration (GitOps or local)
+	if config.IsGitOpsEnabled() {
+		logger.Info("GitOps enabled, removing server from git repository")
+		if err := removeServerFromGit(serverName); err != nil {
+			logger.Error("Failed to remove server from git", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("Failed to remove server from git: %v", err),
+			})
+		}
+	} else {
+		logger.Info("GitOps disabled, removing server from local config")
+		if err := removeServerFromLocalConfig(serverName); err != nil {
+			logger.Error("Failed to remove server from local config", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("Failed to remove server from local config: %v", err),
+			})
+		}
+	}
+
+	logger.Info("Server deleted successfully", zap.String("name", serverName))
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Server deleted successfully",
+		"name":    serverName,
+	})
+}
+
+// removeServerFromGit removes a server configuration from the git repository
+func removeServerFromGit(serverName string) error {
+	gitConfig := config.GetGitConfig()
+	if gitConfig == nil {
+		return fmt.Errorf("git configuration not found")
+	}
+
+	// Remove the server file
+	repoPath := gitConfig.LocalPath
+	serversDir := filepath.Join(repoPath, "servers")
+	serverFilePath := filepath.Join(serversDir, fmt.Sprintf("%s.yaml", serverName))
+
+	if err := os.Remove(serverFilePath); err != nil {
+		return fmt.Errorf("failed to remove server config file: %w", err)
+	}
+
+	// Commit and push changes
+	if err := git.CommitAndPushChanges(repoPath, fmt.Sprintf("Remove server: %s", serverName)); err != nil {
+		return fmt.Errorf("failed to commit and push changes: %w", err)
+	}
+
+	logger.Info("Server config removed from git repository", zap.String("file", serverFilePath))
+	return nil
+}
+
+// removeServerFromLocalConfig removes a server from the local spoutmc.yaml file
+func removeServerFromLocalConfig(serverName string) error {
+	// Get current configuration
+	currentConfig := config.All()
+
+	// Find and remove the server
+	newServers := make([]models.SpoutServer, 0)
+	found := false
+	for _, server := range currentConfig.Servers {
+		if server.Name != serverName {
+			newServers = append(newServers, server)
+		} else {
+			found = true
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("server %s not found in configuration", serverName)
+	}
+
+	// Update servers list
+	currentConfig.Servers = newServers
+
+	// Marshal to YAML
+	yamlData, err := yaml.Marshal(currentConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Get working directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Write to config file (try both .yaml and .yml)
+	configPaths := []string{
+		filepath.Join(wd, "config", "spoutmc.yaml"),
+		filepath.Join(wd, "config", "spoutmc.yml"),
+	}
+
+	var configPath string
+	for _, path := range configPaths {
+		if _, err := os.Stat(path); err == nil {
+			configPath = path
+			break
+		}
+	}
+
+	if configPath == "" {
+		// Default to .yaml if neither exists
+		configPath = configPaths[0]
+	}
+
+	if err := os.WriteFile(configPath, yamlData, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	// Reload configuration
+	if err := config.ReadConfiguration(); err != nil {
+		return fmt.Errorf("failed to reload configuration: %w", err)
+	}
+
+	logger.Info("Server removed from local config", zap.String("path", configPath))
+	return nil
 }
 
 // @Summary Stream server list updates
