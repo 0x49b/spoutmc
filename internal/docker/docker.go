@@ -329,7 +329,15 @@ func FetchDockerLogs(ctx context.Context, id string) (<-chan string, error) {
 
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
-			logChan <- scanner.Text()
+			line := scanner.Text()
+
+			// Filter out lines that only contain ">" or are effectively empty
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || trimmed == ">" {
+				continue
+			}
+
+			logChan <- line
 		}
 		if err := scanner.Err(); err != nil {
 			fmt.Printf("error reading logs: %v\n", err)

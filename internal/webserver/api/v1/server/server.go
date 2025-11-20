@@ -483,7 +483,9 @@ func addServerHandler(c echo.Context) error {
 
 	// Update velocity.toml if this is not a proxy server
 	if !req.Proxy {
-		if err := updateVelocityTomlAddServer(req.Name, assignedPort, req.Lobby); err != nil {
+		// Reload config to get the updated state
+		updatedConfig := config.All()
+		if err := docker.UpdateVelocityTomlAddServer(&updatedConfig, req.Name, assignedPort, req.Lobby); err != nil {
 			logger.Error("Failed to update velocity.toml", zap.Error(err))
 			// Don't fail the entire operation, just log the error
 		}
@@ -1055,7 +1057,8 @@ func deleteServerHandler(c echo.Context) error {
 
 	// Update velocity.toml if this is not a proxy server
 	if !isProxy {
-		if err := updateVelocityTomlRemoveServer(serverName); err != nil {
+		cfg := config.All()
+		if err := docker.UpdateVelocityTomlRemoveServer(&cfg, serverName); err != nil {
 			logger.Error("Failed to update velocity.toml", zap.Error(err))
 			// Don't fail the entire operation, just log the error
 		}

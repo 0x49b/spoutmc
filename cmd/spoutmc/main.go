@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 var logger = log.GetLogger()
@@ -149,6 +150,14 @@ func startSpoutMC() error {
 	docker.CreateSpoutNetwork("spoutnetwork")
 	startContainers()
 	cleanupContainersNotInConfig()
+
+	// Sync velocity.toml after all containers are started
+	cfg := config.All()
+	if err := docker.SyncVelocityToml(&cfg); err != nil {
+		logger.Warn("Failed to sync velocity.toml on startup", zap.Error(err))
+		// Don't fail startup if velocity sync fails
+	}
+
 	return nil
 }
 
