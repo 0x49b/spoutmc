@@ -30,9 +30,10 @@ func Start() (*echo.Echo, error) {
 
 	//e.Use(log.CreateZapLoggerMiddleware(logger))
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodOptions},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 	e.Use(middleware.Secure())
 	//e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))

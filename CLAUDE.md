@@ -183,6 +183,17 @@ The `config/spoutmc.yaml` defines the server network:
 storage:
   data_path: "/path/to/data"  # Base directory for server data
 
+files:
+  exclude_patterns:  # Files/folders to exclude from file browser
+    - "*.jar"        # Exclude JAR files
+    - "*.log"        # Exclude log files
+    - "*.tmp"        # Exclude temporary files
+    - ".git"         # Exclude git directory
+    - "node_modules" # Exclude node_modules
+    - "cache"        # Exclude cache directory
+    - "*.class"      # Exclude compiled Java classes
+    - "*.zip"        # Exclude zip archives
+
 servers:
   - name: spoutproxy          # Container name
     image: itzg/mc-proxy      # Docker image
@@ -284,6 +295,42 @@ Servers now have:
   - Example: If `data_path=/data`, `name=lobby`, `containerpath=/data` → hostpath: `/data/lobby/data`
   - Multiple volumes supported: each containerpath gets its own subdirectory
   - OS-specific separators handled automatically
+
+### File Browser Exclusions
+
+The file browser supports excluding files and folders from being displayed to users. This is useful for:
+- Hiding large binary files (JARs, archives)
+- Preventing access to sensitive files
+- Reducing clutter in the file tree
+- Improving performance by not scanning unnecessary directories
+
+**Configuration** (`config/spoutmc.yaml`):
+```yaml
+files:
+  exclude_patterns:
+    - "*.jar"        # Extension patterns (glob)
+    - "*.log"        # Any file ending in .log
+    - ".git"         # Exact folder/file name
+    - "cache"        # Exact folder/file name
+    - "temp*"        # Glob pattern (temp, tempfile, etc.)
+```
+
+**Pattern matching**:
+- Uses Go's `filepath.Match` for glob patterns
+- Supports wildcards: `*` (matches any sequence), `?` (matches single char)
+- Exact string matching as fallback
+- Applied to file/folder names (not full paths)
+- Examples:
+  - `*.jar` → matches `server.jar`, `plugin.jar`
+  - `*.log` → matches `latest.log`, `debug.log`
+  - `.git` → matches `.git` directory exactly
+  - `cache*` → matches `cache`, `cache-old`, `cached`
+
+**Default behavior**:
+- If `files` config is not present, no files are excluded
+- If `exclude_patterns` is empty, no files are excluded
+- Excluded files/folders are skipped during tree building
+- Children of excluded directories are not scanned
 
 ### Enhanced Add Server Feature (In Progress)
 

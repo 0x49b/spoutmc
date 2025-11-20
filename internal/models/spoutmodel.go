@@ -5,6 +5,7 @@ import "time"
 type SpoutConfiguration struct {
 	Git      *GitConfig     `json:"git,omitempty" yaml:"git,omitempty"`
 	Storage  *StorageConfig `json:"storage,omitempty" yaml:"storage,omitempty"`
+	Files    *FilesConfig   `json:"files,omitempty" yaml:"files,omitempty"`
 	EULA     *EULAConfig    `json:"eula,omitempty" yaml:"eula,omitempty"`
 	Versions []string       `json:"versions,omitempty" yaml:"versions,omitempty"`
 	Servers  []SpoutServer  `json:"servers,omitempty" yaml:"servers,omitempty"`
@@ -22,6 +23,10 @@ type GitConfig struct {
 
 type StorageConfig struct {
 	DataPath string `json:"data_path" yaml:"data_path"`
+}
+
+type FilesConfig struct {
+	ExcludePatterns []string `json:"exclude_patterns" yaml:"exclude_patterns"`
 }
 
 type EULAConfig struct {

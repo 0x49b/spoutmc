@@ -11,6 +11,25 @@ git:
     webhook_secret: "${SPOUTMC_WEBHOOK_SECRET}"
 storage:
     data_path: /Users/florianthievent/workspace/private/spoutmc/testservers/data
+
+# File browser configuration
+files:
+  exclude_patterns:
+    - "*.jar"         # Java archives (plugins, server jars)
+    - "world"
+    - "world*"
+    - ".DS_Store"
+    - ".cache"
+    - "cache"
+    - "*.env"
+    - ".rcon*"
+    - "eula.txt"
+    - "libraries"
+    - "versions"
+    - "plugins"
+
+# Versions that a Game/Lobby Server can be
+# Check out the full ist here https://fill.papermc.io/v3/projects/paper
 versions:
     - 1.21.10
     - 1.21.9

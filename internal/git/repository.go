@@ -129,12 +129,31 @@ func (r *Repository) Pull() (bool, error) {
 		return false, fmt.Errorf("failed to get worktree: %w", err)
 	}
 
+	// Check if working tree is clean
+	status, err := worktree.Status()
+	if err != nil {
+		return false, fmt.Errorf("failed to get worktree status: %w", err)
+	}
+
+	if !status.IsClean() {
+		logger.Warn("Working tree has uncommitted changes, resetting to clean state")
+
+		// Reset hard to HEAD to discard all local changes
+		err = worktree.Reset(&git.ResetOptions{
+			Mode: git.HardReset,
+		})
+		if err != nil {
+			return false, fmt.Errorf("failed to reset worktree: %w", err)
+		}
+
+		logger.Info("Working tree reset to clean state")
+	}
+
 	// Prepare pull options
 	pullOpts := &git.PullOptions{
 		RemoteName:    "origin",
 		ReferenceName: plumbing.NewBranchReferenceName(r.config.Branch),
 		SingleBranch:  true,
-		Force:         true, // Always prefer remote changes
 		Progress:      nil,
 	}
 

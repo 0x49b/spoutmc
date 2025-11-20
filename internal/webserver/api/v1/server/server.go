@@ -15,6 +15,7 @@ import (
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
+	"strings"
 	"sync"
 	"time"
 
@@ -51,6 +52,8 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server", getServers)
 	g.POST("/server", addServerHandler)
 	g.GET("/server/:id", getServer)
+	g.GET("/server/:id/env", getServerEnvHandler)
+	g.PUT("/server/:id", updateServerHandler)
 	g.GET("/server/:id/stats", getServerStats)
 	g.GET("/versions", getVersions)
 	g.DELETE("/server/:id", deleteServerHandler)
@@ -64,6 +67,11 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server/:id/config/files", listConfigFilesHandler)
 	g.GET("/server/:id/config/:filename", getConfigFileHandler)
 	g.PUT("/server/:id/config/:filename", updateConfigFileHandler)
+
+	// File Browser
+	g.GET("/server/:id/files", listServerFilesHandler)
+	g.GET("/server/:id/file", getServerFileHandler)
+	g.PUT("/server/:id/file", updateServerFileHandler)
 
 	//SSE
 	g.GET("/server/stream", streamServers)
@@ -684,6 +692,312 @@ func restartServerHandler(c echo.Context) error {
 		"message": "Container restarted successfully",
 		"id":      containerID,
 	})
+}
+
+// UpdateServerRequest represents the request body for updating a server
+type UpdateServerRequest struct {
+	Name string            `json:"name,omitempty"`
+	Env  map[string]string `json:"env,omitempty"`
+}
+
+// @Summary Get server environment variables
+// @Description Returns environment variables for a server (excluding system-managed ones)
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /server/{id}/env [get]
+func getServerEnvHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	// Get container info
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Determine if this is a proxy or lobby/game server
+	isProxy := false
+	for _, env := range containerInfo.Config.Env {
+		if len(env) > 5 && env[:5] == "TYPE=" && env[5:] == "VELOCITY" {
+			isProxy = true
+			break
+		}
+	}
+
+	// Get system-managed env vars for this server type
+	systemEnvVars := getDefaultEnvVars(isProxy, false)
+
+	// Extract env vars from container
+	envVars := make(map[string]string)
+	for _, envStr := range containerInfo.Config.Env {
+		parts := strings.SplitN(envStr, "=", 2)
+		if len(parts) == 2 {
+			key := parts[0]
+			value := parts[1]
+
+			// Skip system-managed env vars
+			if _, isSystemManaged := systemEnvVars[key]; !isSystemManaged {
+				envVars[key] = value
+			}
+		}
+	}
+
+	return c.JSON(http.StatusOK, envVars)
+}
+
+// @Summary Update a server
+// @Description Updates server configuration (name, environment variables)
+// @Tags server
+// @Accept json
+// @Produce json
+// @Param id path string true "Container ID"
+// @Param server body UpdateServerRequest true "Server update data"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id} [put]
+func updateServerHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	var req UpdateServerRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+	}
+
+	// Get container info to find current server name
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Get server name
+	currentName := containerInfo.Name
+	if len(currentName) > 0 && currentName[0] == '/' {
+		currentName = currentName[1:] // Remove leading slash
+	}
+
+	newName := currentName
+	if req.Name != "" {
+		newName = req.Name
+	}
+
+	// Get current configuration
+	cfg := config.All()
+	var serverConfig *models.SpoutServer
+	for i, server := range cfg.Servers {
+		if server.Name == currentName {
+			serverConfig = &cfg.Servers[i]
+			break
+		}
+	}
+
+	if serverConfig == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Server not found in configuration",
+		})
+	}
+
+	// Update server configuration
+	if req.Name != "" && req.Name != currentName {
+		serverConfig.Name = req.Name
+	}
+	if req.Env != nil {
+		// Merge with existing env vars
+		if serverConfig.Env == nil {
+			serverConfig.Env = make(map[string]string)
+		}
+		for k, v := range req.Env {
+			serverConfig.Env[k] = v
+		}
+	}
+
+	// Stop and remove old container
+	logger.Info("Stopping and removing old container", zap.String("name", currentName))
+	if err := docker.StopAndRemoveContainerById(containerID); err != nil {
+		logger.Error("Failed to stop and remove container", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("Failed to remove container: %v", err),
+		})
+	}
+
+	// If name changed, rename data directory
+	if newName != currentName {
+		dataPath := ""
+		if cfg.Storage != nil {
+			dataPath = cfg.Storage.DataPath
+		}
+		if dataPath != "" {
+			oldPath := filepath.Join(dataPath, currentName)
+			newPath := filepath.Join(dataPath, newName)
+			if _, err := os.Stat(oldPath); err == nil {
+				if err := os.Rename(oldPath, newPath); err != nil {
+					logger.Warn("Failed to rename server data directory",
+						zap.String("oldPath", oldPath),
+						zap.String("newPath", newPath),
+						zap.Error(err))
+				}
+			}
+		}
+	}
+
+	// Update configuration file (GitOps or local)
+	if config.IsGitOpsEnabled() {
+		logger.Info("GitOps enabled, updating server in git repository")
+		if err := updateServerInGit(currentName, *serverConfig); err != nil {
+			logger.Error("Failed to update server in git", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("Failed to update server in git: %v", err),
+			})
+		}
+	} else {
+		logger.Info("GitOps disabled, updating server in local config")
+		if err := updateServerInLocalConfig(currentName, *serverConfig); err != nil {
+			logger.Error("Failed to update server in local config", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("Failed to update server in local config: %v", err),
+			})
+		}
+	}
+
+	// Get data path from configuration
+	dataPath := ""
+	cfg = config.All()
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	// Start the updated container
+	docker.StartContainer(*serverConfig, dataPath)
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Server updated successfully",
+		"name":    newName,
+	})
+}
+
+// updateServerInGit updates a server configuration in the git repository
+func updateServerInGit(oldName string, server models.SpoutServer) error {
+	gitConfig := config.GetGitConfig()
+	if gitConfig == nil {
+		return fmt.Errorf("git configuration not found")
+	}
+
+	repoPath := gitConfig.LocalPath
+	serversDir := filepath.Join(repoPath, "servers")
+
+	// If name changed, remove old file
+	if oldName != server.Name {
+		oldFilePath := filepath.Join(serversDir, fmt.Sprintf("%s.yaml", oldName))
+		if err := os.Remove(oldFilePath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to remove old server config file: %w", err)
+		}
+	}
+
+	// Marshal the updated server
+	yamlData, err := yaml.Marshal(server)
+	if err != nil {
+		return fmt.Errorf("failed to marshal server config: %w", err)
+	}
+
+	// Write to git repo
+	serverFilePath := filepath.Join(serversDir, fmt.Sprintf("%s.yaml", server.Name))
+	if err := os.WriteFile(serverFilePath, yamlData, 0644); err != nil {
+		return fmt.Errorf("failed to write server config file: %w", err)
+	}
+
+	// Commit and push changes
+	if err := git.CommitAndPushChanges(repoPath, fmt.Sprintf("Update server: %s", server.Name)); err != nil {
+		return fmt.Errorf("failed to commit and push changes: %w", err)
+	}
+
+	logger.Info("Server config updated in git repository", zap.String("file", serverFilePath))
+	return nil
+}
+
+// updateServerInLocalConfig updates a server in the local spoutmc.yaml file
+func updateServerInLocalConfig(oldName string, server models.SpoutServer) error {
+	// Get current configuration
+	currentConfig := config.All()
+
+	// Find and update the server
+	found := false
+	for i, s := range currentConfig.Servers {
+		if s.Name == oldName {
+			currentConfig.Servers[i] = server
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("server %s not found in configuration", oldName)
+	}
+
+	// Marshal to YAML
+	yamlData, err := yaml.Marshal(currentConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Get working directory
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Write to config file (try both .yaml and .yml)
+	configPaths := []string{
+		filepath.Join(wd, "config", "spoutmc.yaml"),
+		filepath.Join(wd, "config", "spoutmc.yml"),
+	}
+
+	var configPath string
+	for _, path := range configPaths {
+		if _, err := os.Stat(path); err == nil {
+			configPath = path
+			break
+		}
+	}
+
+	if configPath == "" {
+		// Default to .yaml if neither exists
+		configPath = configPaths[0]
+	}
+
+	if err := os.WriteFile(configPath, yamlData, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	// Reload configuration
+	if err := config.ReadConfiguration(); err != nil {
+		return fmt.Errorf("failed to reload configuration: %w", err)
+	}
+
+	logger.Info("Server updated in local config", zap.String("path", configPath))
+	return nil
 }
 
 // @Summary Delete a server
@@ -1588,4 +1902,465 @@ func updateVelocityTomlRemoveServer(serverName string) error {
 	logger.Info("Proxy server restarted", zap.String("proxy", proxyName))
 
 	return nil
+}
+
+// FileNode represents a file or directory in the file tree
+type FileNode struct {
+	Name     string      `json:"name"`
+	Path     string      `json:"path"`
+	IsDir    bool        `json:"isDir"`
+	Size     int64       `json:"size,omitempty"`
+	ModTime  string      `json:"modTime,omitempty"`
+	Children []*FileNode `json:"children,omitempty"`
+}
+
+// @Summary List server files
+// @Description Returns a tree of files and directories in server volumes
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/files [get]
+func listServerFilesHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	// Get container info to find server name
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Get server name
+	serverName := containerInfo.Name
+	if len(serverName) > 0 && serverName[0] == '/' {
+		serverName = serverName[1:] // Remove leading slash
+	}
+
+	// Get data path from configuration
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to determine data path",
+			})
+		}
+		dataPath = wd
+	}
+
+	// Get server volumes from configuration
+	var serverVolumes []models.SpoutServerVolumes
+	for _, server := range cfg.Servers {
+		if server.Name == serverName {
+			serverVolumes = server.Volumes
+			break
+		}
+	}
+
+	// Build file tree for each volume
+	volumes := make([]map[string]interface{}, 0)
+	for _, volume := range serverVolumes {
+		volumePath := filepath.Join(dataPath, serverName, volume.Containerpath)
+
+		// Check if path exists
+		if _, err := os.Stat(volumePath); os.IsNotExist(err) {
+			continue
+		}
+
+		fileTree, err := buildFileTree(volumePath, volumePath, true)
+		if err != nil {
+			logger.Error("Failed to build file tree", zap.Error(err))
+			continue
+		}
+
+		volumes = append(volumes, map[string]interface{}{
+			"containerPath": volume.Containerpath,
+			"hostPath":      volumePath,
+			"files":         fileTree,
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"volumes": volumes,
+	})
+}
+
+// buildFileTree recursively builds a tree of files and directories
+// isRoot indicates if this is the root directory (should not be excluded)
+func buildFileTree(basePath, currentPath string, isRoot bool) (*FileNode, error) {
+	info, err := os.Stat(currentPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if this file/folder should be excluded (but not the root)
+	if !isRoot && shouldExclude(info.Name()) {
+		logger.Debug("Excluding file/folder",
+			zap.String("name", info.Name()),
+			zap.String("path", currentPath))
+		return nil, fmt.Errorf("excluded by pattern")
+	}
+
+	// Get relative path for the node
+	relPath, err := filepath.Rel(basePath, currentPath)
+	if err != nil {
+		relPath = currentPath
+	}
+	if relPath == "." {
+		relPath = ""
+	}
+
+	node := &FileNode{
+		Name:    info.Name(),
+		Path:    relPath,
+		IsDir:   info.IsDir(),
+		Size:    info.Size(),
+		ModTime: info.ModTime().Format("2006-01-02 15:04:05"),
+	}
+
+	// If it's a directory, read its contents
+	if info.IsDir() {
+		entries, err := os.ReadDir(currentPath)
+		if err != nil {
+			return node, nil // Return directory node even if we can't read it
+		}
+
+		node.Children = make([]*FileNode, 0)
+		for _, entry := range entries {
+			childPath := filepath.Join(currentPath, entry.Name())
+			childNode, err := buildFileTree(basePath, childPath, false)
+			if err != nil {
+				logger.Debug("Skipping child",
+					zap.String("name", entry.Name()),
+					zap.Error(err))
+				continue // Skip files we can't read or are excluded
+			}
+			node.Children = append(node.Children, childNode)
+		}
+	}
+
+	return node, nil
+}
+
+// shouldExclude checks if a file or folder name matches any exclusion pattern
+func shouldExclude(name string) bool {
+	cfg := config.All()
+
+	// If no files config or no patterns, don't exclude anything
+	if cfg.Files == nil {
+		logger.Debug("Files config is nil")
+		return false
+	}
+
+	if len(cfg.Files.ExcludePatterns) == 0 {
+		logger.Debug("No exclusion patterns configured")
+		return false
+	}
+
+	// Log loaded patterns (only once per check to avoid spam)
+	logger.Debug("Checking exclusion patterns",
+		zap.Int("pattern_count", len(cfg.Files.ExcludePatterns)),
+		zap.String("checking_name", name))
+
+	// Check against each pattern
+	for _, pattern := range cfg.Files.ExcludePatterns {
+		// Support both glob patterns and exact matches
+		matched, err := filepath.Match(pattern, name)
+		if err != nil {
+			logger.Debug("Pattern match error",
+				zap.String("pattern", pattern),
+				zap.String("name", name),
+				zap.Error(err))
+			// If pattern is invalid, try exact match
+			if pattern == name {
+				logger.Debug("Exact match found",
+					zap.String("pattern", pattern),
+					zap.String("name", name))
+				return true
+			}
+			continue
+		}
+		if matched {
+			logger.Debug("Pattern matched",
+				zap.String("pattern", pattern),
+				zap.String("name", name))
+			return true
+		}
+	}
+
+	return false
+}
+
+// @Summary Get server file content
+// @Description Returns the content of a file in server volumes
+// @Tags server
+// @Produce json
+// @Param id path string true "Container ID"
+// @Param path query string true "Relative file path within volume"
+// @Param volume query string false "Container volume path (default: first volume)"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/file [get]
+func getServerFileHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	filePath := c.QueryParam("path")
+	volumePath := c.QueryParam("volume")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	if filePath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "File path is required",
+		})
+	}
+
+	// Get container info to find server name
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Get server name
+	serverName := containerInfo.Name
+	if len(serverName) > 0 && serverName[0] == '/' {
+		serverName = serverName[1:] // Remove leading slash
+	}
+
+	// Get data path from configuration
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to determine data path",
+			})
+		}
+		dataPath = wd
+	}
+
+	// Get server configuration to find volumes
+	var containerPath string
+	for _, server := range cfg.Servers {
+		if server.Name == serverName {
+			if volumePath != "" {
+				// Use specified volume
+				containerPath = volumePath
+			} else if len(server.Volumes) > 0 {
+				// Use first volume
+				containerPath = server.Volumes[0].Containerpath
+			}
+			break
+		}
+	}
+
+	if containerPath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "No volumes found for server",
+		})
+	}
+
+	// Build full file path
+	fullPath := filepath.Join(dataPath, serverName, containerPath, filePath)
+
+	// Security check: ensure path is within server directory
+	serverDir := filepath.Join(dataPath, serverName)
+	if !filepath.HasPrefix(fullPath, serverDir) {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid file path",
+		})
+	}
+
+	// Read file content
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		logger.Error("Failed to read file",
+			zap.String("file", fullPath),
+			zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "File not found",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"path":    filePath,
+		"content": string(content),
+	})
+}
+
+// @Summary Update server file content
+// @Description Updates the content of a file in server volumes
+// @Tags server
+// @Accept json
+// @Produce json
+// @Param id path string true "Container ID"
+// @Param path query string true "Relative file path within volume"
+// @Param volume query string false "Container volume path (default: first volume)"
+// @Param body body map[string]string true "File content"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/file [put]
+func updateServerFileHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	filePath := c.QueryParam("path")
+	volumePath := c.QueryParam("volume")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	if filePath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "File path is required",
+		})
+	}
+
+	// Parse request body
+	var reqBody struct {
+		Content string `json:"content"`
+	}
+
+	if err := c.Bind(&reqBody); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+	}
+
+	// Get container info to find server name
+	containerInfo, err := docker.GetContainerById(containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	// Get server name
+	serverName := containerInfo.Name
+	if len(serverName) > 0 && serverName[0] == '/' {
+		serverName = serverName[1:] // Remove leading slash
+	}
+
+	// Get data path from configuration
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to determine data path",
+			})
+		}
+		dataPath = wd
+	}
+
+	// Get server configuration to find volumes
+	var containerPath string
+	for _, server := range cfg.Servers {
+		if server.Name == serverName {
+			if volumePath != "" {
+				// Use specified volume
+				containerPath = volumePath
+			} else if len(server.Volumes) > 0 {
+				// Use first volume
+				containerPath = server.Volumes[0].Containerpath
+			}
+			break
+		}
+	}
+
+	if containerPath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "No volumes found for server",
+		})
+	}
+
+	// Build full file path
+	fullPath := filepath.Join(dataPath, serverName, containerPath, filePath)
+
+	// Security check: ensure path is within server directory
+	serverDir := filepath.Join(dataPath, serverName)
+	if !filepath.HasPrefix(fullPath, serverDir) {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid file path",
+		})
+	}
+
+	// Create backup of existing file
+	backupPath := fullPath + ".backup"
+	if _, err := os.Stat(fullPath); err == nil {
+		if err := os.Rename(fullPath, backupPath); err != nil {
+			logger.Error("Failed to create backup of file",
+				zap.String("file", fullPath),
+				zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to create backup of file",
+			})
+		}
+	}
+
+	// Write new content
+	if err := os.WriteFile(fullPath, []byte(reqBody.Content), 0644); err != nil {
+		logger.Error("Failed to write file",
+			zap.String("file", fullPath),
+			zap.Error(err))
+
+		// Restore backup if write failed
+		if _, statErr := os.Stat(backupPath); statErr == nil {
+			os.Rename(backupPath, fullPath)
+		}
+
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to write file",
+		})
+	}
+
+	// Remove backup after successful write
+	os.Remove(backupPath)
+
+	logger.Info("File updated successfully",
+		zap.String("server", serverName),
+		zap.String("file", filePath))
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "File updated successfully",
+	})
 }
