@@ -285,13 +285,38 @@ func getDefaultEnvVars(isProxy, isLobby bool) map[string]string {
 			"TYPE": "VELOCITY",
 		}
 	} else {
-		// Lobby and game server defaults
+		// Get the Velocity forwarding secret automatically
+		// Try to get data path and proxy name from config
+		cfg := config.All()
+		dataPath := ""
+		proxyName := ""
+
+		if cfg.Storage != nil {
+			dataPath = cfg.Storage.DataPath
+		}
+
+		// Find proxy server name
+		for i := range cfg.Servers {
+			if cfg.Servers[i].Proxy {
+				proxyName = cfg.Servers[i].Name
+				break
+			}
+		}
+
+		velocitySecret := docker.GetOrGenerateVelocitySecret(dataPath, proxyName)
+
+		// Lobby and game server defaults with Velocity forwarding support
 		return map[string]string{
-			"EULA":        "TRUE",
-			"TYPE":        "PAPER",
-			"ONLINE_MODE": "FALSE",
-			"GUI":         "FALSE",
-			"CONSOLE":     "FALSE",
+			"EULA":                     "TRUE",
+			"TYPE":                     "PAPER",
+			"ONLINE_MODE":              "FALSE",
+			"GUI":                      "FALSE",
+			"CONSOLE":                  "FALSE",
+			"REPLACE_ENV_VARIABLES":    "TRUE",
+			"ENV_VARIABLE_PREFIX":      "CFG_",
+			"CFG_VELOCITY_ENABLED":     "true",
+			"CFG_VELOCITY_ONLINE_MODE": "true",
+			"CFG_VELOCITY_SECRET":      velocitySecret,
 		}
 	}
 }
@@ -432,6 +457,12 @@ func addServerHandler(c echo.Context) error {
 		containerPath = "/server" // Proxy servers use /server
 	}
 
+	// Configure port mapping based on server type
+	// Proxy: ALWAYS uses 25565 as container port (Velocity's default), host port can vary
+	// Game/Lobby: ALWAYS uses 25565 as container port (Minecraft's default), host port can vary
+	// Docker maps: hostPort:containerPort (e.g., 25566:25565)
+	containerPort := "25565" // All Minecraft/Velocity servers use 25565 internally
+
 	// Create new server model
 	newServer := models.SpoutServer{
 		Name:  req.Name,
@@ -442,7 +473,7 @@ func addServerHandler(c echo.Context) error {
 		Ports: []models.SpoutServerPorts{
 			{
 				HostPort:      fmt.Sprintf("%d", assignedPort),
-				ContainerPort: fmt.Sprintf("%d", assignedPort),
+				ContainerPort: containerPort,
 			},
 		},
 		Volumes: []models.SpoutServerVolumes{
@@ -531,7 +562,12 @@ func addServerToGit(server models.SpoutServer) error {
 		return fmt.Errorf("failed to commit and push changes: %w", err)
 	}
 
-	logger.Info("Server config added to git repository", zap.String("file", serverFilePath))
+	// Reload configuration from git to update in-memory state
+	if err := git.LoadConfigurationFromGit(); err != nil {
+		return fmt.Errorf("failed to reload configuration from git: %w", err)
+	}
+
+	logger.Info("Server config added to git repository and configuration reloaded", zap.String("file", serverFilePath))
 	return nil
 }
 
@@ -935,7 +971,12 @@ func updateServerInGit(oldName string, server models.SpoutServer) error {
 		return fmt.Errorf("failed to commit and push changes: %w", err)
 	}
 
-	logger.Info("Server config updated in git repository", zap.String("file", serverFilePath))
+	// Reload configuration from git to update in-memory state
+	if err := git.LoadConfigurationFromGit(); err != nil {
+		return fmt.Errorf("failed to reload configuration from git: %w", err)
+	}
+
+	logger.Info("Server config updated in git repository and configuration reloaded", zap.String("file", serverFilePath))
 	return nil
 }
 
@@ -1150,7 +1191,12 @@ func removeServerFromGit(serverName string) error {
 		return fmt.Errorf("failed to commit and push changes: %w", err)
 	}
 
-	logger.Info("Server config removed from git repository", zap.String("file", serverFilePath))
+	// Reload configuration from git to update in-memory state
+	if err := git.LoadConfigurationFromGit(); err != nil {
+		return fmt.Errorf("failed to reload configuration from git: %w", err)
+	}
+
+	logger.Info("Server config removed from git repository and configuration reloaded", zap.String("file", serverFilePath))
 	return nil
 }
 

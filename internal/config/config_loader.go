@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -81,4 +83,50 @@ func GetGitConfig() *models.GitConfig {
 		return spoutConfiguration.Git
 	}
 	return nil
+}
+
+// EnsureVelocityEnvVars checks all backend servers and injects required Velocity forwarding
+// environment variables if they're missing. Returns true if any servers were updated.
+func EnsureVelocityEnvVars(velocitySecret string) bool {
+	updated := false
+	requiredVars := map[string]string{
+		"REPLACE_ENV_VARIABLES":    "TRUE",
+		"ENV_VARIABLE_PREFIX":      "CFG_",
+		"CFG_VELOCITY_ENABLED":     "true",
+		"CFG_VELOCITY_ONLINE_MODE": "true",
+		"CFG_VELOCITY_SECRET":      velocitySecret,
+	}
+
+	for i := range spoutConfiguration.Servers {
+		server := &spoutConfiguration.Servers[i]
+
+		// Skip proxy servers - they don't need backend forwarding config
+		if server.Proxy {
+			continue
+		}
+
+		// Initialize env map if nil
+		if server.Env == nil {
+			server.Env = make(map[string]string)
+		}
+
+		// Check if server is missing any required vars
+		serverUpdated := false
+		for key, value := range requiredVars {
+			if _, exists := server.Env[key]; !exists {
+				server.Env[key] = value
+				serverUpdated = true
+			}
+		}
+
+		if serverUpdated {
+			updated = true
+			logger := log.GetLogger()
+			logger.Info("✅ Injected Velocity forwarding env vars",
+				zap.String("server", server.Name),
+				zap.Bool("lobby", server.Lobby))
+		}
+	}
+
+	return updated
 }

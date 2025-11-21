@@ -54,6 +54,40 @@ func main() {
 			}
 			return nil
 		},
+		"velocityEnvVars": func(ctx context.Context) error {
+			// Auto-inject Velocity forwarding environment variables to backend servers
+			logger.Info("🔐 Checking Velocity environment variables for backend servers")
+
+			// Get or generate Velocity secret
+			cfg := config.All()
+			dataPath := ""
+			proxyName := ""
+
+			if cfg.Storage != nil {
+				dataPath = cfg.Storage.DataPath
+			}
+
+			// Find proxy server
+			for i := range cfg.Servers {
+				if cfg.Servers[i].Proxy {
+					proxyName = cfg.Servers[i].Name
+					break
+				}
+			}
+
+			velocitySecret := docker.GetOrGenerateVelocitySecret(dataPath, proxyName)
+
+			// Inject missing env vars
+			updated := config.EnsureVelocityEnvVars(velocitySecret)
+
+			if updated {
+				logger.Info("✅ Velocity env vars injected - backend servers will be recreated with new configuration")
+			} else {
+				logger.Info("✓ All backend servers already have Velocity env vars")
+			}
+
+			return nil
+		},
 		"spoutmc": func(ctx context.Context) error {
 			err = startSpoutMC()
 			return err
@@ -91,8 +125,9 @@ func main() {
 
 	startupOrder := []string{
 		//database
-		"gitSync", // Initialize GitOps first (loads config from Git)
-		"spoutmc", // Then start containers with loaded config
+		"gitSync",         // Initialize GitOps first (loads config from Git)
+		"velocityEnvVars", // Inject Velocity env vars to backend servers
+		"spoutmc",         // Then start containers with loaded config
 		"watchdog",
 		"fileWatcher",
 		"webserver",
@@ -148,15 +183,25 @@ func main() {
 
 func startSpoutMC() error {
 	docker.CreateSpoutNetwork("spoutnetwork")
-	startContainers()
+
+	// Step 1: Start all non-proxy servers (game servers and lobby)
+	logger.Info("🎮 Starting non-proxy servers (lobby and game servers)")
+	startNonProxyContainers()
+
+	// Step 2: Cleanup containers that are not in config
 	cleanupContainersNotInConfig()
 
-	// Sync velocity.toml after all containers are started
+	// Step 3: Create/update velocity.toml with all server configurations
 	cfg := config.All()
-	if err := docker.SyncVelocityToml(&cfg); err != nil {
-		logger.Warn("Failed to sync velocity.toml on startup", zap.Error(err))
-		// Don't fail startup if velocity sync fails
+	logger.Info("📝 Creating velocity.toml configuration")
+	if err := docker.CreateOrUpdateVelocityToml(&cfg); err != nil {
+		logger.Warn("Failed to create velocity.toml on startup", zap.Error(err))
+		// Don't fail startup if velocity creation fails
 	}
+
+	// Step 4: Start proxy server AFTER velocity.toml is ready
+	logger.Info("🚀 Starting proxy server with configured velocity.toml")
+	startProxyContainer()
 
 	return nil
 }
@@ -184,8 +229,8 @@ func cleanupContainersNotInConfig() {
 
 }
 
-func startContainers() {
-
+// startNonProxyContainers starts all game servers and lobby servers (not proxy)
+func startNonProxyContainers() {
 	cfg := config.All()
 
 	if len(cfg.Servers) == 0 {
@@ -198,7 +243,13 @@ func startContainers() {
 		dataPath = cfg.Storage.DataPath
 	}
 
+	// Start only non-proxy servers
 	for _, s := range cfg.Servers {
+		if s.Proxy {
+			logger.Info(fmt.Sprintf("⏭️ Skipping proxy server %s (will start after velocity.toml is ready)", s.Name))
+			continue
+		}
+
 		err := docker.RecreateContainer(s, dataPath)
 		if err != nil {
 			if strings.Contains(err.Error(), "Cannot find container") {
@@ -210,10 +261,11 @@ func startContainers() {
 		}
 	}
 
+	// List started containers
 	containers, err := docker.GetNetworkContainers()
-
 	if err != nil {
-		panic(err)
+		logger.Error("Failed to list containers", zap.Error(err))
+		return
 	}
 
 	for _, spoutContainer := range containers {
@@ -222,7 +274,41 @@ func startContainers() {
 			spoutContainer.ID[:10],
 			spoutContainer.Image))
 	}
+}
 
+// startProxyContainer starts the proxy server after velocity.toml is configured
+func startProxyContainer() {
+	cfg := config.All()
+
+	// Get data path from configuration
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	// Find and start the proxy server
+	for _, s := range cfg.Servers {
+		if !s.Proxy {
+			continue
+		}
+
+		logger.Info(fmt.Sprintf("🚀 Starting proxy server: %s", s.Name))
+		err := docker.RecreateContainer(s, dataPath)
+		if err != nil {
+			if strings.Contains(err.Error(), "Cannot find container") {
+				logger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
+				docker.StartContainer(s, dataPath)
+				return
+			}
+			logger.Error(fmt.Sprintf("❌ failed to start proxy %s: %s", s.Name, err.Error()))
+			return
+		}
+
+		logger.Info(fmt.Sprintf("✅ Proxy server %s started successfully", s.Name))
+		return
+	}
+
+	logger.Warn("⚠️ No proxy server found in configuration")
 }
 
 func printBanner() {

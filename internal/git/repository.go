@@ -129,63 +129,79 @@ func (r *Repository) Pull() (bool, error) {
 		return false, fmt.Errorf("failed to get worktree: %w", err)
 	}
 
-	// Check if working tree is clean
-	status, err := worktree.Status()
-	if err != nil {
-		return false, fmt.Errorf("failed to get worktree status: %w", err)
-	}
+	// Store old commit hash before fetching
+	oldCommit := r.lastCommit
 
-	if !status.IsClean() {
-		logger.Warn("Working tree has uncommitted changes, resetting to clean state")
-
-		// Reset hard to HEAD to discard all local changes
-		err = worktree.Reset(&git.ResetOptions{
-			Mode: git.HardReset,
-		})
-		if err != nil {
-			return false, fmt.Errorf("failed to reset worktree: %w", err)
-		}
-
-		logger.Info("Working tree reset to clean state")
-	}
-
-	// Prepare pull options
-	pullOpts := &git.PullOptions{
-		RemoteName:    "origin",
-		ReferenceName: plumbing.NewBranchReferenceName(r.config.Branch),
-		SingleBranch:  true,
-		Progress:      nil,
+	// Prepare fetch options
+	fetchOpts := &git.FetchOptions{
+		RemoteName: "origin",
+		Progress:   nil,
+		Force:      true, // Force fetch to overwrite local refs
 	}
 
 	// Only add auth if token is provided
 	if r.config.Token != "" {
-		pullOpts.Auth = &http.BasicAuth{
+		fetchOpts.Auth = &http.BasicAuth{
 			Username: "token", // Can be anything for PAT
 			Password: r.config.Token,
 		}
 	}
 
-	// Pull changes
-	err = worktree.Pull(pullOpts)
+	// Fetch latest changes from remote
+	err = r.repo.Fetch(fetchOpts)
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		return false, fmt.Errorf("failed to fetch: %w", err)
+	}
+
+	// Get the remote branch reference
+	remoteBranch := fmt.Sprintf("refs/remotes/origin/%s", r.config.Branch)
+	remoteRef, err := r.repo.Reference(plumbing.ReferenceName(remoteBranch), true)
 	if err != nil {
-		if err == git.NoErrAlreadyUpToDate {
-			logger.Debug("Repository already up to date")
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to pull: %w", err)
+		return false, fmt.Errorf("failed to get remote reference: %w", err)
 	}
 
-	// Get new commit hash
-	oldCommit := r.lastCommit
-	if err := r.updateCommitHash(); err != nil {
-		return false, err
+	// Get current HEAD
+	headRef, err := r.repo.Head()
+	if err != nil {
+		return false, fmt.Errorf("failed to get HEAD: %w", err)
 	}
 
-	hasChanges := oldCommit != r.lastCommit
+	// Check if there are changes
+	hasChanges := headRef.Hash() != remoteRef.Hash()
+
 	if hasChanges {
-		logger.Info("Repository updated",
+		logger.Info("Changes detected, forcing reset to remote branch",
+			zap.String("old_commit", headRef.Hash().String()[:7]),
+			zap.String("new_commit", remoteRef.Hash().String()[:7]))
+
+		// Force reset to remote branch (this discards all local changes including untracked files)
+		err = worktree.Reset(&git.ResetOptions{
+			Commit: remoteRef.Hash(),
+			Mode:   git.HardReset,
+		})
+		if err != nil {
+			return false, fmt.Errorf("failed to reset to remote: %w", err)
+		}
+
+		// Clean untracked files and directories
+		err = worktree.Clean(&git.CleanOptions{
+			Dir: true, // Remove untracked directories too
+		})
+		if err != nil {
+			// Log but don't fail - clean is best effort
+			logger.Warn("Failed to clean untracked files", zap.Error(err))
+		}
+
+		// Update commit hash
+		if err := r.updateCommitHash(); err != nil {
+			return false, err
+		}
+
+		logger.Info("Repository updated successfully",
 			zap.String("old_commit", oldCommit[:7]),
 			zap.String("new_commit", r.lastCommit[:7]))
+	} else {
+		logger.Debug("Repository already up to date")
 	}
 
 	return hasChanges, nil
