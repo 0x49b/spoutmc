@@ -1,0 +1,27 @@
+/* Import PatternFly CSS */
+@import '@patternfly/react-core/dist/styles/base.css';
+@import '@patternfly/react-log-viewer/dist/css/log-viewer.css';
+
+/* Global styles */
+html, body {
+    height  : 100%;
+    margin  : 0;
+    padding : 0;
+}
+
+#root {
+    height : 100%;
+}
+
+/* Custom styles for specific components if needed */
+.pf-v6-c-page {
+    height : 100%;
+}
+
+.mr-2 {
+    margin-right : .5rem;
+}
+
+.mb-2 {
+    margin-bottom : .5rem;
+}

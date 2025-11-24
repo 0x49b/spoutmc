@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true,
+    "branchTopic": "lock-file-maintenance",
+    "commitMessageAction": "Update lock file dependencies",
+    "schedule": ["before 7am on Monday"]
+  },
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true
+    }
+  ],
+  "extends": [
+    "config:recommended"
+  ]
+}
