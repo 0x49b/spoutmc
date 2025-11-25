@@ -28,3 +28,11 @@ https://github.com/Quutio/Bouncer
 https://github.com/Pumpkin-MC   
 https://docs.docker.com/reference/api/engine/version/v1.50/
 
+
+### Container Ideas
+Connect to a Container in Docker without exposed ports
+```
+docker run --rm -p 3306:1234 --network spoutnetwork verb/socat TCP-LISTEN:1234,fork TCP-CONNECT:172.18.0.2:3306
+```
+Check this one out:  
+https://stackoverflow.com/questions/19897743/exposing-a-port-on-a-live-docker-container/42071577

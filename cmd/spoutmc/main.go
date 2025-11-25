@@ -9,6 +9,7 @@ import (
 	"spoutmc/internal/docker"
 	"spoutmc/internal/git"
 	"spoutmc/internal/global"
+	"spoutmc/internal/infrastructure"
 	"spoutmc/internal/log"
 	"spoutmc/internal/storage"
 	"spoutmc/internal/watchdog"
@@ -121,12 +122,18 @@ func main() {
 			}
 			return nil
 		},
+		"infrastructure": func(ctx context.Context) error {
+			// Initialize infrastructure containers (database, etc.)
+			logger.Info("🏗️ Initializing infrastructure containers")
+			return startInfrastructure()
+		},
 	}
 
 	startupOrder := []string{
 		//database
 		"gitSync",         // Initialize GitOps first (loads config from Git)
 		"velocityEnvVars", // Inject Velocity env vars to backend servers
+		"infrastructure",  // Start infrastructure containers (database, etc.)
 		"spoutmc",         // Then start containers with loaded config
 		"watchdog",
 		"fileWatcher",
@@ -309,6 +316,79 @@ func startProxyContainer() {
 	}
 
 	logger.Warn("⚠️ No proxy server found in configuration")
+}
+
+// startInfrastructure initializes and starts infrastructure containers (database, etc.)
+func startInfrastructure() error {
+	cfg := config.All()
+
+	// Get working directory
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Get data path
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	// Generate or load database passwords
+	passwords, err := infrastructure.GetOrGeneratePasswords(workingDir, logger)
+	if err != nil {
+		return fmt.Errorf("failed to generate database passwords: %w", err)
+	}
+
+	// Load infrastructure configurations from Git or local config
+	var infraContainers []infrastructure.InfrastructureContainer
+	if config.IsGitOpsEnabled() {
+		logger.Info("🏗️ GitOps is enabled, loading infrastructure from repository")
+		repoPath := git.GetLocalRepoPath()
+		logger.Info("🏗️ Repository path", zap.String("path", repoPath))
+		infraContainers, err = git.LoadInfrastructureFromRepository(repoPath)
+		if err != nil {
+			logger.Warn("Failed to load infrastructure from Git", zap.Error(err))
+			return nil // Don't fail startup if infrastructure loading fails
+		}
+		logger.Info("🏗️ Loaded infrastructure containers from Git", zap.Int("count", len(infraContainers)))
+	} else {
+		// Load from local config file
+		logger.Info("🏗️ GitOps disabled, loading infrastructure from local config file")
+		configPath := infrastructure.GetDefaultInfrastructureConfigPath()
+		infraContainers, err = infrastructure.LoadInfrastructureFromLocalConfig(configPath, logger)
+		if err != nil {
+			logger.Warn("Failed to load infrastructure from local config", zap.Error(err))
+			return nil // Don't fail startup if infrastructure loading fails
+		}
+		logger.Info("🏗️ Loaded infrastructure containers from local config", zap.Int("count", len(infraContainers)))
+	}
+
+	// Check if we have any infrastructure to create
+	if len(infraContainers) == 0 {
+		logger.Info("🏗️ No infrastructure containers found")
+		return nil
+	}
+
+	// Create and start each infrastructure container
+	for _, infraConfig := range infraContainers {
+		logger.Info("Creating infrastructure container",
+			zap.String("name", infraConfig.Name),
+			zap.String("type", "database"))
+
+		if err := infrastructure.CreateDatabaseContainer(infraConfig, dataPath, passwords, logger); err != nil {
+			logger.Error("Failed to create infrastructure container",
+				zap.String("name", infraConfig.Name),
+				zap.Error(err))
+			// Don't fail startup, continue with other containers
+			continue
+		}
+
+		logger.Info("✅ Infrastructure container started successfully",
+			zap.String("name", infraConfig.Name))
+	}
+
+	return nil
 }
 
 func printBanner() {

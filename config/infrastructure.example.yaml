@@ -1,0 +1,54 @@
+# Infrastructure Configuration Example
+# This file defines infrastructure containers like databases, caches, etc.
+# These containers will be managed separately from game servers.
+#
+# To enable infrastructure containers:
+# 1. Copy this file to infrastructure.yaml in the same directory
+# 2. Modify the configuration below as needed
+# 3. Restart SpoutMC
+#
+# Note: Passwords in the 'env' section will be automatically replaced with
+# securely generated passwords stored in .db-passwords file
+
+infrastructure:
+  # Database container (MariaDB)
+  - name: database
+    image: mariadb:latest
+    restart: always
+    ports:
+      - host: "3306"
+        container: "3306"
+    volumes:
+      - containerpath: /var/lib/mysql  # Database data
+      - containerpath: /backup         # Backup directory (optional)
+    env:
+      MARIADB_ROOT_PASSWORD: changeme  # Will be auto-generated
+      MARIADB_PASSWORD: changeme       # Will be auto-generated
+      MARIADB_USER: spoutmc
+      MARIADB_DATABASE: spoutmc
+
+  # Example: Redis cache (uncomment to enable)
+  # - name: redis
+  #   image: redis:latest
+  #   restart: always
+  #   ports:
+  #     - host: "6379"
+  #       container: "6379"
+  #   volumes:
+  #     - containerpath: /data
+  #   env:
+  #     REDIS_PASSWORD: changeme  # Will be auto-generated
+
+  # Example: PostgreSQL database (uncomment to enable)
+  # - name: postgres
+  #   image: postgres:latest
+  #   restart: always
+  #   ports:
+  #     - host: "5432"
+  #       container: "5432"
+  #   volumes:
+  #     - containerpath: /var/lib/postgresql/data
+  #   env:
+  #     POSTGRES_PASSWORD: changeme  # Will be auto-generated
+  #     POSTGRES_USER: spoutmc
+  #     POSTGRES_DB: spoutmc

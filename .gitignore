@@ -12,6 +12,8 @@ proxy.log*
 bundler/
 *.gz
 /.msql_password
+/.db-passwords
+/config/infrastructure.yaml
 dist/
 /C:/
 

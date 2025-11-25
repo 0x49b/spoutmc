@@ -50,7 +50,18 @@ func GetNetworkContainers() ([]container.Summary, error) {
 	if err != nil {
 		return []container.Summary{}, err
 	}
-	return list, nil
+
+	// Filter out infrastructure containers
+	serverContainers := make([]container.Summary, 0)
+	for _, c := range list {
+		// Skip if this is an infrastructure container
+		if value, exists := c.Labels["io.spout.infrastructure"]; exists && value == "true" {
+			continue
+		}
+		serverContainers = append(serverContainers, c)
+	}
+
+	return serverContainers, nil
 }
 
 // todo check this and the below function, it's against DRY
@@ -133,7 +144,11 @@ func StartContainer(s models.SpoutServer, dataPath string) {
 
 	if !containerExists(s.Name) {
 		logger.Info(fmt.Sprintf("Creating container %s", s.Name))
+		//exposedPorts, containerPortBinding := nat.PortSet{}, nat.PortMap{}
+		//if s.Proxy {
 		exposedPorts, containerPortBinding := MapExposedPorts(s.Ports)
+		//}
+
 		spoutNetwork := GetSpoutNetwork()
 		hostNetwork, err := getHostNetworkId()
 		if err != nil {
@@ -159,6 +174,20 @@ func StartContainer(s models.SpoutServer, dataPath string) {
 
 		envVars := MapEnvironmentVariables(s.Env)
 
+		// Prepare volume bindings
+		binds := MapVolumeBindings(s.Volumes, dataPath, s.Name)
+
+		// For proxy servers, mount the forwarding.secret file
+		// The itzg/mc-proxy image copies files from /config to /server on startup
+		if s.Proxy {
+			secretSourcePath := filepath.Join(dataPath, s.Name, "server", "forwarding.secret")
+			secretTargetPath := "/config/forwarding.secret"
+			binds = append(binds, fmt.Sprintf("%s:%s:ro", secretSourcePath, secretTargetPath))
+			logger.Info("Mounting Velocity forwarding secret",
+				zap.String("source", secretSourcePath),
+				zap.String("target", secretTargetPath))
+		}
+
 		spoutContainer, err := cli.ContainerCreate(ctx, &container.Config{
 			Tty:          true,
 			AttachStdout: true,
@@ -169,7 +198,7 @@ func StartContainer(s models.SpoutServer, dataPath string) {
 			ExposedPorts: exposedPorts,
 			Labels:       containerLabels,
 		}, &container.HostConfig{
-			Binds:        MapVolumeBindings(s.Volumes, dataPath, s.Name),
+			Binds:        binds,
 			PortBindings: containerPortBinding,
 		}, &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{spoutNetwork.ID: {NetworkID: spoutNetwork.ID}}},
@@ -399,4 +428,98 @@ func RecreateContainer(containerConfig models.SpoutServer, dataPath string) erro
 func StopAndRemoveContainerById(containerId string) error {
 	StopContainerById(containerId)
 	return RemoveContainerById(containerId, true)
+}
+
+// CreateInfrastructureContainer creates a container with infrastructure labels
+func CreateInfrastructureContainer(s models.SpoutServer, dataPath string) (string, error) {
+	logger.Info("Creating infrastructure container", zap.String("name", s.Name))
+
+	// Check if image exists, if not pull it
+	_, err := cli.ImageInspect(context.Background(), s.Image)
+	if err != nil {
+		logger.Info("Pulling infrastructure image", zap.String("image", s.Image))
+		PullImage(s.Image)
+	}
+
+	// Check if container already exists
+	if containerExists(s.Name) {
+		existingContainer, err := GetContainer(s.Name)
+		if err != nil {
+			return "", err
+		}
+		logger.Info("Infrastructure container already exists", zap.String("name", s.Name))
+		return existingContainer.ID, nil
+	}
+
+	// Map exposed ports and port bindings
+	exposedPorts, containerPortBinding := MapExposedPorts(s.Ports)
+
+	// Get spout network
+	spoutNetwork := GetSpoutNetwork()
+
+	// Create container labels
+	containerLabels := map[string]string{
+		"io.spout.servername":     s.Name,
+		"io.spout.network":        "true",
+		"io.spout.infrastructure": "true",
+		"io.spout.database":       "true",
+	}
+
+	// Map environment variables
+	envVars := MapEnvironmentVariables(s.Env)
+
+	// Prepare volume bindings
+	binds := MapVolumeBindings(s.Volumes, dataPath, s.Name)
+
+	// Create container
+	infraContainer, err := cli.ContainerCreate(ctx, &container.Config{
+		Tty:          true,
+		AttachStdout: true,
+		AttachStderr: true,
+		Image:        s.Image,
+		Hostname:     s.Name,
+		Env:          envVars,
+		ExposedPorts: exposedPorts,
+		Labels:       containerLabels,
+	}, &container.HostConfig{
+		Binds:        binds,
+		PortBindings: containerPortBinding,
+		RestartPolicy: container.RestartPolicy{
+			Name: container.RestartPolicyAlways,
+		},
+	}, &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			spoutNetwork.ID: {NetworkID: spoutNetwork.ID},
+		},
+	}, nil, s.Name)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to create infrastructure container: %w", err)
+	}
+
+	logger.Info("Infrastructure container created successfully",
+		zap.String("name", s.Name),
+		zap.String("container_id", infraContainer.ID))
+
+	return infraContainer.ID, nil
+}
+
+// StartContainerByIdSimple starts a container by ID (simplified version for infrastructure)
+func StartContainerByIdSimple(containerId string) error {
+	logger.Info("Starting container", zap.String("container_id", containerId[:12]))
+	if err := cli.ContainerStart(ctx, containerId, container.StartOptions{}); err != nil {
+		return fmt.Errorf("failed to start container: %w", err)
+	}
+	return nil
+}
+
+// GetInfrastructureContainers returns all infrastructure containers
+func GetInfrastructureContainers() ([]container.Summary, error) {
+	containerFilter := filters.NewArgs()
+	containerFilter.Add("label", "io.spout.infrastructure=true")
+	list, err := cli.ContainerList(ctx, container.ListOptions{All: true, Filters: containerFilter})
+	if err != nil {
+		return []container.Summary{}, err
+	}
+	return list, nil
 }

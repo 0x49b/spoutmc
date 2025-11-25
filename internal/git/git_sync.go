@@ -71,6 +71,14 @@ func GetWebhookHandler() *WebhookHandler {
 	return globalWebhook
 }
 
+// GetLocalRepoPath returns the local path to the Git repository
+func GetLocalRepoPath() string {
+	if globalRepo == nil {
+		return ""
+	}
+	return globalRepo.GetLocalPath()
+}
+
 // LoadConfigurationFromGit loads configuration from the Git repository
 func LoadConfigurationFromGit() error {
 	if globalRepo == nil {

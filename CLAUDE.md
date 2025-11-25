@@ -237,6 +237,80 @@ Currently, no test files exist in the codebase. When adding tests:
 - Use standard Go testing package
 - Test container lifecycle operations with Docker test containers if needed
 
+## Infrastructure Containers
+
+SpoutMC supports infrastructure containers (databases, caches, etc.) that are managed separately from game servers.
+
+### Configuration
+
+Infrastructure containers can be configured in two ways:
+
+**1. Local Config File (GitOps Disabled)**
+- File: `config/infrastructure.yaml`
+- Example: `config/infrastructure.example.yaml`
+
+**2. GitOps Repository (GitOps Enabled)**
+- Directory: `infrastructure/` in your GitOps repository
+- Each `.yaml` file represents one infrastructure container
+
+### Example Configuration
+
+```yaml
+infrastructure:
+  - name: database
+    image: mariadb:latest
+    restart: always
+    ports:
+      - host: "3306"
+        container: "3306"
+    volumes:
+      - containerpath: /var/lib/mysql
+    env:
+      MARIADB_ROOT_PASSWORD: changeme  # Auto-generated
+      MARIADB_PASSWORD: changeme       # Auto-generated
+      MARIADB_USER: spoutmc
+      MARIADB_DATABASE: spoutmc
+```
+
+### Password Management
+
+- Passwords with value `changeme` are automatically replaced with secure generated passwords
+- Generated passwords are stored in `.db-passwords` file (gitignored)
+- Passwords are generated once and reused on subsequent startups
+
+### Container Labels
+
+Infrastructure containers are labeled with:
+- `io.spout.network=true` - Part of spout network
+- `io.spout.infrastructure=true` - Infrastructure container (excluded from Servers view)
+- `io.spout.database=true` - Database type (or other type-specific labels)
+
+### Frontend
+
+- **Infrastructure page**: `/infrastructure` - Shows only infrastructure containers
+- **Servers page**: `/servers` - Shows only game/lobby/proxy servers (excludes infrastructure)
+- Infrastructure containers appear with database icon and type badge
+
+### Watchdog Monitoring
+
+- Infrastructure containers are monitored every 15 seconds
+- Automatically restarted if stopped, dead, or unhealthy
+- Uses Docker health checks when available
+
+### API Endpoints
+
+- `GET /api/v1/infrastructure` - List all infrastructure containers
+- `GET /api/v1/infrastructure/:id` - Get single container details
+- `GET /api/v1/infrastructure/debug/all` - Debug endpoint showing all containers with labels
+
+### Key Files
+
+- `/internal/infrastructure/database.go` - Infrastructure container management
+- `/internal/infrastructure/passwords.go` - Password generation
+- `/internal/infrastructure/config_loader.go` - Local config file loader
+- `/internal/git/config_loader.go` - GitOps infrastructure loader
+- `/cmd/spoutmc/main.go` - `startInfrastructure()` function
+
 ## Recent Changes & Important Notes
 
 ### Circular Import Fix
@@ -437,3 +511,255 @@ servers:
 - **Volume configuration**: Let users customize volume bindings beyond the default
 - **Advanced options**: Network mode, restart policy, resource limits
 - **Image validation**: Verify Docker image exists before deployment
+
+---
+
+# Architecture Guidelines
+
+This section defines the architecture and code organization principles for SpoutMC.
+
+## Layer Separation
+
+### API Layer (`internal/webserver/api/**`)
+
+**Purpose:** Thin API handlers ONLY
+
+API handlers should:
+- Parse HTTP requests
+- Validate input parameters
+- Call business logic from `/internal` packages
+- Return HTTP responses
+- Handle HTTP-specific concerns (status codes, headers, etc.)
+
+API handlers should **NOT**:
+- Implement business logic
+- Contain algorithms or complex operations
+- Directly manipulate data structures
+- Perform file operations
+- Execute Docker operations
+
+**Example:**
+```go
+// ✅ Good - Thin API handler
+func addServerHandler(c echo.Context) error {
+    var req AddServerRequest
+    if err := c.Bind(&req); err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+    }
+
+    // Call business logic from internal package
+    if err := serverpkg.ValidateProxyConstraint(); err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+    }
+
+    // More business logic calls...
+    newServer := serverpkg.CreateServer(req)
+
+    return c.JSON(http.StatusCreated, newServer)
+}
+```
+
+```go
+// ❌ Bad - Business logic in API handler
+func addServerHandler(c echo.Context) error {
+    var req AddServerRequest
+    if err := c.Bind(&req); err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+    }
+
+    // ❌ Business logic should not be here
+    existingConfig := config.All()
+    usedPorts := make(map[int]bool)
+    for _, server := range existingConfig.Servers {
+        for _, portMapping := range server.Ports {
+            var port int
+            fmt.Sscanf(portMapping.HostPort, "%d", &port)
+            usedPorts[port] = true
+        }
+    }
+    // ... more business logic
+}
+```
+
+### Business Logic Layer (`/internal`)
+
+**Purpose:** All implementation and business logic
+
+The `/internal` directory contains all business logic, organized by **logical domains**.
+
+#### Package Organization Principles
+
+1. **Group by domain**, not by function
+2. **Logical cohesion** - Related functionality stays together
+3. **Reusability** - Can be called from multiple API endpoints
+4. **Single responsibility** - Each package has one clear purpose
+
+#### Examples of Good Package Structure
+
+```
+/internal/server/          # Server lifecycle & management
+  - lifecycle.go           # Start, stop, restart, create
+  - validation.go          # Proxy/lobby constraints, input validation
+  - ports.go              # Port assignment & availability checking
+  - environment.go        # Environment variable handling & merging
+
+/internal/servercfg/       # Configuration management
+  - operations.go         # High-level add/update/remove operations
+  - gitops.go            # Git-specific operations (commit, push)
+  - local.go             # Local file operations (write YAML)
+
+/internal/files/           # File system operations
+  - tree.go              # Tree building & traversal
+  - filters.go           # Pattern matching & exclusions
+  - operations.go        # Read, write, backup operations
+
+/internal/sse/             # Server-Sent Events utilities
+  - event.go             # SSE event structure and marshaling
+
+/internal/docker/          # Docker operations
+  - docker.go            # Container lifecycle
+  - network.go           # Network management
+  - velocity.go          # Velocity proxy configuration
+  - mapper.go            # Model to Docker API mapping
+```
+
+#### Examples of Bad Package Structure
+
+```
+❌ Too granular (function-per-package):
+/internal/validateproxy/
+/internal/findport/
+/internal/mergeenv/
+/internal/checklobby/
+
+❌ Too broad (everything in one place):
+/internal/utils/
+  - everything.go        # 5000 lines of unrelated code
+
+❌ Wrong layer (business logic in API):
+/internal/webserver/api/v1/server/
+  - server.go            # 2456 lines with business logic mixed in
+```
+
+## Refactored Package Structure
+
+### `/internal/sse`
+Server-Sent Events utilities for real-time data streaming.
+- Event structure
+- SSE marshaling
+
+### `/internal/files`
+File system operations for server file management.
+- File tree building with exclusion patterns
+- Recursive directory traversal
+- Pattern matching
+
+### `/internal/container`
+**Shared container action functions** (DRY principle).
+- `StartContainer()` - Starts container and includes in watchdog
+- `StopContainer()` - Excludes from watchdog before stopping
+- `RestartContainer()` - Restarts and ensures watchdog inclusion
+- Used by both server and infrastructure API endpoints
+
+### `/internal/server`
+Server lifecycle and business logic.
+- Server type determination
+- Port assignment and availability
+- Environment variable management
+- Proxy/lobby constraint validation
+- Default configuration generation
+
+### `/internal/servercfg`
+Configuration persistence (GitOps and local).
+- Add/update/remove servers in Git repositories
+- Add/update/remove servers in local YAML files
+- Configuration file management
+
+### `/internal/infrastructure`
+Infrastructure container management (databases, etc.).
+- Password generation and management
+- Database container creation
+- Configuration loading (Git and local)
+
+### `/internal/docker`
+Docker container and network operations.
+- Container lifecycle (create, start, stop, remove)
+- Network management
+- Velocity proxy configuration
+- Paper server configuration (paper-global.yml)
+- Image pulling and management
+
+### `/internal/config`
+Configuration loading and state management.
+- YAML configuration parsing
+- In-memory configuration state
+- Configuration diffing and hot-reload
+
+### `/internal/git`
+Git repository operations for GitOps.
+- Repository cloning and pulling
+- Configuration file reading from Git
+- Commit and push operations
+- Webhook handling
+
+## Design Patterns
+
+### Dependency Flow
+
+```
+API Layer (webserver/api/**)
+    ↓ calls
+Business Logic (/internal/server, /internal/servercfg, etc.)
+    ↓ calls
+Core Services (/internal/docker, /internal/config, /internal/git)
+```
+
+### Error Handling
+
+- Business logic returns errors
+- API handlers convert errors to HTTP responses
+- Use structured logging (zap) throughout
+
+### Configuration
+
+- Configuration is loaded once and cached in memory
+- Hot-reload triggers re-read from disk/git
+- Business logic reads from `config.All()`
+
+## Adding New Features
+
+When adding new functionality:
+
+1. **Identify the domain** - Where does this belong logically?
+2. **Check existing packages** - Can this fit in an existing package?
+3. **Create new package if needed** - Only if it's a new logical domain
+4. **Keep API handlers thin** - All logic goes to `/internal`
+5. **Write reusable functions** - Think about other use cases
+
+### Example: Adding Server Backup Feature
+
+```
+❌ Bad approach:
+- Create /internal/backup/
+- Create /internal/compress/
+- Create /internal/upload/
+- Implement logic in API handler
+
+✅ Good approach:
+- Add to existing /internal/server/ package:
+  - backup.go (backup operations, compression, upload)
+- API handler just calls: serverpkg.BackupServer(id)
+```
+
+## Testing
+
+- Test business logic in `/internal` packages independently
+- Mock dependencies where needed
+- API handlers should have minimal logic to test
+
+## Future Considerations
+
+- Keep packages focused on single responsibilities
+- Avoid circular dependencies between packages
+- Use interfaces for testability and flexibility
+- Document public functions and complex logic

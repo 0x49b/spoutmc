@@ -1,0 +1,11 @@
+name: database
+image: mariadb:latest
+restart: always
+volumes:
+  - ./backup:/backup
+ports:
+  - host: 3306
+    container: 3306
+env:
+  MARIADB_ROOT_PASSWORD: changeme
+  MARIADB_PASSWORD: changeme

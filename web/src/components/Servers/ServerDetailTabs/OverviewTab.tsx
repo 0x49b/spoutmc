@@ -41,11 +41,7 @@ export const OverviewTab = ({
         maxMemory: '0',
         usagePercent: 0
     });
-    const [configFiles, setConfigFiles] = useState<string[]>([]);
-    const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-    const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [isRestartModalOpen, setIsRestartModalOpen] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<string>('');
     const [isRestarting, setIsRestarting] = useState(false);
     const [envVars, setEnvVars] = useState<Record<string, string>>({});
     const [isLoadingEnv, setIsLoadingEnv] = useState(false);
@@ -59,22 +55,9 @@ export const OverviewTab = ({
 
     useEffect(() => {
         if (server && server.id) {
-            loadConfigFiles();
             loadEnvironmentVariables();
         }
     }, [server?.id]);
-
-    const loadConfigFiles = async () => {
-        setIsLoadingFiles(true);
-        try {
-            const response = await api.listConfigFiles(server.id);
-            setConfigFiles(response.data.files);
-        } catch (err) {
-            console.error('Failed to load config files:', err);
-        } finally {
-            setIsLoadingFiles(false);
-        }
-    };
 
     const loadEnvironmentVariables = async () => {
         setIsLoadingEnv(true);
@@ -86,16 +69,6 @@ export const OverviewTab = ({
         } finally {
             setIsLoadingEnv(false);
         }
-    };
-
-    const handleOpenFile = (filename: string) => {
-        setSelectedFile(filename);
-        setIsEditorOpen(true);
-    };
-
-    const handleSaveSuccess = () => {
-        setIsEditorOpen(false);
-        setIsRestartModalOpen(true);
     };
 
     const handleRestartNow = async () => {
@@ -125,6 +98,19 @@ export const OverviewTab = ({
         const cpuPercent = (cpuDelta / systemDelta) * current.online_cpus * 100;
         return Math.min(Number(cpuPercent.toFixed(2)), 100);
     }
+
+    const getServerTypeLabel = (type: 'proxy' | 'lobby' | 'game') => {
+        switch (type) {
+            case 'proxy':
+                return 'Proxy';
+            case 'lobby':
+                return 'Lobby';
+            case 'game':
+                return 'Game';
+            default:
+                return 'Server';
+        }
+    };
 
     function formatBytes(bytes: number | undefined | null): string {
         if (bytes === undefined || bytes === null || isNaN(bytes)) {
@@ -203,9 +189,10 @@ export const OverviewTab = ({
                             <FlexItem><strong>{server.ip}:{server.port}</strong></FlexItem>
                         </Flex>
                         <Flex justifyContent={{default: 'justifyContentSpaceBetween'}}>
-                            <FlexItem className="pf-v6-u-color-200">Location:</FlexItem>
-                            <FlexItem><strong>{server.location || 'Not specified'}</strong></FlexItem>
+                            <FlexItem className="pf-v6-u-color-200">Type:</FlexItem>
+                            <FlexItem><strong>{getServerTypeLabel(server.type)}</strong></FlexItem>
                         </Flex>
+
                     </div>
                 </GridItem>
 

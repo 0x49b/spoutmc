@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"spoutmc/internal/infrastructure"
 	"spoutmc/internal/models"
 	"strings"
 
@@ -37,6 +38,11 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 
 		// Skip .git directory
 		if strings.Contains(path, ".git") {
+			return nil
+		}
+
+		// Skip infrastructure directory (handled separately)
+		if strings.Contains(path, "infrastructure") {
 			return nil
 		}
 
@@ -138,4 +144,88 @@ func ValidateServerConfig(server *models.SpoutServer) error {
 	}
 
 	return nil
+}
+
+// LoadInfrastructureFromRepository reads infrastructure YAML files from the infrastructure directory
+func LoadInfrastructureFromRepository(repoPath string) ([]infrastructure.InfrastructureContainer, error) {
+	logger.Info(logEmoji+" Loading infrastructure configurations from Git repository", zap.String("path", repoPath))
+
+	infrastructurePath := filepath.Join(repoPath, "infrastructure")
+
+	// Check if infrastructure directory exists
+	if _, err := os.Stat(infrastructurePath); os.IsNotExist(err) {
+		logger.Info(logEmoji + " No infrastructure directory found, skipping")
+		return []infrastructure.InfrastructureContainer{}, nil
+	}
+
+	containers := make([]infrastructure.InfrastructureContainer, 0)
+
+	// Walk through infrastructure directory
+	err := filepath.Walk(infrastructurePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Only process YAML files
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+
+		// Read the file
+		data, err := os.ReadFile(path)
+		if err != nil {
+			logger.Warn(logEmoji+" Failed to read infrastructure YAML file, skipping",
+				zap.String("file", path),
+				zap.Error(err))
+			return nil
+		}
+
+		// Try to parse as InfrastructureContainer
+		var container infrastructure.InfrastructureContainer
+		if err := yaml.Unmarshal(data, &container); err != nil {
+			logger.Warn(logEmoji+" Failed to parse YAML file as InfrastructureContainer, skipping",
+				zap.String("file", path),
+				zap.Error(err))
+			return nil
+		}
+
+		// Validate container name is present
+		if container.Name == "" {
+			logger.Warn(logEmoji+" Infrastructure configuration missing 'name' field, skipping",
+				zap.String("file", path))
+			return nil
+		}
+
+		// Validate container image is present
+		if container.Image == "" {
+			logger.Warn(logEmoji+" Infrastructure configuration missing 'image' field, skipping",
+				zap.String("file", path),
+				zap.String("name", container.Name))
+			return nil
+		}
+
+		containers = append(containers, container)
+
+		logger.Debug(logEmoji+" Loaded infrastructure configuration",
+			zap.String("file", path),
+			zap.String("name", container.Name),
+			zap.String("image", container.Image))
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk infrastructure directory: %w", err)
+	}
+
+	logger.Info(logEmoji+" Successfully loaded infrastructure configurations from Git",
+		zap.Int("count", len(containers)))
+
+	return containers, nil
 }

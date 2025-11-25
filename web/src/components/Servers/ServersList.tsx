@@ -18,7 +18,7 @@ import {
     ProgressVariant,
     SearchInput
 } from '@patternfly/react-core';
-import {PlusIcon, SyncAltIcon,} from '@patternfly/react-icons';
+import {PlusIcon, SyncAltIcon, NetworkIcon, OutlinedHddIcon, ServerGroupIcon } from '@patternfly/react-icons';
 import {useServerStore} from '../../store/serverStore';
 import StatusBadge from '../UI/StatusBadge';
 import PageHeader from '../UI/PageHeader';
@@ -83,6 +83,32 @@ const ServersList: React.FC = () => {
         if (memory > 80) return ProgressVariant.danger;
         if (memory > 50) return ProgressVariant.warning;
         return ProgressVariant.success;
+    };
+
+    const getServerIcon = (type: 'proxy' | 'lobby' | 'game') => {
+        switch (type) {
+            case 'proxy':
+                return <NetworkIcon />;
+            case 'lobby':
+                return <OutlinedHddIcon />;
+            case 'game':
+                return <ServerGroupIcon />;
+            default:
+                return <ServerGroupIcon />;
+        }
+    };
+
+    const getServerTypeLabel = (type: 'proxy' | 'lobby' | 'game') => {
+        switch (type) {
+            case 'proxy':
+                return 'Proxy';
+            case 'lobby':
+                return 'Lobby';
+            case 'game':
+                return 'Game';
+            default:
+                return 'Server';
+        }
     };
 
     return (
@@ -155,7 +181,7 @@ const ServersList: React.FC = () => {
                                     <Flex justifyContent={{default: 'justifyContentSpaceBetween'}}
                                           alignItems={{default: 'alignItemsFlexStart'}}>
                                         <FlexItem>
-                                            <strong>{server.name}</strong>
+                                            {getServerIcon(server.type)} <strong>{server.name}</strong>
                                         </FlexItem>
                                         <FlexItem>
                                             <StatusBadge status={server.status}/>
@@ -168,6 +194,11 @@ const ServersList: React.FC = () => {
                                         flexDirection: 'column',
                                         gap: 'var(--pf-v6-global--spacer--sm)'
                                     }}>
+                                        <Flex
+                                            justifyContent={{default: 'justifyContentSpaceBetween'}}>
+                                            <FlexItem>Type:</FlexItem>
+                                            <FlexItem><strong>{getServerTypeLabel(server.type)}</strong></FlexItem>
+                                        </Flex>
                                         <Flex
                                             justifyContent={{default: 'justifyContentSpaceBetween'}}>
                                             <FlexItem>Version:</FlexItem>

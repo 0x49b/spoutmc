@@ -13,6 +13,7 @@ export interface DockerContainer {
   Command: string;
   Created: number;
   StartedAt?: string; // ISO 8601 timestamp when container was started (enriched field)
+  Type?: string; // Server type: "proxy", "lobby", or "game" (enriched field)
   Ports: Array<{
     IP?: string;
     PrivatePort: number;
@@ -146,9 +147,20 @@ export function mapDockerContainerToServer(container: DockerContainer): Server {
   const isProxy = container.Labels['io.spout.proxy'] === 'true';
   const isLobby = container.Labels['io.spout.lobby'] === 'true';
 
+  // Extract server type from backend or determine from labels
+  let serverType: 'proxy' | 'lobby' | 'game' = 'game';
+  if (container.Type) {
+    serverType = container.Type as 'proxy' | 'lobby' | 'game';
+  } else if (isProxy) {
+    serverType = 'proxy';
+  } else if (isLobby) {
+    serverType = 'lobby';
+  }
+
   return {
     id: container.Id,
     name: name,
+    type: serverType,
     status: mapContainerStatus(container.State),
     ip: 'localhost', // Default for local Docker
     port: extractPort(container.Ports),

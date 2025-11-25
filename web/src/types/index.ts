@@ -13,6 +13,7 @@ export interface Player {
 export interface Server {
   id: string;
   name: string;
+  type: 'proxy' | 'lobby' | 'game'; // Server type from backend
   status: 'online' | 'offline' | 'restarting';
   ip: string;
   port: number;
@@ -62,4 +63,17 @@ export interface UserProfile {
   app_metadata: Record<string, any>;
   user_metadata: Record<string, any>;
   identities: any[];
+}
+
+export interface InfrastructureContainer {
+  summary: {
+    ID: string;
+    Names: string[];
+    Image: string;
+    State: string;
+    Status: string;
+    Ports: any[];
+    Labels: Record<string, string>;
+  };
+  type: string;
 }

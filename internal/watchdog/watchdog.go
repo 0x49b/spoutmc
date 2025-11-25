@@ -63,8 +63,42 @@ func (w *Watchdog) checkContainers(ctx context.Context) {
 	// Check existing containers for issues
 	w.checkExistingContainers(ctx)
 
+	// Check infrastructure containers
+	w.checkInfrastructureContainers(ctx)
+
 	// Check for missing servers (defined in config but not running)
 	w.checkMissingServers(ctx)
+
+	// Configure Paper servers for Velocity if needed
+	w.ensurePaperVelocityConfig(ctx)
+}
+
+func (w *Watchdog) ensurePaperVelocityConfig(ctx context.Context) {
+	cfg := config.All()
+	if cfg.Storage == nil {
+		return
+	}
+
+	dataPath := cfg.Storage.DataPath
+	if dataPath == "" {
+		return
+	}
+
+	// Get or generate the Velocity secret
+	proxyName := ""
+	for i := range cfg.Servers {
+		if cfg.Servers[i].Proxy {
+			proxyName = cfg.Servers[i].Name
+			break
+		}
+	}
+
+	velocitySecret := docker.GetOrGenerateVelocitySecret(dataPath, proxyName)
+
+	// Check and configure all Paper servers
+	if err := docker.CheckAndConfigurePaperServers(dataPath, velocitySecret); err != nil {
+		w.logger.Debug("🐺 error configuring Paper servers for Velocity", zap.Error(err))
+	}
 }
 
 func (w *Watchdog) checkExistingContainers(ctx context.Context) {
@@ -186,5 +220,58 @@ func (w *Watchdog) restartContainer(ctx context.Context, containerID, containerN
 		w.logger.Error("🐺 failed to restart container", zap.String("container", containerName), zap.Error(err))
 	} else {
 		w.logger.Info("🐺 container restarted", zap.String("container", containerName))
+	}
+}
+
+func (w *Watchdog) checkInfrastructureContainers(ctx context.Context) {
+	// Get all infrastructure containers
+	containers, err := docker.GetInfrastructureContainers()
+	if err != nil {
+		w.logger.Error("🐺 error getting infrastructure containers", zap.Error(err))
+		return
+	}
+
+	// Check each infrastructure container
+	for _, c := range containers {
+		if _, excluded := w.excluded[c.ID]; excluded {
+			continue
+		}
+
+		info, err := w.cli.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			w.logger.Error("🐺 error inspecting infrastructure container", zap.String("id", c.ID), zap.Error(err))
+			continue
+		}
+
+		status := info.State.Status
+		healthStatus := "none"
+		if info.State.Health != nil {
+			healthStatus = info.State.Health.Status
+		}
+
+		w.logger.Debug("🐺 infrastructure container status",
+			zap.String("hostname", info.Config.Hostname),
+			zap.String("status", status),
+			zap.String("health", healthStatus),
+		)
+
+		// Restart if container is stopped or dead
+		if status == "exited" || status == "dead" {
+			w.logger.Warn("🐺 infrastructure container is stopped, restarting",
+				zap.String("hostname", info.Config.Hostname),
+				zap.String("status", status),
+			)
+			w.startContainer(ctx, c.ID, info.Config.Hostname)
+			continue
+		}
+
+		// Restart if container is unhealthy
+		if healthStatus == "unhealthy" {
+			w.logger.Warn("🐺 infrastructure container is unhealthy, restarting",
+				zap.String("hostname", info.Config.Hostname),
+				zap.String("health", healthStatus),
+			)
+			w.restartContainer(ctx, c.ID, info.Config.Hostname)
+		}
 	}
 }

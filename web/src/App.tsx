@@ -13,6 +13,7 @@ import ServerDetail from './components/Servers/ServerDetail';
 import PlayersList from './components/Players/PlayersList';
 import BannedPlayersList from './components/Players/BannedPlayersList';
 import PluginsList from './components/Plugins/PluginsList';
+import InfrastructureList from './components/Infrastructure/InfrastructureList';
 import LoginPage from './components/Auth/LoginPage';
 import UserProfile from './components/Configuration/Users/UserProfile';
 import UsersList from './components/Configuration/Users/UsersList';
@@ -52,6 +53,7 @@ import {
     ChartLineIcon,
     CogIcon,
     CubeIcon,
+    DatabaseIcon,
     ServerIcon,
     UserIcon,
     UsersIcon
@@ -87,6 +89,7 @@ const PageLayout = () => {
     const navItems = [
         {to: '/', label: 'Dashboard', icon: <ChartLineIcon/>},
         {to: '/servers', label: 'Servers', icon: <ServerIcon/>},
+        {to: '/infrastructure', label: 'Infrastructure', icon: <DatabaseIcon/>},
         {to: '/players', label: 'Players', icon: <UsersIcon/>},
         {to: '/plugins', label: 'Plugins', icon: <CubeIcon/>}
     ];
@@ -195,7 +198,7 @@ const PageLayout = () => {
 
 function App() {
     const {checkAuth} = useAuthStore();
-    const [setupCompleted, setSetupCompleted] = useState(
+    const [setupCompleted] = useState(
         localStorage.getItem('setupCompleted') === 'true'
     );
 
@@ -268,6 +271,15 @@ function App() {
                             <ProtectedRoute
                                 requiredPermissions={[{action: 'read', subject: 'servers'}]}>
                                 <ServerDetail/>
+                            </ProtectedRoute>
+                        )
+                    },
+                    {
+                        path: 'infrastructure',
+                        element: (
+                            <ProtectedRoute
+                                requiredPermissions={[{action: 'read', subject: 'servers'}]}>
+                                <InfrastructureList/>
                             </ProtectedRoute>
                         )
                     },

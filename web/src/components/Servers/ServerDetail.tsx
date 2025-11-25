@@ -26,7 +26,10 @@ import {
     CubeIcon,
     EditIcon,
     FileIcon,
+    NetworkIcon,
+    OutlinedHddIcon,
     PowerOffIcon,
+    ServerGroupIcon,
     SyncAltIcon,
     TerminalIcon,
     TrashIcon,
@@ -181,6 +184,19 @@ const ServerDetail: React.FC = () => {
     const handleRestartAction = () => {
         setIsRestartModalOpen(true);
     }
+
+    const getServerIcon = (type: 'proxy' | 'lobby' | 'game') => {
+        switch (type) {
+            case 'proxy':
+                return <NetworkIcon style={{ fontSize: '20px', color: 'var(--pf-v6-global--warning-color--100)' }} />;
+            case 'lobby':
+                return <OutlinedHddIcon style={{ fontSize: '20px', color: 'var(--pf-v6-global--info-color--100)' }} />;
+            case 'game':
+                return <ServerGroupIcon style={{ fontSize: '20px', color: 'var(--pf-v6-global--success-color--100)' }} />;
+            default:
+                return <ServerGroupIcon style={{ fontSize: '20px', color: 'var(--pf-v6-global--success-color--100)' }} />;
+        }
+    };
 
     const handlePowerAction = async () => {
         if (server.status === 'online') {
