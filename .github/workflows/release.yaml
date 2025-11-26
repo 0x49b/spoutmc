@@ -91,12 +91,6 @@ jobs:
           name: frontend-dist
           path: internal/webserver/static/dist/
 
-      - name: Generate Swagger docs (optional)
-        continue-on-error: true
-        run: |
-          go install github.com/swaggo/swag/cmd/swag@latest
-          swag init -g cmd/spoutmc/main.go --parseDependency --parseInternal
-
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
