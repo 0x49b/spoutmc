@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"spoutmc/internal/log"
 	"spoutmc/internal/webserver/api"
+	"spoutmc/internal/webserver/static"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -19,6 +22,29 @@ import (
 )
 
 var logger = log.GetLogger()
+
+// serveEmbeddedFiles serves embedded frontend files with SPA fallback
+func serveEmbeddedFiles(fsys fs.FS) echo.HandlerFunc {
+	fileServer := http.FileServer(http.FS(fsys))
+
+	return func(c echo.Context) error {
+		path := c.Request().URL.Path
+
+		// Try to open the requested file
+		f, err := fsys.Open(strings.TrimPrefix(path, "/"))
+		if err == nil {
+			f.Close()
+			// File exists, serve it
+			fileServer.ServeHTTP(c.Response(), c.Request())
+			return nil
+		}
+
+		// File doesn't exist, serve index.html for SPA routing
+		c.Request().URL.Path = "/"
+		fileServer.ServeHTTP(c.Response(), c.Request())
+		return nil
+	}
+}
 
 func Start() (*echo.Echo, error) {
 
@@ -50,7 +76,22 @@ func Start() (*echo.Echo, error) {
 	//swagger
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
-	// Register API routes
+	// Serve embedded frontend
+	if distFS, err := static.GetDistFS(); err == nil {
+		logger.Info("🎨 Serving embedded frontend from binary")
+
+		// Serve static assets (JS, CSS, images)
+		e.GET("/assets/*", echo.WrapHandler(
+			http.StripPrefix("/assets/", http.FileServer(http.FS(distFS))),
+		))
+
+		// Catch-all route for SPA routing (serves index.html for non-existent paths)
+		e.GET("/*", serveEmbeddedFiles(distFS))
+	} else {
+		logger.Warn("⚠️ Frontend assets not embedded, running in API-only mode", zap.Error(err))
+	}
+
+	// Register API routes (these take precedence due to Echo's router priority)
 	api.RegisterAPI(e)
 
 	ln, err := net.Listen("tcp", ":3000")
