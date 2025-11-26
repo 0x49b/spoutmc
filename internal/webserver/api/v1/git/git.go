@@ -19,7 +19,14 @@ func RegisterGitRoutes(g *echo.Group) {
 	git.POST("/sync", handleManualSync)
 }
 
-// handleWebhook handles incoming webhook requests from Git providers
+// @Summary Handle Git webhook
+// @Description Receives and processes webhook requests from Git providers (GitHub, GitLab)
+// @Tags git
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /git/webhook [post]
 func handleWebhook(c echo.Context) error {
 	handler := gitops.GetWebhookHandler()
 	if handler == nil {
@@ -32,7 +39,13 @@ func handleWebhook(c echo.Context) error {
 	return handler.HandleWebhook(c)
 }
 
-// handleManualSync manually triggers a Git sync
+// @Summary Trigger manual Git sync
+// @Description Manually triggers synchronization with the GitOps repository
+// @Tags git
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /git/sync [post]
 func handleManualSync(c echo.Context) error {
 	logger.Info("Manual sync triggered via API", zap.String("remote_addr", c.RealIP()))
 

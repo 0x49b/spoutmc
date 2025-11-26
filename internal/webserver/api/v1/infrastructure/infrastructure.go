@@ -38,7 +38,13 @@ type InfrastructureContainer struct {
 	Type    string            `json:"type"`
 }
 
-// listInfrastructure returns all infrastructure containers
+// @Summary List infrastructure containers
+// @Description Returns all infrastructure containers (databases, cache, etc.)
+// @Tags infrastructure
+// @Produce json
+// @Success 200 {array} InfrastructureContainer
+// @Failure 500 {object} map[string]string
+// @Router /infrastructure [get]
 func listInfrastructure(c echo.Context) error {
 	containers, err := docker.GetInfrastructureContainers()
 	if err != nil {
@@ -59,7 +65,15 @@ func listInfrastructure(c echo.Context) error {
 	return c.JSON(http.StatusOK, enrichedContainers)
 }
 
-// getInfrastructureContainer returns a single infrastructure container by ID
+// @Summary Get infrastructure container details
+// @Description Retrieves detailed information about a specific infrastructure container
+// @Tags infrastructure
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /infrastructure/{id} [get]
 func getInfrastructureContainer(c echo.Context) error {
 	containerID := c.Param("id")
 
@@ -121,7 +135,13 @@ func determineInfrastructureType(labels map[string]string) string {
 	return "unknown"
 }
 
-// debugAllContainers returns ALL containers with their labels for debugging
+// @Summary Debug all containers
+// @Description Returns all Docker containers with their labels for debugging purposes
+// @Tags infrastructure
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]string
+// @Router /infrastructure/debug/all [get]
 func debugAllContainers(c echo.Context) error {
 	// Get all containers from docker client directly
 	cli := docker.GetDockerClient()
@@ -150,7 +170,15 @@ func debugAllContainers(c echo.Context) error {
 	})
 }
 
-// restartInfrastructureContainer restarts an infrastructure container
+// @Summary Restart infrastructure container
+// @Description Restarts an infrastructure container (database, cache, etc.)
+// @Tags infrastructure
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /infrastructure/{id}/restart [post]
 func restartInfrastructureContainer(c echo.Context) error {
 	containerID := c.Param("id")
 
@@ -174,7 +202,15 @@ func restartInfrastructureContainer(c echo.Context) error {
 	})
 }
 
-// stopInfrastructureContainer stops an infrastructure container
+// @Summary Stop infrastructure container
+// @Description Stops an infrastructure container (database, cache, etc.)
+// @Tags infrastructure
+// @Produce json
+// @Param id path string true "Container ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /infrastructure/{id}/stop [post]
 func stopInfrastructureContainer(c echo.Context) error {
 	containerID := c.Param("id")
 
@@ -198,7 +234,13 @@ func stopInfrastructureContainer(c echo.Context) error {
 	})
 }
 
-// streamInfrastructure streams infrastructure container updates via SSE
+// @Summary Stream infrastructure updates
+// @Description Server-Sent Events (SSE) for real-time infrastructure container updates
+// @Tags infrastructure
+// @Produce text/event-stream
+// @Success 200 {string} string "Stream of infrastructure container updates"
+// @Failure 500 {object} map[string]string
+// @Router /infrastructure/stream [get]
 func streamInfrastructure(c echo.Context) error {
 	logger.Info("SSE Client connected to infrastructure stream", zap.String("ip", c.RealIP()))
 
