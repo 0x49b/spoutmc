@@ -15,10 +15,51 @@ permissions:
 
 env:
   GO_VERSION: '1.24'
-  BINARY_NAME: 'spoutmc'  # Change this to your binary name
+  NODE_VERSION: '20'
+  BINARY_NAME: 'spoutmc'
 
 jobs:
+  # Step 1: Build frontend once and cache it
+  frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
+
+      - name: Install frontend dependencies
+        run: |
+          cd web
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd web
+          npm run build
+
+      - name: Prepare embedded frontend
+        run: |
+          mkdir -p internal/webserver/static/dist
+          cp -r web/dist/* internal/webserver/static/dist/
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: internal/webserver/static/dist/
+          retention-days: 1
+
+  # Step 2: Build Go binaries for all architectures (reusing frontend)
   build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: frontend
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -27,60 +68,134 @@ jobs:
             goarch: amd64
           - goos: linux
             goarch: arm64
-          - goos: linux
-            goarch: arm
           - goos: darwin
             goarch: amd64
           - goos: darwin
             goarch: arm64
           - goos: windows
             goarch: amd64
-          - goos: windows
-            goarch: arm64
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: true
 
-      - name: Build
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: internal/webserver/static/dist/
+
+      - name: Generate Swagger docs (optional)
+        continue-on-error: true
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@latest
+          swag init -g cmd/spoutmc/main.go --parseDependency --parseInternal
+
+      - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
         run: |
+          # Determine file extension
           EXT=""
           if [ "$GOOS" = "windows" ]; then
             EXT=".exe"
           fi
+
+          # Set output filename
           OUTPUT="${{ env.BINARY_NAME }}-${GOOS}-${GOARCH}${EXT}"
-          go build -ldflags="-s -w" -o "${OUTPUT}" .
-          
+
+          # Extract version from tag (v1.2.3 -> 1.2.3)
+          VERSION="${{ github.ref_name || github.event.inputs.tag }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+
+          # Build with version info and optimizations
+          go build \
+            -ldflags="-s -w -X main.Version=${VERSION}" \
+            -o "${OUTPUT}" \
+            ./cmd/spoutmc
+
           # Create checksum
           sha256sum "${OUTPUT}" > "${OUTPUT}.sha256"
 
-      - name: Upload artifact
+          echo "✅ Built ${OUTPUT} ($(du -h ${OUTPUT} | cut -f1))"
+
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
             ${{ env.BINARY_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}*
+          retention-days: 1
 
+  # Step 3: Create GitHub release with all binaries
   release:
+    name: Create Release
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
+      - name: Download all binary artifacts
         uses: actions/download-artifact@v4
         with:
           path: binaries
           merge-multiple: true
+          pattern: ${{ env.BINARY_NAME }}-*
 
-      - name: Create Release
+      - name: List artifacts
+        run: |
+          echo "📦 Release artifacts:"
+          ls -lh binaries/
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name || github.event.inputs.tag }}
+          name: Release ${{ github.ref_name || github.event.inputs.tag }}
           generate_release_notes: true
+          draft: false
+          prerelease: false
           files: binaries/*
+          body: |
+            ## 🚀 SpoutMC Release ${{ github.ref_name || github.event.inputs.tag }}
+
+            ### 📦 Downloads
+
+            Choose the binary for your platform:
+
+            - **Linux (AMD64)**: `spoutmc-linux-amd64`
+            - **Linux (ARM64)**: `spoutmc-linux-arm64`
+            - **macOS (Intel)**: `spoutmc-darwin-amd64`
+            - **macOS (Apple Silicon)**: `spoutmc-darwin-arm64`
+            - **Windows (AMD64)**: `spoutmc-windows-amd64.exe`
+
+            ### ✅ Verification
+
+            Each binary includes a `.sha256` checksum file for verification:
+
+            ```bash
+            # Linux/macOS
+            sha256sum -c spoutmc-linux-amd64.sha256
+
+            # Windows (PowerShell)
+            Get-FileHash spoutmc-windows-amd64.exe -Algorithm SHA256
+            ```
+
+            ### 📚 Documentation
+
+            - [Build Instructions](BUILD.md)
+            - [Development Guide](DEVELOPMENT.md)
+            - [Architecture Guidelines](CLAUDE.md)
+
+            ### 🐳 Requirements
+
+            - Docker (for running Minecraft servers)
+            - Configuration file: `config/spoutmc.yaml`
+
+            See [BUILD.md](BUILD.md) for detailed setup instructions.
