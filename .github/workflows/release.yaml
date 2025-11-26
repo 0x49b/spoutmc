@@ -150,14 +150,14 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || github.event.inputs.tag }}
-          name: Release ${{ github.ref_name || github.event.inputs.tag }}
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Release ${{ github.event.inputs.tag || github.ref_name  }}
           generate_release_notes: true
           draft: false
           prerelease: false
           files: binaries/*
           body: |
-            ## 🚀 SpoutMC Release ${{ github.ref_name || github.event.inputs.tag }}
+            ## 🚀 SpoutMC Release ${{ github.event.inputs.tag || github.ref_name}}
 
             ### 📦 Downloads
 
