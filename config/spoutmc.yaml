@@ -10,7 +10,7 @@ git:
     token: "${SPOUTMC_GIT_TOKEN}"
     webhook_secret: "${SPOUTMC_WEBHOOK_SECRET}"
 storage:
-    data_path: /home/florian/GolandProjects/spoutmc/testservers/data
+    data_path: /Users/florianthievent/workspace/private/spoutmc/testservers/data
 
 # File browser configuration
 files:

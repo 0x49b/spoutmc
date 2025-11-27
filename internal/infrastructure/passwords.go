@@ -71,26 +71,22 @@ func GetOrGeneratePasswords(infraContainers []InfrastructureContainer, logger *z
 // PrintPasswordsToConsole displays generated passwords in a formatted box
 func PrintPasswordsToConsole(passwords map[string]string) {
 	fmt.Println()
-	fmt.Println("╔═══════════════════════════════════════════════════════════╗")
-	fmt.Println("║                                                           ║")
-	fmt.Println("║              Your Database Passwords                      ║")
-	fmt.Println("║                                                           ║")
+	fmt.Println("╔═══════════════════════════════════════════════════════════════╗")
+	fmt.Println("║              Your Database Passwords                      	║")
 
 	// Print root password
 	if rootPass, exists := passwords["MARIADB_ROOT_PASSWORD"]; exists {
-		line := fmt.Sprintf("║  Root Password: %-42s║", rootPass)
+		line := fmt.Sprintf("║  Root Password: %-42s	║", rootPass)
 		fmt.Println(line)
 	}
 
 	// Print user password
 	if userPass, exists := passwords["MARIADB_PASSWORD"]; exists {
-		line := fmt.Sprintf("║  User Password: %-42s║", userPass)
+		line := fmt.Sprintf("║  User Password: %-42s	║", userPass)
 		fmt.Println(line)
 	}
 
-	fmt.Println("║                                                           ║")
-	fmt.Println("║        Make sure to keep your passwords safe!            ║")
-	fmt.Println("║                                                           ║")
-	fmt.Println("╔═══════════════════════════════════════════════════════════╗")
+	fmt.Println("║        Make sure to keep your passwords safe!             	║")
+	fmt.Println("╚═══════════════════════════════════════════════════════════════╝")
 	fmt.Println()
 }
