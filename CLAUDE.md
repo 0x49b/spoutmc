@@ -275,8 +275,9 @@ infrastructure:
 ### Password Management
 
 - Passwords with value `changeme` are automatically replaced with secure generated passwords
-- Generated passwords are stored in `.db-passwords` file (gitignored)
-- Passwords are generated once and reused on subsequent startups
+- Generated passwords are displayed in the console on first startup in a formatted box
+- Users must save these passwords securely as they are not persisted to disk
+- Passwords are regenerated on each startup if `changeme` placeholders are present
 
 ### Container Labels
 

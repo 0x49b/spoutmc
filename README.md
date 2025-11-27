@@ -36,3 +36,5 @@ docker run --rm -p 3306:1234 --network spoutnetwork verb/socat TCP-LISTEN:1234,f
 ```
 Check this one out:  
 https://stackoverflow.com/questions/19897743/exposing-a-port-on-a-live-docker-container/42071577
+
+just for the git diff

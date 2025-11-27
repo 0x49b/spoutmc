@@ -7,8 +7,9 @@
 # 2. Modify the configuration below as needed
 # 3. Restart SpoutMC
 #
-# Note: Passwords in the 'env' section will be automatically replaced with
-# securely generated passwords stored in .db-passwords file
+# Note: Passwords with value 'changeme' will be automatically replaced with
+# securely generated passwords displayed in the console on first startup.
+# Make sure to save these passwords securely!
 
 infrastructure:
   # Database container (MariaDB)

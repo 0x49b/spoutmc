@@ -328,26 +328,15 @@ func startProxyContainer() {
 func startInfrastructure() error {
 	cfg := config.All()
 
-	// Get working directory
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-
 	// Get data path
 	dataPath := ""
 	if cfg.Storage != nil {
 		dataPath = cfg.Storage.DataPath
 	}
 
-	// Generate or load database passwords
-	passwords, err := infrastructure.GetOrGeneratePasswords(workingDir, logger)
-	if err != nil {
-		return fmt.Errorf("failed to generate database passwords: %w", err)
-	}
-
 	// Load infrastructure configurations from Git or local config
 	var infraContainers []infrastructure.InfrastructureContainer
+	var err error
 	if config.IsGitOpsEnabled() {
 		logger.Info("🏗️ GitOps is enabled, loading infrastructure from repository")
 		repoPath := git.GetLocalRepoPath()
@@ -374,6 +363,17 @@ func startInfrastructure() error {
 	if len(infraContainers) == 0 {
 		logger.Info("🏗️ No infrastructure containers found")
 		return nil
+	}
+
+	// Generate database passwords if needed
+	passwords, wasGenerated, err := infrastructure.GetOrGeneratePasswords(infraContainers, logger)
+	if err != nil {
+		return fmt.Errorf("failed to generate database passwords: %w", err)
+	}
+
+	// Print passwords to console if they were newly generated
+	if wasGenerated {
+		infrastructure.PrintPasswordsToConsole(passwords)
 	}
 
 	// Create and start each infrastructure container

@@ -82,7 +82,7 @@ func Start() (*echo.Echo, error) {
 
 		// Serve static assets (JS, CSS, images)
 		e.GET("/assets/*", echo.WrapHandler(
-			http.StripPrefix("/assets/", http.FileServer(http.FS(distFS))),
+			http.FileServer(http.FS(distFS)),
 		))
 
 		// Catch-all route for SPA routing (serves index.html for non-existent paths)
