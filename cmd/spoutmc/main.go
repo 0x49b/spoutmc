@@ -31,6 +31,12 @@ type operation func(ctx context.Context) error
 func main() {
 	printBanner()
 
+	// Ensure config exists and EULA is accepted
+	if err := config.EnsureConfigExists(); err != nil {
+		log.HandleError(err)
+		os.Exit(1)
+	}
+
 	err := config.ReadConfiguration()
 	if err != nil {
 		log.HandleError(err)
