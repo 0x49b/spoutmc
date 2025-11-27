@@ -14,6 +14,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/samber/slog-zap v1.0.0
+	github.com/samber/slog-zap/v2 v2.6.2
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/shirou/gopsutil/v4 v4.25.10
 	github.com/swaggo/echo-swagger v1.4.1
