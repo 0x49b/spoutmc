@@ -19,7 +19,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	github.com/twistedasylummc/minime v0.0.4
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.43.0
 	golang.org/x/exp v0.0.0-20251017212417-90e834f514db
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
