@@ -24,7 +24,7 @@ require (
 	golang.org/x/exp v0.0.0-20251017212417-90e834f514db
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/gorm v1.31.0
+	gorm.io/gorm v1.31.1
 )
 
 require (
