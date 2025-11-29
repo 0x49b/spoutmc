@@ -42,3 +42,4 @@ routes.json
 /internal/webserver/static/dist/
 
 !/testservers/
+/.db-passwords
