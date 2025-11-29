@@ -1,35 +1,30 @@
+git:
+    enabled: false
+    repository: https://github.com/0x49b/spoutmc-config.git
+    branch: master
+    token: ${SPOUTMC_GIT_TOKEN}
+    poll_interval: 30s
+    webhook_secret: ${SPOUTMC_WEBHOOK_SECRET}
+    local_path: /tmp/spoutmc-git
+storage:
+    data_path: /home/florian/GolandProjects/spoutmc/testservers/data
+files:
+    exclude_patterns:
+        - '*.jar'
+        - world
+        - world*
+        - .DS_Store
+        - .cache
+        - cache
+        - '*.env'
+        - .rcon*
+        - eula.txt
+        - libraries
+        - versions
+        - plugins
 eula:
     accepted: true
     accepted_on: 2025-11-18T11:30:56.7344+01:00
-git:
-    branch: "master"
-    enabled: true
-    local_path: "/tmp/spoutmc-git"
-    poll_interval: 30s
-    repository: "https://github.com/0x49b/spoutmc-config.git"
-    token: "${SPOUTMC_GIT_TOKEN}"
-    webhook_secret: "${SPOUTMC_WEBHOOK_SECRET}"
-storage:
-    data_path: /Users/florianthievent/workspace/private/spoutmc/testservers/data
-
-# File browser configuration
-files:
-  exclude_patterns:
-    - "*.jar"         # Java archives (plugins, server jars)
-    - "world"
-    - "world*"
-    - ".DS_Store"
-    - ".cache"
-    - "cache"
-    - "*.env"
-    - ".rcon*"
-    - "eula.txt"
-    - "libraries"
-    - "versions"
-    - "plugins"
-
-# Versions that a Game/Lobby Server can be
-# Check out the full ist here https://fill.papermc.io/v3/projects/paper
 versions:
     - 1.21.10
     - 1.21.9
@@ -80,3 +75,77 @@ versions:
     - 1.10.2
     - 1.9.4
     - 1.8.8
+servers:
+    - name: PROXY
+      image: itzg/mc-proxy:latest
+      proxy: true
+      env:
+        JAVA_HOME: /opt/java/openjdk
+        JAVA_VERSION: jdk-21.0.9+10
+        LANG: en_US.UTF-8
+        LANGUAGE: en_US:en
+        LC_ALL: en_US.UTF-8
+        MEMORY: 512m
+        PATH: /opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        RCON_PORT: "25575"
+        TYPE: VELOCITY
+      ports:
+        - hostPort: "25565"
+          containerPort: "25565"
+      volumes:
+        - containerpath: /server
+    - name: lobbiii
+      image: itzg/minecraft-server:latest
+      lobby: true
+      env:
+        CFG_VELOCITY_ENABLED: "true"
+        CFG_VELOCITY_ONLINE_MODE: "true"
+        CFG_VELOCITY_SECRET: ciMjBnptosXcDDpIBuO+51yxkaXjrJalX3ktpnLycIQ=
+        CONSOLE: "FALSE"
+        ENV_VARIABLE_PREFIX: CFG_
+        EULA: "TRUE"
+        GID: "1000"
+        GUI: "FALSE"
+        JAVA_HOME: /opt/java/openjdk
+        JAVA_VERSION: jdk-21.0.8+9
+        LANG: en_US.UTF-8
+        LANGUAGE: en_US:en
+        LC_ALL: en_US.UTF-8
+        ONLINE_MODE: "FALSE"
+        PATH: /opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        REPLACE_ENV_VARIABLES: "TRUE"
+        TYPE: PAPER
+        UID: "1000"
+        VERSION: 1.21.1
+      ports:
+        - hostPort: "25566"
+          containerPort: "25565"
+      volumes:
+        - containerpath: /data
+    - name: skyblock
+      image: itzg/minecraft-server:latest
+      env:
+        CFG_VELOCITY_ENABLED: "true"
+        CFG_VELOCITY_ONLINE_MODE: "true"
+        CFG_VELOCITY_SECRET: ciMjBnptosXcDDpIBuO+51yxkaXjrJalX3ktpnLycIQ=
+        CONSOLE: "FALSE"
+        ENV_VARIABLE_PREFIX: CFG_
+        EULA: "TRUE"
+        GID: "1000"
+        GUI: "FALSE"
+        JAVA_HOME: /opt/java/openjdk
+        JAVA_VERSION: jdk-21.0.8+9
+        LANG: en_US.UTF-8
+        LANGUAGE: en_US:en
+        LC_ALL: en_US.UTF-8
+        ONLINE_MODE: "FALSE"
+        PATH: /opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        REPLACE_ENV_VARIABLES: "TRUE"
+        TYPE: PAPER
+        UID: "1000"
+        VERSION: 1.21.1
+      ports:
+        - hostPort: "25567"
+          containerPort: "25565"
+      volumes:
+        - containerpath: /data

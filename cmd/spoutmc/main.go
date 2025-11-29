@@ -247,7 +247,9 @@ func startNonProxyContainers() {
 	cfg := config.All()
 
 	if len(cfg.Servers) == 0 {
-		panic("spoutmc: no servers found in Configuration")
+		logger.Info("📭 No servers found in configuration - application will start without containers")
+		logger.Info("💡 You can add servers via the web UI or by updating your configuration")
+		return
 	}
 
 	// Get data path from configuration
@@ -267,7 +269,9 @@ func startNonProxyContainers() {
 		if err != nil {
 			if strings.Contains(err.Error(), "Cannot find container") {
 				logger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
-				docker.StartContainer(s, dataPath)
+				if err := docker.StartContainer(s, dataPath); err != nil {
+					logger.Error(fmt.Sprintf("❌ failed to start %s: %v", s.Name, err))
+				}
 				continue
 			}
 			logger.Error(fmt.Sprintf("❌ failed to start %s: %s", s.Name, err.Error()))
@@ -293,6 +297,11 @@ func startNonProxyContainers() {
 func startProxyContainer() {
 	cfg := config.All()
 
+	if len(cfg.Servers) == 0 {
+		logger.Info("📭 No servers configured - skipping proxy startup")
+		return
+	}
+
 	// Get data path from configuration
 	dataPath := ""
 	if cfg.Storage != nil {
@@ -310,7 +319,10 @@ func startProxyContainer() {
 		if err != nil {
 			if strings.Contains(err.Error(), "Cannot find container") {
 				logger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
-				docker.StartContainer(s, dataPath)
+				if err := docker.StartContainer(s, dataPath); err != nil {
+					logger.Error(fmt.Sprintf("❌ failed to start proxy %s: %v", s.Name, err))
+					return
+				}
 				return
 			}
 			logger.Error(fmt.Sprintf("❌ failed to start proxy %s: %s", s.Name, err.Error()))

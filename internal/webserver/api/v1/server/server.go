@@ -423,7 +423,12 @@ func addServerHandler(c echo.Context) error {
 	}
 
 	// Start the new container
-	docker.StartContainer(newServer, dataPath)
+	if err := docker.StartContainer(newServer, dataPath); err != nil {
+		logger.Error("Failed to start container", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("Failed to start container: %v", err),
+		})
+	}
 
 	// Update velocity.toml if this is not a proxy server
 	if !req.Proxy {
@@ -733,7 +738,12 @@ func updateServerHandler(c echo.Context) error {
 	}
 
 	// Start the updated container
-	docker.StartContainer(*serverConfig, dataPath)
+	if err := docker.StartContainer(*serverConfig, dataPath); err != nil {
+		logger.Error("Failed to start updated container", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("Failed to start container: %v", err),
+		})
+	}
 
 	return c.JSON(http.StatusOK, map[string]string{
 		"status":  "success",

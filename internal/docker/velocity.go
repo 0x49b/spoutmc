@@ -39,6 +39,11 @@ func CreateOrUpdateVelocityToml(cfg *models.SpoutConfiguration) error {
 		return nil
 	}
 
+	if cfg.Storage == nil {
+		velocityLogger.Warn("Storage configuration is nil, cannot create velocity.toml")
+		return fmt.Errorf("storage configuration is required for velocity.toml creation")
+	}
+
 	// Find proxy server
 	var proxyServer *models.SpoutServer
 	for i := range cfg.Servers {
