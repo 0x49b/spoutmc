@@ -45,13 +45,13 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server/:id/env", getServerEnvHandler)
 	g.PUT("/server/:id", updateServerHandler)
 	g.GET("/server/:id/stats", getServerStats)
-	g.GET("/versions", getVersions)
 	g.DELETE("/server/:id", deleteServerHandler)
 
 	// Server Actions
 	g.POST("/server/:id/start", startServerHandler)
 	g.POST("/server/:id/stop", stopServerHandler)
 	g.POST("/server/:id/restart", restartServerHandler)
+	g.POST("/server/:id/command", executeCommandHandler)
 
 	// Config Files
 	g.GET("/server/:id/config/files", listConfigFilesHandler)
@@ -251,28 +251,6 @@ func getServers(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, enrichedContainers)
-}
-
-// @Summary Get available Minecraft versions
-// @Description Returns a list of available Minecraft versions from configuration
-// @Tags server
-// @Produce json
-// @Success 200 {array} string
-// @Failure 500 {object} map[string]string
-// @Router /versions [get]
-func getVersions(c echo.Context) error {
-	lock.Lock()
-	defer lock.Unlock()
-
-	cfg := config.All()
-
-	// Return versions from configuration
-	versions := cfg.Versions
-	if versions == nil {
-		versions = []string{} // Return empty array if not configured
-	}
-
-	return c.JSON(http.StatusOK, versions)
 }
 
 // EnrichedContainer combines container summary with additional runtime info
@@ -535,6 +513,65 @@ func restartServerHandler(c echo.Context) error {
 		"status":  "success",
 		"message": "Container restarted successfully",
 		"id":      containerID,
+	})
+}
+
+// ExecuteCommandRequest represents the request body for executing a command
+type ExecuteCommandRequest struct {
+	Command string `json:"command" binding:"required"`
+}
+
+// @Summary Execute a command in a server container
+// @Description Executes a Minecraft console command in the server container
+// @Tags server
+// @Accept json
+// @Produce json
+// @Param id path string true "Container ID"
+// @Param command body ExecuteCommandRequest true "Command to execute"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /server/{id}/command [post]
+func executeCommandHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	var req ExecuteCommandRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+	}
+
+	if req.Command == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Command is required",
+		})
+	}
+
+	// Execute the command in the container
+	ctx := context.Background()
+	if err := docker.ExecuteCommand(ctx, containerID, req.Command); err != nil {
+		logger.Error("Failed to execute command",
+			zap.String("container", containerID[:12]),
+			zap.String("command", req.Command),
+			zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("Failed to execute command: %v", err),
+		})
+	}
+
+	logger.Info("Command executed successfully",
+		zap.String("container", containerID[:12]),
+		zap.String("command", req.Command))
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Command executed successfully",
 	})
 }
 

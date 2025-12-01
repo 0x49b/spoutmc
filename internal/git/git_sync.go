@@ -91,11 +91,10 @@ func LoadConfigurationFromGit() error {
 		return err
 	}
 
-	// Preserve Git config, versions, storage, and EULA from current local configuration
+	// Preserve Git config, storage, and EULA from current local configuration
 	// These should always come from local config/spoutmc.yaml
 	currentConfig := config.All()
 	newConfig.Git = currentConfig.Git
-	newConfig.Versions = currentConfig.Versions
 	newConfig.Storage = currentConfig.Storage
 	newConfig.EULA = currentConfig.EULA
 
@@ -103,8 +102,7 @@ func LoadConfigurationFromGit() error {
 	config.UpdateConfiguration(*newConfig)
 
 	logger.Info("Configuration loaded from Git",
-		zap.Int("servers", len(newConfig.Servers)),
-		zap.Int("versions", len(newConfig.Versions)))
+		zap.Int("servers", len(newConfig.Servers)))
 
 	return nil
 }

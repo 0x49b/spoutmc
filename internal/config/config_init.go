@@ -1,10 +1,7 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"spoutmc/internal/log"
@@ -15,13 +12,6 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
-
-// PaperMCVersionsResponse represents the response from PaperMC API
-type PaperMCVersionsResponse struct {
-	ProjectID   string   `json:"project_id"`
-	ProjectName string   `json:"project_name"`
-	Versions    []string `json:"versions"`
-}
 
 // EnsureConfigExists checks if config file exists, creates it if not
 // Returns error if file creation fails or EULA not accepted
@@ -42,15 +32,8 @@ func EnsureConfigExists() error {
 			return fmt.Errorf("failed to create config directory: %w", err)
 		}
 
-		// Fetch versions from PaperMC API
-		versions, err := fetchPaperMCVersions()
-		if err != nil {
-			logger.Warn("Failed to fetch PaperMC versions, using defaults", zap.Error(err))
-			versions = []string{"1.21.10"} // Fallback version
-		}
-
 		// Create default configuration
-		defaultConfig := createDefaultConfig(wd, versions)
+		defaultConfig := createDefaultConfig(wd)
 
 		// Write configuration to file with comments
 		if err := writeConfigWithComments(configPath, defaultConfig); err != nil {
@@ -70,7 +53,7 @@ func EnsureConfigExists() error {
 }
 
 // createDefaultConfig creates a default SpoutConfiguration
-func createDefaultConfig(workingDir string, versions []string) models.SpoutConfiguration {
+func createDefaultConfig(workingDir string) models.SpoutConfiguration {
 	serverDataPath := filepath.Join(workingDir, "server_data")
 
 	return models.SpoutConfiguration{
@@ -100,47 +83,8 @@ func createDefaultConfig(workingDir string, versions []string) models.SpoutConfi
 				"plugins",
 			},
 		},
-		Versions: versions,
-		Servers:  []models.SpoutServer{},
+		Servers: []models.SpoutServer{},
 	}
-}
-
-// fetchPaperMCVersions fetches available versions from PaperMC API
-func fetchPaperMCVersions() ([]string, error) {
-	logger := log.GetLogger()
-	url := "https://api.papermc.io/v2/projects/paper"
-
-	logger.Info("Fetching versions from PaperMC API", zap.String("url", url))
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch versions: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var versionResp PaperMCVersionsResponse
-	if err := json.Unmarshal(body, &versionResp); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
-	}
-
-	// Reverse the versions array so newest versions come first
-	versions := make([]string, len(versionResp.Versions))
-	for i, v := range versionResp.Versions {
-		versions[len(versions)-1-i] = v
-	}
-
-	logger.Info("Successfully fetched PaperMC versions", zap.Int("count", len(versions)))
-
-	return versions, nil
 }
 
 // writeConfigWithComments writes the configuration to a YAML file with comments
@@ -173,15 +117,6 @@ func writeConfigWithComments(path string, cfg models.SpoutConfiguration) error {
 	builder.WriteString("  exclude_patterns:\n")
 	for _, pattern := range cfg.Files.ExcludePatterns {
 		builder.WriteString(fmt.Sprintf("    - \"%s\"\n", pattern))
-	}
-	builder.WriteString("\n")
-
-	// Write Versions section
-	builder.WriteString("# Versions that a Game/Lobby Server can be\n")
-	builder.WriteString("# Check out the full list here https://api.papermc.io/v2/projects/paper\n")
-	builder.WriteString("versions:\n")
-	for _, version := range cfg.Versions {
-		builder.WriteString(fmt.Sprintf("  - \"%s\"\n", version))
 	}
 	builder.WriteString("\n")
 

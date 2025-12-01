@@ -25,8 +25,14 @@ func ExecCommand(ctx context.Context, containerId string, cmdChan <-chan string)
 					return
 				}
 
+				// Remove leading slash if present
+				cmdToExecute := cmd
+				if len(cmdToExecute) > 0 && cmdToExecute[0] == '/' {
+					cmdToExecute = cmdToExecute[1:]
+				}
+
 				execCreateResp, err := cli.ContainerExecCreate(ctx, containerId, container.ExecOptions{
-					Cmd:          []string{"mc-send-to-console", cmd},
+					Cmd:          []string{"rcon-cli", cmdToExecute},
 					AttachStdout: true,
 					AttachStderr: true,
 				})
@@ -59,4 +65,34 @@ func ExecCommand(ctx context.Context, containerId string, cmdChan <-chan string)
 	}()
 
 	return outputChan
+}
+
+// ExecuteCommand executes a single command in a container using rcon-cli
+// Commands can start with or without a leading slash (/)
+func ExecuteCommand(ctx context.Context, containerId string, command string) error {
+	// Remove leading slash if present (Minecraft commands can optionally start with /)
+	// rcon-cli doesn't require the slash
+	if len(command) > 0 && command[0] == '/' {
+		command = command[1:]
+	}
+
+	// Use rcon-cli which is enabled by default in itzg/minecraft-server
+	execCreateResp, err := cli.ContainerExecCreate(ctx, containerId, container.ExecOptions{
+		Cmd:          []string{"rcon-cli", command},
+		AttachStdout: false,
+		AttachStderr: false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create exec: %w", err)
+	}
+
+	// Start the exec without waiting for output
+	err = cli.ContainerExecStart(ctx, execCreateResp.ID, container.ExecStartOptions{
+		Detach: true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start exec: %w", err)
+	}
+
+	return nil
 }

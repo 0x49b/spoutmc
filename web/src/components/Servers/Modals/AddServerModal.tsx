@@ -21,7 +21,6 @@ import {
 } from '@patternfly/react-core';
 import {PlusIcon, ServerIcon, TimesIcon} from '@patternfly/react-icons';
 import {Server} from '../../../types';
-import * as api from '../../../service/apiService.ts';
 
 interface EnvVar {
     key: string;
@@ -109,13 +108,20 @@ const AddServerModal: React.FC<AddServerModalProps> = ({
     useEffect(() => {
         const fetchVersions = async () => {
             try {
-                const response = await api.getVersions();
-                setAvailableVersions(response.data);
-                if (response.data.length > 0) {
-                    setSelectedVersion(response.data[0]);
+                // Fetch versions directly from PaperMC API
+                const response = await fetch('https://api.papermc.io/v2/projects/paper');
+                const data = await response.json();
+
+                if (data.versions && Array.isArray(data.versions)) {
+                    // Reverse to show newest versions first
+                    const versions = [...data.versions].reverse();
+                    setAvailableVersions(versions);
+                    if (versions.length > 0) {
+                        setSelectedVersion(versions[0]);
+                    }
                 }
             } catch (error) {
-                console.error('Failed to fetch versions:', error);
+                console.error('Failed to fetch versions from PaperMC API:', error);
             }
         };
 

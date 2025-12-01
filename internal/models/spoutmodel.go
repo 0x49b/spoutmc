@@ -3,12 +3,11 @@ package models
 import "time"
 
 type SpoutConfiguration struct {
-	Git      *GitConfig     `json:"git,omitempty" yaml:"git,omitempty"`
-	Storage  *StorageConfig `json:"storage,omitempty" yaml:"storage,omitempty"`
-	Files    *FilesConfig   `json:"files,omitempty" yaml:"files,omitempty"`
-	EULA     *EULAConfig    `json:"eula,omitempty" yaml:"eula,omitempty"`
-	Versions []string       `json:"versions,omitempty" yaml:"versions,omitempty"`
-	Servers  []SpoutServer  `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Git     *GitConfig     `json:"git,omitempty" yaml:"git,omitempty"`
+	Storage *StorageConfig `json:"storage,omitempty" yaml:"storage,omitempty"`
+	Files   *FilesConfig   `json:"files,omitempty" yaml:"files,omitempty"`
+	EULA    *EULAConfig    `json:"eula,omitempty" yaml:"eula,omitempty"`
+	Servers []SpoutServer  `json:"servers,omitempty" yaml:"servers,omitempty"`
 }
 
 type GitConfig struct {

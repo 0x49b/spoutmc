@@ -22,7 +22,6 @@ export const getServerById = (id: string) => api.get(`/server/${id}`);
 export const startServer = (id: string) => api.post(`/server/${id}/start`);
 export const stopServer = (id: string) => api.post(`/server/${id}/stop`);
 export const restartServer = (id: string) => api.post(`/server/${id}/restart`);
-export const getVersions = () => api.get<string[]>('/versions');
 export const addServer = (serverData: {
   name: string;
   image: string;

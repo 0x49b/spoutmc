@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-var logger = log.GetLogger()
-
 type File struct {
 	ModifiedTime time.Time `json:"modifiedtime"`
 	IsLink       bool      `json:"islink"`
