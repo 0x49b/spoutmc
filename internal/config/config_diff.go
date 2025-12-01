@@ -110,7 +110,11 @@ func ApplyConfigChanges(oldConfig, newConfig models.SpoutConfiguration) {
 
 	if len(changeSet.Added) > 0 {
 		for _, added := range changeSet.Added {
-			docker.StartContainer(added, dataPath)
+			if err := docker.StartContainer(added, dataPath); err != nil {
+				logger.Error("failed to start added server",
+					zap.String("server", added.Name),
+					zap.Error(err))
+			}
 		}
 	}
 	if len(changeSet.Removed) > 0 {

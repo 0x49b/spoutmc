@@ -200,7 +200,11 @@ func (w *Watchdog) createMissingServer(server models.SpoutServer, dataPath strin
 	w.logger.Info("🐺 creating missing server", zap.String("server", server.Name))
 
 	// Use docker.StartContainer which handles creation if container doesn't exist
-	docker.StartContainer(server, dataPath)
+	if err := docker.StartContainer(server, dataPath); err != nil {
+		w.logger.Error("🐺 failed to create missing server",
+			zap.String("server", server.Name),
+			zap.Error(err))
+	}
 }
 
 func (w *Watchdog) startContainer(ctx context.Context, containerID, containerName string) {

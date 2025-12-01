@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/go-connections/nat"
 	"go.uber.org/zap"
 )
 
@@ -133,7 +134,7 @@ func getHostNetworkId() (network.Inspect, error) {
 	return network.Inspect{}, nil
 }
 
-func StartContainer(s models.SpoutServer, dataPath string) {
+func StartContainer(s models.SpoutServer, dataPath string) error {
 
 	// Check if image exists, if not pull it
 	_, err := cli.ImageInspect(context.Background(), s.Image)
@@ -142,12 +143,19 @@ func StartContainer(s models.SpoutServer, dataPath string) {
 		PullImage(s.Image)
 	}
 
+	// Pre-create volume directories with proper user ownership
+	// This prevents Docker from creating them as root on Linux
+	if err := ensureVolumeDirectoriesExist(s.Volumes, dataPath, s.Name); err != nil {
+		logger.Error("Failed to create volume directories", zap.Error(err))
+		return fmt.Errorf("failed to create volume directories: %w", err)
+	}
+
 	if !containerExists(s.Name) {
 		logger.Info(fmt.Sprintf("Creating container %s", s.Name))
-		//exposedPorts, containerPortBinding := nat.PortSet{}, nat.PortMap{}
-		//if s.Proxy {
-		exposedPorts, containerPortBinding := MapExposedPorts(s.Ports)
-		//}
+		exposedPorts, containerPortBinding := nat.PortSet{}, nat.PortMap{}
+		if s.Proxy {
+			exposedPorts, containerPortBinding = MapExposedPorts(s.Ports)
+		}
 
 		spoutNetwork := GetSpoutNetwork()
 		hostNetwork, err := getHostNetworkId()
@@ -180,7 +188,16 @@ func StartContainer(s models.SpoutServer, dataPath string) {
 		// For proxy servers, mount the forwarding.secret file
 		// The itzg/mc-proxy image copies files from /config to /server on startup
 		if s.Proxy {
+			// Ensure the forwarding.secret file exists BEFORE mounting it
+			// If we try to mount a non-existent file, Docker creates it as a directory
 			secretSourcePath := filepath.Join(dataPath, s.Name, "server", "forwarding.secret")
+			if err := ensureForwardingSecret(secretSourcePath); err != nil {
+				logger.Warn("Failed to create forwarding.secret file before mounting",
+					zap.Error(err),
+					zap.String("path", secretSourcePath))
+				// Continue anyway - the file might be created by velocity.toml sync
+			}
+
 			secretTargetPath := "/config/forwarding.secret"
 			binds = append(binds, fmt.Sprintf("%s:%s:ro", secretSourcePath, secretTargetPath))
 			logger.Info("Mounting Velocity forwarding secret",
@@ -205,14 +222,14 @@ func StartContainer(s models.SpoutServer, dataPath string) {
 			nil, s.Name)
 		if err != nil {
 			logger.Error("Error creating container", zap.Error(err))
-			panic(err)
+			return fmt.Errorf("failed to create container: %w", err)
 		}
 
 		statusCh, errCh := cli.ContainerWait(ctx, spoutContainer.ID, container.WaitConditionNotRunning)
 		select {
 		case err := <-errCh:
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("container wait error: %w", err)
 			}
 		case <-statusCh:
 			logger.Info(fmt.Sprintf("container %s created", s.Name))
@@ -220,11 +237,13 @@ func StartContainer(s models.SpoutServer, dataPath string) {
 
 		if err := cli.ContainerStart(ctx, spoutContainer.ID, container.StartOptions{}); err != nil {
 			logger.Error("Cannot start container", zap.Error(err))
+			return fmt.Errorf("failed to start container: %w", err)
 		}
 	} else {
 		startContainer, err := GetContainer(s.Name)
 		if err != nil {
 			logger.Error(err.Error())
+			return fmt.Errorf("failed to get container: %w", err)
 		}
 
 		if startContainer.State == "exited" {
@@ -232,16 +251,19 @@ func StartContainer(s models.SpoutServer, dataPath string) {
 			logger.Info(fmt.Sprintf("⛏️ start container %s", s.Name))
 			if err != nil {
 				logger.Error(err.Error())
+				return fmt.Errorf("failed to start existing container: %w", err)
 			}
 		} else {
 			err := cli.ContainerRestart(ctx, startContainer.ID, container.StopOptions{})
 			logger.Info(fmt.Sprintf("⛏️ restart container %s", s.Name))
 			if err != nil {
 				logger.Error(err.Error())
+				return fmt.Errorf("failed to restart container: %w", err)
 			}
 		}
 	}
 
+	return nil
 }
 
 func ShutdownContainers() error {
@@ -449,6 +471,12 @@ func CreateInfrastructureContainer(s models.SpoutServer, dataPath string) (strin
 		}
 		logger.Info("Infrastructure container already exists", zap.String("name", s.Name))
 		return existingContainer.ID, nil
+	}
+
+	// Pre-create volume directories with proper user ownership
+	// This prevents Docker from creating them as root on Linux
+	if err := ensureVolumeDirectoriesExist(s.Volumes, dataPath, s.Name); err != nil {
+		return "", fmt.Errorf("failed to create volume directories: %w", err)
 	}
 
 	// Map exposed ports and port bindings
