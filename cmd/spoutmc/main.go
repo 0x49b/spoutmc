@@ -162,11 +162,9 @@ func main() {
 
 	shutdownOps := map[string]operation{
 		"fileWatcher": func(ctx context.Context) error {
-			logger.Info(fmt.Sprintf("📁 fileWatcher will stop via context cancel"))
 			return nil
 		},
 		"watchdog": func(ctx context.Context) error {
-			logger.Info(fmt.Sprintf("🐺 watchdog will stop via context cancel"))
 			return nil
 		},
 		"containers": func(ctx context.Context) error {
