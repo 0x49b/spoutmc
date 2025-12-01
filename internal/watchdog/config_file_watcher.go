@@ -10,23 +10,23 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleWatchdog)
 
 func StartFileWatcher() {
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		logger.Error("📁 error creating file watcher", zap.Error(err))
+		logger.Error("error creating file watcher", zap.Error(err))
 		return
 	}
 	defer func(watcher *fsnotify.Watcher) {
 		err := watcher.Close()
 		if err != nil {
-			logger.Error("📁 error closing file watcher", zap.Error(err))
+			logger.Error("error closing file watcher", zap.Error(err))
 		}
 	}(watcher)
 
-	logger.Info("📁 fileWatcher started")
+	logger.Info("fileWatcher started")
 
 	go func() {
 		for {

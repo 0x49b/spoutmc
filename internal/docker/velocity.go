@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var velocityLogger = log.GetLogger()
+var velocityLogger = log.GetLogger(log.ModuleDocker)
 
 // Global Velocity secret management
 var (

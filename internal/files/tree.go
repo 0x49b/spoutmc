@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleFiles)
 
 // FileNode represents a file or directory in the file tree
 type FileNode struct {

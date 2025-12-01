@@ -13,7 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleServerCfg)
 
 // AddServerToGit adds a new server configuration to the git repository
 func AddServerToGit(server models.SpoutServer) error {

@@ -22,6 +22,50 @@ const (
 	ERROR LogType = "error"
 )
 
+// Module represents a component/package of the application
+type Module string
+
+const (
+	ModuleMain           Module = "main"
+	ModuleDocker         Module = "docker"
+	ModuleWatchdog       Module = "watchdog"
+	ModuleWebserver      Module = "webserver"
+	ModuleGit            Module = "git"
+	ModuleConfig         Module = "config"
+	ModuleInfrastructure Module = "infrastructure"
+	ModuleServer         Module = "server"
+	ModuleContainer      Module = "container"
+	ModuleFiles          Module = "files"
+	ModuleStorage        Module = "storage"
+	ModuleAPI            Module = "api"
+	ModuleSetup          Module = "setup"
+	ModuleUser           Module = "user"
+	ModuleHost           Module = "host"
+	ModuleServerCfg      Module = "servercfg"
+	ModuleUnknown        Module = "unknown"
+)
+
+// moduleEmojis maps each module to its emoji prefix
+var moduleEmojis = map[Module]string{
+	ModuleMain:           "⚔️",
+	ModuleDocker:         "🐳",
+	ModuleWatchdog:       "🐺",
+	ModuleWebserver:      "🤵🏻‍♂️",
+	ModuleGit:            "🗄️",
+	ModuleConfig:         "⚙️",
+	ModuleInfrastructure: "🏗️",
+	ModuleServer:         "🎮",
+	ModuleContainer:      "📦",
+	ModuleFiles:          "📁",
+	ModuleStorage:        "💾",
+	ModuleAPI:            "🔌",
+	ModuleSetup:          "🔧",
+	ModuleUser:           "👤",
+	ModuleHost:           "🖥️",
+	ModuleServerCfg:      "📝",
+	ModuleUnknown:        "❓",
+}
+
 var (
 	globalLogger *zap.Logger
 	zapLevel     zap.AtomicLevel
@@ -29,20 +73,77 @@ var (
 	initOnce     sync.Once
 )
 
+// ModuleLogger wraps zap.Logger with module-specific emoji prefix
+type ModuleLogger struct {
+	*zap.Logger
+	module Module
+	emoji  string
+}
+
 // ------------------------
 // Logger Getters
 // ------------------------
 
-func GetLogger() *zap.Logger {
-
+// GetLogger returns a logger for the specified module with automatic emoji prefix
+func GetLogger(module Module) *ModuleLogger {
 	initOnce.Do(func() {
 		globalLogger = CreateLogger()
 	})
-	return globalLogger
+
+	emoji, exists := moduleEmojis[module]
+	if !exists {
+		emoji = moduleEmojis[ModuleUnknown]
+	}
+
+	return &ModuleLogger{
+		Logger: globalLogger,
+		module: module,
+		emoji:  emoji,
+	}
 }
 
+// GetSLogger returns a structured logger
 func GetSLogger() *slog.Logger {
-	return slog.New(slogzap.Option{Level: slogLevel, Logger: GetLogger()}.NewZapHandler())
+	return slog.New(slogzap.Option{Level: slogLevel, Logger: globalLogger}.NewZapHandler())
+}
+
+// ------------------------
+// ModuleLogger Methods with Emoji Prefix
+// ------------------------
+
+func (ml *ModuleLogger) Info(msg string, fields ...zap.Field) {
+	ml.Logger.Info(fmt.Sprintf("%s %s", ml.emoji, msg), fields...)
+}
+
+func (ml *ModuleLogger) Debug(msg string, fields ...zap.Field) {
+	ml.Logger.Debug(fmt.Sprintf("%s %s", ml.emoji, msg), fields...)
+}
+
+func (ml *ModuleLogger) Warn(msg string, fields ...zap.Field) {
+	ml.Logger.Warn(fmt.Sprintf("%s %s", ml.emoji, msg), fields...)
+}
+
+func (ml *ModuleLogger) Error(msg string, fields ...zap.Field) {
+	ml.Logger.Error(fmt.Sprintf("%s %s", ml.emoji, msg), fields...)
+}
+
+func (ml *ModuleLogger) Fatal(msg string, fields ...zap.Field) {
+	ml.Logger.Fatal(fmt.Sprintf("%s %s", ml.emoji, msg), fields...)
+}
+
+// GetEmoji returns the emoji for this module logger
+func (ml *ModuleLogger) GetEmoji() string {
+	return ml.emoji
+}
+
+// GetModule returns the module for this logger
+func (ml *ModuleLogger) GetModule() Module {
+	return ml.module
+}
+
+// GetZapLogger returns the underlying zap.Logger (useful for passing to functions that expect *zap.Logger)
+func (ml *ModuleLogger) GetZapLogger() *zap.Logger {
+	return ml.Logger
 }
 
 // ------------------------
@@ -89,7 +190,7 @@ func SetLogLevel(level LogType) {
 	if zapLevel.Enabled(zLevel) || !zapLevel.Enabled(zLevel) {
 		zapLevel.SetLevel(zLevel)
 	}
-	GetLogger().Info("Log level changed", zap.String("new_level", string(level)))
+	globalLogger.Info("⚙️ Log level changed", zap.String("new_level", string(level)))
 }
 
 func getLogLevel(level LogType) (zapcore.Level, slog.Level) {
@@ -114,7 +215,8 @@ func getLogLevel(level LogType) (zapcore.Level, slog.Level) {
 func HandleError(err error) (b bool) {
 	if err != nil {
 		_, filename, line, _ := runtime.Caller(1)
-		GetLogger().Error(fmt.Sprintf("⛔ %s:%d: %s", filename, line, err.Error()))
+		// Use globalLogger directly for generic error handling
+		globalLogger.Error(fmt.Sprintf("⛔ %s:%d: %s", filename, line, err.Error()))
 		b = true
 	}
 	return

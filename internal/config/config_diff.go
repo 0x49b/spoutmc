@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleConfig)
 
 type ServerChange struct {
 	Key    string

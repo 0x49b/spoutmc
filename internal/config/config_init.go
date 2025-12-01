@@ -16,7 +16,7 @@ import (
 // EnsureConfigExists checks if config file exists, creates it if not
 // Returns error if file creation fails or EULA not accepted
 func EnsureConfigExists() error {
-	logger := log.GetLogger()
+	logger := log.GetLogger(log.ModuleConfig)
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
@@ -130,7 +130,7 @@ func writeConfigWithComments(path string, cfg models.SpoutConfiguration) error {
 
 // checkEULAStatus checks if EULA is accepted and updates timestamp if needed
 func checkEULAStatus(configPath string) error {
-	logger := log.GetLogger()
+	logger := log.GetLogger(log.ModuleConfig)
 
 	// Read current config
 	data, err := os.ReadFile(configPath)

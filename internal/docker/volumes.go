@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var volumeLogger = log.GetLogger()
+var volumeLogger = log.GetLogger(log.ModuleDocker)
 
 // getCurrentUser returns the UID and GID of the current user
 func getCurrentUser() (int, int, error) {

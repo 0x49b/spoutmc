@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleWebserver)
 
 // serveEmbeddedFiles serves embedded frontend files with SPA fallback
 func serveEmbeddedFiles(fsys fs.FS) echo.HandlerFunc {
@@ -98,7 +98,7 @@ func Start() (*echo.Echo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("❌ failed to bind to port: %w", err)
 	}
-	logger.Info("🤵🏻‍♂️ webserver started on http://localhost:3000")
+	logger.Info("webserver started on http://localhost:3000")
 
 	go func() {
 		if err := e.Server.Serve(ln); err != nil && err != http.ErrServerClosed {
@@ -120,9 +120,9 @@ func Start() (*echo.Echo, error) {
 	defer cancel()
 
 	if err := e.Shutdown(ctx); err != nil {
-		logger.Error("🤵🏻‍♂️ Error during webserver shutdown", zap.Error(err))
+		logger.Error("Error during webserver shutdown", zap.Error(err))
 	} else {
-		logger.Info("🤵🏻‍♂️ Webserver shutdown complete")
+		logger.Info("Webserver shutdown complete")
 	}
 
 	return e, nil

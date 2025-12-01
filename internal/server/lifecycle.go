@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleServer)
 
 // DetermineServerType determines the server type based on container labels
 // Returns "proxy", "lobby", or "game"

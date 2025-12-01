@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleContainer)
 
 // StartContainer starts a container and includes it in watchdog monitoring
 func StartContainer(containerID string) error {

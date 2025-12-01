@@ -1,41 +1,55 @@
-eula:
-  accepted: true
-  accepted_on: 2025-11-18T11:30:56.7344+01:00
 git:
-  branch: "master"
-  enabled: false
-  local_path: "/tmp/spoutmc-git"
-  poll_interval: 30s
-  repository: "https://github.com/0x49b/spoutmc-config.git"
-  token: "${SPOUTMC_GIT_TOKEN}"
-  webhook_secret: "${SPOUTMC_WEBHOOK_SECRET}"
+    enabled: false
+    repository: https://github.com/0x49b/spoutmc-config.git
+    branch: master
+    token: ${SPOUTMC_GIT_TOKEN}
+    poll_interval: 30s
+    webhook_secret: ${SPOUTMC_WEBHOOK_SECRET}
+    local_path: /tmp/spoutmc-git
 storage:
-  data_path: /Users/florianthievent/workspace/private/spoutmc/testservers/data
-
-# File browser configuration
+    data_path: /Users/florianthievent/workspace/private/spoutmc/testservers/data
 files:
-  exclude_patterns:
-    - "*.jar"         # Java archives (plugins, server jars)
-    - "world"
-    - "world*"
-    - ".DS_Store"
-    - ".cache"
-    - "cache"
-    - "*.env"
-    - ".rcon*"
-    - "eula.txt"
-    - "libraries"
-    - "versions"
-    - "plugins"
-
-infrastructure:
-  - name: database
-    image: mariadb:latest
-    restart: always
-    volumes:
-      - ./backup:/backup
-    env:
-      MARIADB_ROOT_PASSWORD: changeme
-      MARIADB_PASSWORD: changeme
-      MARIADB_USER: spoutmc
-      MARIADB_DATABASE: spoutmc
+    exclude_patterns:
+        - '*.jar'
+        - world
+        - world*
+        - .DS_Store
+        - .cache
+        - cache
+        - '*.env'
+        - .rcon*
+        - eula.txt
+        - libraries
+        - versions
+        - plugins
+eula:
+    accepted: true
+    accepted_on: 2025-11-18T11:30:56.7344+01:00
+servers:
+    - name: ProxyServer
+      image: itzg/mc-proxy:latest
+      proxy: true
+      env:
+        TYPE: VELOCITY
+      ports:
+        - hostPort: "25565"
+          containerPort: "25565"
+      volumes:
+        - containerpath: /server
+    - name: LobbyServer
+      image: itzg/minecraft-server:latest
+      lobby: true
+      env:
+        CFG_VELOCITY_ENABLED: "true"
+        CFG_VELOCITY_ONLINE_MODE: "true"
+        CFG_VELOCITY_SECRET: cKAwRCQPcb8KOBtEkqa6bO2OsDnzATyh1fW9EC4ZfJI=
+        CONSOLE: "FALSE"
+        ENV_VARIABLE_PREFIX: CFG_
+        EULA: "TRUE"
+        GUI: "FALSE"
+        ONLINE_MODE: "FALSE"
+        REPLACE_ENV_VARIABLES: "TRUE"
+        TYPE: PAPER
+        VERSION: 1.21.10
+      volumes:
+        - containerpath: /data

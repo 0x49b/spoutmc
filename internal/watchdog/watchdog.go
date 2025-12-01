@@ -16,7 +16,7 @@ import (
 
 type Watchdog struct {
 	cli          *client.Client
-	logger       *zap.Logger
+	logger       *log.ModuleLogger
 	excluded     map[string]struct{}
 	pollInterval time.Duration
 }
@@ -26,7 +26,7 @@ func NewWatchdog(pollInterval time.Duration) (*Watchdog, error) {
 
 	return &Watchdog{
 		cli:          cli,
-		logger:       log.GetLogger(),
+		logger:       log.GetLogger(log.ModuleWatchdog),
 		excluded:     make(map[string]struct{}),
 		pollInterval: pollInterval,
 	}, nil
@@ -34,24 +34,24 @@ func NewWatchdog(pollInterval time.Duration) (*Watchdog, error) {
 
 func (w *Watchdog) Exclude(containerID string) {
 	w.excluded[containerID] = struct{}{}
-	w.logger.Debug("🐺 excluded container", zap.String("containerID", containerID))
+	w.logger.Debug("excluded container", zap.String("containerID", containerID))
 }
 
 func (w *Watchdog) Include(containerID string) {
 	delete(w.excluded, containerID)
-	w.logger.Debug("🐺 included container", zap.String("containerID", containerID))
+	w.logger.Debug("included container", zap.String("containerID", containerID))
 }
 
 func (w *Watchdog) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.pollInterval)
 	defer ticker.Stop()
 
-	w.logger.Info("🐺 watchdog started")
+	w.logger.Info("watchdog started")
 
 	for {
 		select {
 		case <-ctx.Done():
-			w.logger.Info("🐺 watchdog shutting down")
+			w.logger.Info("watchdog shutting down")
 			return
 		case <-ticker.C:
 			w.checkContainers(ctx)
@@ -97,14 +97,14 @@ func (w *Watchdog) ensurePaperVelocityConfig(ctx context.Context) {
 
 	// Check and configure all Paper servers
 	if err := docker.CheckAndConfigurePaperServers(dataPath, velocitySecret); err != nil {
-		w.logger.Debug("🐺 error configuring Paper servers for Velocity", zap.Error(err))
+		w.logger.Debug("error configuring Paper servers for Velocity", zap.Error(err))
 	}
 }
 
 func (w *Watchdog) checkExistingContainers(ctx context.Context) {
 	containers, err := docker.GetNetworkContainers()
 	if err != nil {
-		w.logger.Error("🐺 error getting network containers", zap.Error(err))
+		w.logger.Error("error getting network containers", zap.Error(err))
 		return
 	}
 
@@ -115,7 +115,7 @@ func (w *Watchdog) checkExistingContainers(ctx context.Context) {
 
 		info, err := w.cli.ContainerInspect(ctx, c.ID)
 		if err != nil {
-			w.logger.Error("🐺 error inspecting container", zap.String("id", c.ID), zap.Error(err))
+			w.logger.Error("error inspecting container", zap.String("id", c.ID), zap.Error(err))
 			continue
 		}
 
@@ -125,7 +125,7 @@ func (w *Watchdog) checkExistingContainers(ctx context.Context) {
 			healthStatus = info.State.Health.Status
 		}
 
-		w.logger.Debug("🐺 container status",
+		w.logger.Debug("container status",
 			zap.String("hostname", info.Config.Hostname),
 			zap.String("status", status),
 			zap.String("health", healthStatus),
@@ -133,7 +133,7 @@ func (w *Watchdog) checkExistingContainers(ctx context.Context) {
 
 		// Restart if container is stopped or dead
 		if status == "exited" || status == "dead" {
-			w.logger.Warn("🐺 container is stopped, restarting",
+			w.logger.Warn("container is stopped, restarting",
 				zap.String("hostname", info.Config.Hostname),
 				zap.String("status", status),
 			)
@@ -143,7 +143,7 @@ func (w *Watchdog) checkExistingContainers(ctx context.Context) {
 
 		// Restart if container is unhealthy
 		if healthStatus == "unhealthy" {
-			w.logger.Warn("🐺 container is unhealthy, restarting",
+			w.logger.Warn("container is unhealthy, restarting",
 				zap.String("hostname", info.Config.Hostname),
 				zap.String("health", healthStatus),
 			)
@@ -168,7 +168,7 @@ func (w *Watchdog) checkMissingServers(ctx context.Context) {
 	// Get list of running containers
 	containers, err := docker.GetNetworkContainers()
 	if err != nil {
-		w.logger.Error("🐺 error getting network containers", zap.Error(err))
+		w.logger.Error("error getting network containers", zap.Error(err))
 		return
 	}
 
@@ -188,7 +188,7 @@ func (w *Watchdog) checkMissingServers(ctx context.Context) {
 	// Check each configured server
 	for _, server := range cfg.Servers {
 		if !runningContainers[server.Name] {
-			w.logger.Warn("🐺 server defined in config but not running, creating",
+			w.logger.Warn("server defined in config but not running, creating",
 				zap.String("server", server.Name),
 			)
 			w.createMissingServer(server, dataPath)
@@ -197,33 +197,33 @@ func (w *Watchdog) checkMissingServers(ctx context.Context) {
 }
 
 func (w *Watchdog) createMissingServer(server models.SpoutServer, dataPath string) {
-	w.logger.Info("🐺 creating missing server", zap.String("server", server.Name))
+	w.logger.Info("creating missing server", zap.String("server", server.Name))
 
 	// Use docker.StartContainer which handles creation if container doesn't exist
 	if err := docker.StartContainer(server, dataPath); err != nil {
-		w.logger.Error("🐺 failed to create missing server",
+		w.logger.Error("failed to create missing server",
 			zap.String("server", server.Name),
 			zap.Error(err))
 	}
 }
 
 func (w *Watchdog) startContainer(ctx context.Context, containerID, containerName string) {
-	w.logger.Info("🐺 starting container", zap.String("container", containerName))
+	w.logger.Info("starting container", zap.String("container", containerName))
 	err := w.cli.ContainerStart(ctx, containerID, container.StartOptions{})
 	if err != nil {
-		w.logger.Error("🐺 failed to start container", zap.String("container", containerName), zap.Error(err))
+		w.logger.Error("failed to start container", zap.String("container", containerName), zap.Error(err))
 	} else {
-		w.logger.Info("🐺 container started", zap.String("container", containerName))
+		w.logger.Info("container started", zap.String("container", containerName))
 	}
 }
 
 func (w *Watchdog) restartContainer(ctx context.Context, containerID, containerName string) {
-	w.logger.Info("🐺 restarting container", zap.String("container", containerName))
+	w.logger.Info("restarting container", zap.String("container", containerName))
 	err := w.cli.ContainerRestart(ctx, containerID, container.StopOptions{})
 	if err != nil {
-		w.logger.Error("🐺 failed to restart container", zap.String("container", containerName), zap.Error(err))
+		w.logger.Error("failed to restart container", zap.String("container", containerName), zap.Error(err))
 	} else {
-		w.logger.Info("🐺 container restarted", zap.String("container", containerName))
+		w.logger.Info("container restarted", zap.String("container", containerName))
 	}
 }
 
@@ -231,7 +231,7 @@ func (w *Watchdog) checkInfrastructureContainers(ctx context.Context) {
 	// Get all infrastructure containers
 	containers, err := docker.GetInfrastructureContainers()
 	if err != nil {
-		w.logger.Error("🐺 error getting infrastructure containers", zap.Error(err))
+		w.logger.Error("error getting infrastructure containers", zap.Error(err))
 		return
 	}
 
@@ -243,7 +243,7 @@ func (w *Watchdog) checkInfrastructureContainers(ctx context.Context) {
 
 		info, err := w.cli.ContainerInspect(ctx, c.ID)
 		if err != nil {
-			w.logger.Error("🐺 error inspecting infrastructure container", zap.String("id", c.ID), zap.Error(err))
+			w.logger.Error("error inspecting infrastructure container", zap.String("id", c.ID), zap.Error(err))
 			continue
 		}
 
@@ -253,7 +253,7 @@ func (w *Watchdog) checkInfrastructureContainers(ctx context.Context) {
 			healthStatus = info.State.Health.Status
 		}
 
-		w.logger.Debug("🐺 infrastructure container status",
+		w.logger.Debug("infrastructure container status",
 			zap.String("hostname", info.Config.Hostname),
 			zap.String("status", status),
 			zap.String("health", healthStatus),
@@ -261,7 +261,7 @@ func (w *Watchdog) checkInfrastructureContainers(ctx context.Context) {
 
 		// Restart if container is stopped or dead
 		if status == "exited" || status == "dead" {
-			w.logger.Warn("🐺 infrastructure container is stopped, restarting",
+			w.logger.Warn("infrastructure container is stopped, restarting",
 				zap.String("hostname", info.Config.Hostname),
 				zap.String("status", status),
 			)
@@ -271,7 +271,7 @@ func (w *Watchdog) checkInfrastructureContainers(ctx context.Context) {
 
 		// Restart if container is unhealthy
 		if healthStatus == "unhealthy" {
-			w.logger.Warn("🐺 infrastructure container is unhealthy, restarting",
+			w.logger.Warn("infrastructure container is unhealthy, restarting",
 				zap.String("hostname", info.Config.Hostname),
 				zap.String("health", healthStatus),
 			)

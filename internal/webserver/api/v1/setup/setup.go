@@ -17,7 +17,7 @@ import (
 )
 
 var lock = sync.Mutex{}
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleSetup)
 
 // RegisterSetupRoutes registers setup-related API endpoints.
 func RegisterSetupRoutes(g *echo.Group) {

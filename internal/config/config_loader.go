@@ -121,8 +121,8 @@ func EnsureVelocityEnvVars(velocitySecret string) bool {
 
 		if serverUpdated {
 			updated = true
-			logger := log.GetLogger()
-			logger.Info("✅ Injected Velocity forwarding env vars",
+			logger := log.GetLogger(log.ModuleConfig)
+			logger.Info("Injected Velocity forwarding env vars",
 				zap.String("server", server.Name),
 				zap.Bool("lobby", server.Lobby))
 		}

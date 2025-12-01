@@ -16,11 +16,11 @@ type InfrastructureConfig struct {
 
 // LoadInfrastructureFromLocalConfig loads infrastructure configuration from local config file
 func LoadInfrastructureFromLocalConfig(configPath string, logger *zap.Logger) ([]InfrastructureContainer, error) {
-	logger.Info("🏗️ Loading infrastructure from local config", zap.String("path", configPath))
+	logger.Info("Loading infrastructure from local config", zap.String("path", configPath))
 
 	// Check if config file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		logger.Info("🏗️ Infrastructure config file not found, skipping", zap.String("path", configPath))
+		logger.Info("Infrastructure config file not found, skipping", zap.String("path", configPath))
 		return []InfrastructureContainer{}, nil
 	}
 
@@ -46,7 +46,7 @@ func LoadInfrastructureFromLocalConfig(configPath string, logger *zap.Logger) ([
 		}
 	}
 
-	logger.Info("🏗️ Loaded infrastructure containers from local config", zap.Int("count", len(config.Infrastructure)))
+	logger.Info("Loaded infrastructure containers from local config", zap.Int("count", len(config.Infrastructure)))
 	return config.Infrastructure, nil
 }
 

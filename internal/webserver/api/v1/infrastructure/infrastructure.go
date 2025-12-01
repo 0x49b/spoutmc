@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	logger = log.GetLogger()
+	logger = log.GetLogger(log.ModuleInfrastructure)
 	lock   sync.Mutex
 )
 

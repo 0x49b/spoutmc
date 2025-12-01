@@ -12,22 +12,22 @@ import (
 )
 
 var db *gorm.DB
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleStorage)
 
 func InitDB() error {
 	var err error
 	if err = godotenv.Load(); err != nil {
-		return fmt.Errorf("💾 failed to load .env file: %w", err)
+		return fmt.Errorf("failed to load .env file: %w", err)
 	}
 
 	dbPath := os.Getenv("SQLITE_DB_PATH")
 	if dbPath == "" {
-		return fmt.Errorf("💾 SQLITE_DB_PATH not set in .env file")
+		return fmt.Errorf("SQLITE_DB_PATH not set in .env file")
 	}
 
 	db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
-		return fmt.Errorf("💾 failed to connect to SQLite database: %w", err)
+		return fmt.Errorf("failed to connect to SQLite database: %w", err)
 	}
 
 	logger.Info("💾 Successfully connected to SQLite database")

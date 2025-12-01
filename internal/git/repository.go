@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleGit)
 
 // Repository manages a Git repository for configuration
 type Repository struct {

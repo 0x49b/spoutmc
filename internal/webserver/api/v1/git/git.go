@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleGit)
 
 // RegisterGitRoutes registers Git-related API routes
 func RegisterGitRoutes(g *echo.Group) {

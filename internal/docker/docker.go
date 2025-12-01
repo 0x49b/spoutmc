@@ -23,7 +23,7 @@ import (
 
 // ALways run Docker commands in Background Context
 var ctx = context.Background()
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleDocker)
 
 func PullImage(imageName string) {
 

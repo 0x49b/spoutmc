@@ -27,7 +27,7 @@ import (
 )
 
 var lock = sync.Mutex{}
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleAPI)
 
 // RegisterServerRoutes registers container/server-related API endpoints.
 //

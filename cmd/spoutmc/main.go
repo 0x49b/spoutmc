@@ -11,7 +11,6 @@ import (
 	"spoutmc/internal/global"
 	"spoutmc/internal/infrastructure"
 	"spoutmc/internal/log"
-	"spoutmc/internal/storage"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
 	"strings"
@@ -22,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger()
+var logger = log.GetLogger(log.ModuleMain)
 var c *echo.Echo
 var wd *watchdog.Watchdog
 
@@ -31,14 +30,7 @@ type operation func(ctx context.Context) error
 func main() {
 	printBanner()
 
-	// Ensure config exists and EULA is accepted
-	if err := config.EnsureConfigExists(); err != nil {
-		log.HandleError(err)
-		os.Exit(1)
-	}
-
-	err := config.ReadConfiguration()
-	if err != nil {
+	if err := initializeConfiguration(); err != nil {
 		log.HandleError(err)
 		os.Exit(1)
 	}
@@ -46,97 +38,79 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	startupOps := map[string]operation{
-		"gitSync": func(ctx context.Context) error {
-			// Only initialize if GitOps is enabled
-			if config.IsGitOpsEnabled() {
-				logger.Info("🗄️ GitOps is enabled, initializing Git sync")
-				if err := git.InitializeGitOps(); err != nil {
-					return fmt.Errorf("🗄️ failed to initialize GitOps: %w", err)
-				}
-				// Start Git poller in background
-				go git.StartGitPoller(ctx)
-			} else {
-				logger.Info("🗄️ GitOps is disabled, skipping Git sync")
-			}
-			return nil
-		},
-		"velocityEnvVars": func(ctx context.Context) error {
-			// Auto-inject Velocity forwarding environment variables to backend servers
-			logger.Info("🔐 Checking Velocity environment variables for backend servers")
-
-			// Get or generate Velocity secret
-			cfg := config.All()
-			dataPath := ""
-			proxyName := ""
-
-			if cfg.Storage != nil {
-				dataPath = cfg.Storage.DataPath
-			}
-
-			// Find proxy server
-			for i := range cfg.Servers {
-				if cfg.Servers[i].Proxy {
-					proxyName = cfg.Servers[i].Name
-					break
-				}
-			}
-
-			velocitySecret := docker.GetOrGenerateVelocitySecret(dataPath, proxyName)
-
-			// Inject missing env vars
-			updated := config.EnsureVelocityEnvVars(velocitySecret)
-
-			if updated {
-				logger.Info("✅ Velocity env vars injected - backend servers will be recreated with new configuration")
-			} else {
-				logger.Info("✓ All backend servers already have Velocity env vars")
-			}
-
-			return nil
-		},
-		"spoutmc": func(ctx context.Context) error {
-			err = startSpoutMC()
-			return err
-		},
-		"webserver": func(ctx context.Context) error {
-			c, err = webserver.Start()
-			return err
-		},
-		"database": func(ctx context.Context) error {
-			err = storage.InitDB()
-			return err
-		},
-		"watchdog": func(ctx context.Context) error {
-			wd, err = watchdog.NewWatchdog(15 * time.Second)
-			if err != nil {
-				log.HandleError(fmt.Errorf("failed to create watchdog: %w", err))
-				return err
-			}
-
-			global.Watchdog = wd
-
-			go wd.Start(ctx)
-			return nil
-		},
-		"fileWatcher": func(ctx context.Context) error {
-			// Only start file watcher if GitOps is disabled
-			if !config.IsGitOpsEnabled() {
-				go watchdog.StartFileWatcher()
-			} else {
-				logger.Info("GitOps is enabled, file watcher disabled")
-			}
-			return nil
-		},
-		"infrastructure": func(ctx context.Context) error {
-			// Initialize infrastructure containers (database, etc.)
-			logger.Info("🏗️ Initializing infrastructure containers")
-			return startInfrastructure()
-		},
+	if err := runStartupSequence(ctx); err != nil {
+		log.HandleError(err)
+		os.Exit(1)
 	}
 
-	startupOrder := []string{
-		//database
+	<-ctx.Done() // wait for shutdown signal
+	logger.Info("Shutdown signal received")
+
+	runShutdownSequence()
+}
+
+// initializeConfiguration ensures config exists and loads it
+func initializeConfiguration() error {
+	if err := config.EnsureConfigExists(); err != nil {
+		return err
+	}
+
+	if err := config.ReadConfiguration(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// runStartupSequence executes all startup operations in order
+func runStartupSequence(ctx context.Context) error {
+	startupOps := getStartupOperations()
+	startupOrder := getStartupOrder()
+
+	for _, key := range startupOrder {
+		logger.Info(fmt.Sprintf("starting: %s", key))
+		if err := startupOps[key](ctx); err != nil {
+			return fmt.Errorf("%s failed to start: %w", key, err)
+		}
+	}
+
+	return nil
+}
+
+// runShutdownSequence executes all shutdown operations in order
+func runShutdownSequence() {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	shutdownOps := getShutdownOperations()
+	shutdownOrder := getShutdownOrder()
+
+	for _, key := range shutdownOrder {
+		logger.Warn(fmt.Sprintf("initiate stopping of: %s", key))
+		if err := shutdownOps[key](shutdownCtx); err != nil {
+			log.HandleError(err)
+		} else {
+			logger.Info(fmt.Sprintf("%s shut down gracefully", key))
+		}
+	}
+}
+
+// getStartupOperations returns all startup operations
+func getStartupOperations() map[string]operation {
+	return map[string]operation{
+		"gitSync":         startGitSync,
+		"velocityEnvVars": startVelocityEnvVars,
+		"infrastructure":  startInfrastructureOp,
+		"spoutmc":         startSpoutMCOp,
+		"watchdog":        startWatchdogOp,
+		"fileWatcher":     startFileWatcherOp,
+		"webserver":       startWebserverOp,
+	}
+}
+
+// getStartupOrder returns the order of startup operations
+func getStartupOrder() []string {
+	return []string{
 		"gitSync",         // Initialize GitOps first (loads config from Git)
 		"velocityEnvVars", // Inject Velocity env vars to backend servers
 		"infrastructure",  // Start infrastructure containers (database, etc.)
@@ -145,58 +119,125 @@ func main() {
 		"fileWatcher",
 		"webserver",
 	}
+}
 
-	for _, key := range startupOrder {
-		logger.Info(fmt.Sprintf("⚔️ starting: %s", key))
-		if err := startupOps[key](ctx); err != nil {
-			log.HandleError(fmt.Errorf("%s failed to start: %w", key, err))
-			os.Exit(1)
-		}
+// getShutdownOperations returns all shutdown operations
+func getShutdownOperations() map[string]operation {
+	return map[string]operation{
+		"fileWatcher": func(ctx context.Context) error { return nil },
+		"watchdog":    func(ctx context.Context) error { return nil },
+		"containers":  func(ctx context.Context) error { return docker.ShutdownContainers() },
+		"webserver":   func(ctx context.Context) error { return webserver.Shutdown(c) },
 	}
+}
 
-	<-ctx.Done() // wait for shutdown signal
-	logger.Info("Shutdown signal received")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	shutdownOps := map[string]operation{
-		"fileWatcher": func(ctx context.Context) error {
-			return nil
-		},
-		"watchdog": func(ctx context.Context) error {
-			return nil
-		},
-		"containers": func(ctx context.Context) error {
-			return docker.ShutdownContainers()
-		},
-		"webserver": func(ctx context.Context) error {
-			return webserver.Shutdown(c)
-		},
-	}
-
-	shutdownOrder := []string{
+// getShutdownOrder returns the order of shutdown operations
+func getShutdownOrder() []string {
+	return []string{
 		"fileWatcher",
 		"watchdog",
 		"containers",
 		"webserver",
 	}
+}
 
-	for _, key := range shutdownOrder {
-		logger.Warn(fmt.Sprintf("⚔️ initiate stopping of: %s", key))
-		if err := shutdownOps[key](shutdownCtx); err != nil {
-			log.HandleError(err)
-		} else {
-			logger.Info(fmt.Sprintf("⚔️ %s shut down gracefully", key))
+// startGitSync initializes GitOps if enabled
+func startGitSync(ctx context.Context) error {
+	gitLogger := log.GetLogger(log.ModuleGit)
+	if config.IsGitOpsEnabled() {
+		gitLogger.Info("GitOps is enabled, initializing Git sync")
+		if err := git.InitializeGitOps(); err != nil {
+			return fmt.Errorf("failed to initialize GitOps: %w", err)
+		}
+		// Start Git poller in background
+		go git.StartGitPoller(ctx)
+	} else {
+		gitLogger.Info("GitOps is disabled, skipping Git sync")
+	}
+	return nil
+}
+
+// startVelocityEnvVars auto-injects Velocity forwarding environment variables
+func startVelocityEnvVars(ctx context.Context) error {
+	dockerLogger := log.GetLogger(log.ModuleDocker)
+	dockerLogger.Info("Checking Velocity environment variables for backend servers")
+
+	cfg := config.All()
+	dataPath := ""
+	proxyName := ""
+
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	// Find proxy server
+	for i := range cfg.Servers {
+		if cfg.Servers[i].Proxy {
+			proxyName = cfg.Servers[i].Name
+			break
 		}
 	}
+
+	velocitySecret := docker.GetOrGenerateVelocitySecret(dataPath, proxyName)
+	updated := config.EnsureVelocityEnvVars(velocitySecret)
+
+	if updated {
+		dockerLogger.Info("Velocity env vars injected - backend servers will be recreated with new configuration")
+	} else {
+		dockerLogger.Info("All backend servers already have Velocity env vars")
+	}
+
+	return nil
+}
+
+// startInfrastructureOp initializes infrastructure containers
+func startInfrastructureOp(ctx context.Context) error {
+	infraLogger := log.GetLogger(log.ModuleInfrastructure)
+	infraLogger.Info("Initializing infrastructure containers")
+	return startInfrastructure()
+}
+
+// startSpoutMCOp starts the SpoutMC server network
+func startSpoutMCOp(ctx context.Context) error {
+	return startSpoutMC()
+}
+
+// startWatchdogOp starts the watchdog service
+func startWatchdogOp(ctx context.Context) error {
+	var err error
+	wd, err = watchdog.NewWatchdog(15 * time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to create watchdog: %w", err)
+	}
+
+	global.Watchdog = wd
+	go wd.Start(ctx)
+	return nil
+}
+
+// startFileWatcherOp starts the file watcher if GitOps is disabled
+func startFileWatcherOp(ctx context.Context) error {
+	if !config.IsGitOpsEnabled() {
+		go watchdog.StartFileWatcher()
+	} else {
+		logger.Info("GitOps is enabled, file watcher disabled")
+	}
+	return nil
+}
+
+// startWebserverOp starts the web server
+func startWebserverOp(ctx context.Context) error {
+	var err error
+	c, err = webserver.Start()
+	return err
 }
 
 func startSpoutMC() error {
+	serverLogger := log.GetLogger(log.ModuleServer)
 	docker.CreateSpoutNetwork("spoutnetwork")
 
 	// Step 1: Start all non-proxy servers (game servers and lobby)
-	logger.Info("🎮 Starting non-proxy servers (lobby and game servers)")
+	serverLogger.Info("Starting non-proxy servers (lobby and game servers)")
 	startNonProxyContainers()
 
 	// Step 2: Cleanup containers that are not in config
@@ -204,14 +245,14 @@ func startSpoutMC() error {
 
 	// Step 3: Create/update velocity.toml with all server configurations
 	cfg := config.All()
-	logger.Info("📝 Creating velocity.toml configuration")
+	serverLogger.Info("Creating velocity.toml configuration")
 	if err := docker.CreateOrUpdateVelocityToml(&cfg); err != nil {
-		logger.Warn("Failed to create velocity.toml on startup", zap.Error(err))
+		serverLogger.Warn("Failed to create velocity.toml on startup", zap.Error(err))
 		// Don't fail startup if velocity creation fails
 	}
 
 	// Step 4: Start proxy server AFTER velocity.toml is ready
-	logger.Info("🚀 Starting proxy server with configured velocity.toml")
+	serverLogger.Info("Starting proxy server with configured velocity.toml")
 	startProxyContainer()
 
 	return nil
@@ -242,11 +283,12 @@ func cleanupContainersNotInConfig() {
 
 // startNonProxyContainers starts all game servers and lobby servers (not proxy)
 func startNonProxyContainers() {
+	serverLogger := log.GetLogger(log.ModuleServer)
 	cfg := config.All()
 
 	if len(cfg.Servers) == 0 {
-		logger.Info("📭 No servers found in configuration - application will start without containers")
-		logger.Info("💡 You can add servers via the web UI or by updating your configuration")
+		serverLogger.Info("No servers found in configuration - application will start without containers")
+		serverLogger.Info("You can add servers via the web UI or by updating your configuration")
 		return
 	}
 
@@ -259,32 +301,32 @@ func startNonProxyContainers() {
 	// Start only non-proxy servers
 	for _, s := range cfg.Servers {
 		if s.Proxy {
-			logger.Info(fmt.Sprintf("⏭️ Skipping proxy server %s (will start after velocity.toml is ready)", s.Name))
+			serverLogger.Info(fmt.Sprintf("Skipping proxy server %s (will start after velocity.toml is ready)", s.Name))
 			continue
 		}
 
 		err := docker.RecreateContainer(s, dataPath)
 		if err != nil {
 			if strings.Contains(err.Error(), "Cannot find container") {
-				logger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
+				serverLogger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
 				if err := docker.StartContainer(s, dataPath); err != nil {
-					logger.Error(fmt.Sprintf("❌ failed to start %s: %v", s.Name, err))
+					serverLogger.Error(fmt.Sprintf("failed to start %s: %v", s.Name, err))
 				}
 				continue
 			}
-			logger.Error(fmt.Sprintf("❌ failed to start %s: %s", s.Name, err.Error()))
+			serverLogger.Error(fmt.Sprintf("failed to start %s: %s", s.Name, err.Error()))
 		}
 	}
 
 	// List started containers
 	containers, err := docker.GetNetworkContainers()
 	if err != nil {
-		logger.Error("Failed to list containers", zap.Error(err))
+		serverLogger.Error("Failed to list containers", zap.Error(err))
 		return
 	}
 
 	for _, spoutContainer := range containers {
-		logger.Info(fmt.Sprintf("⛏️ Running %s (%s) with %s",
+		serverLogger.Info(fmt.Sprintf("Running %s (%s) with %s",
 			strings.Trim(spoutContainer.Names[0], "/"),
 			spoutContainer.ID[:10],
 			spoutContainer.Image))
@@ -293,10 +335,11 @@ func startNonProxyContainers() {
 
 // startProxyContainer starts the proxy server after velocity.toml is configured
 func startProxyContainer() {
+	serverLogger := log.GetLogger(log.ModuleServer)
 	cfg := config.All()
 
 	if len(cfg.Servers) == 0 {
-		logger.Info("📭 No servers configured - skipping proxy startup")
+		serverLogger.Info("No servers configured - skipping proxy startup")
 		return
 	}
 
@@ -312,30 +355,31 @@ func startProxyContainer() {
 			continue
 		}
 
-		logger.Info(fmt.Sprintf("🚀 Starting proxy server: %s", s.Name))
+		serverLogger.Info(fmt.Sprintf("Starting proxy server: %s", s.Name))
 		err := docker.RecreateContainer(s, dataPath)
 		if err != nil {
 			if strings.Contains(err.Error(), "Cannot find container") {
-				logger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
+				serverLogger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
 				if err := docker.StartContainer(s, dataPath); err != nil {
-					logger.Error(fmt.Sprintf("❌ failed to start proxy %s: %v", s.Name, err))
+					serverLogger.Error(fmt.Sprintf("failed to start proxy %s: %v", s.Name, err))
 					return
 				}
 				return
 			}
-			logger.Error(fmt.Sprintf("❌ failed to start proxy %s: %s", s.Name, err.Error()))
+			serverLogger.Error(fmt.Sprintf("failed to start proxy %s: %s", s.Name, err.Error()))
 			return
 		}
 
-		logger.Info(fmt.Sprintf("✅ Proxy server %s started successfully", s.Name))
+		serverLogger.Info(fmt.Sprintf("Proxy server %s started successfully", s.Name))
 		return
 	}
 
-	logger.Warn("⚠️ No proxy server found in configuration")
+	serverLogger.Warn("No proxy server found in configuration")
 }
 
 // startInfrastructure initializes and starts infrastructure containers (database, etc.)
 func startInfrastructure() error {
+	infraLogger := log.GetLogger(log.ModuleInfrastructure)
 	cfg := config.All()
 
 	// Get data path
@@ -348,35 +392,35 @@ func startInfrastructure() error {
 	var infraContainers []infrastructure.InfrastructureContainer
 	var err error
 	if config.IsGitOpsEnabled() {
-		logger.Info("🏗️ GitOps is enabled, loading infrastructure from repository")
+		infraLogger.Info("GitOps is enabled, loading infrastructure from repository")
 		repoPath := git.GetLocalRepoPath()
-		logger.Info("🏗️ Repository path", zap.String("path", repoPath))
+		infraLogger.Info("Repository path", zap.String("path", repoPath))
 		infraContainers, err = git.LoadInfrastructureFromRepository(repoPath)
 		if err != nil {
-			logger.Warn("Failed to load infrastructure from Git", zap.Error(err))
+			infraLogger.Warn("Failed to load infrastructure from Git", zap.Error(err))
 			return nil // Don't fail startup if infrastructure loading fails
 		}
-		logger.Info("🏗️ Loaded infrastructure containers from Git", zap.Int("count", len(infraContainers)))
+		infraLogger.Info("Loaded infrastructure containers from Git", zap.Int("count", len(infraContainers)))
 	} else {
 		// Load from local config file
-		logger.Info("🏗️ GitOps disabled, loading infrastructure from local config file")
+		infraLogger.Info("GitOps disabled, loading infrastructure from local config file")
 		configPath := infrastructure.GetDefaultInfrastructureConfigPath()
-		infraContainers, err = infrastructure.LoadInfrastructureFromLocalConfig(configPath, logger)
+		infraContainers, err = infrastructure.LoadInfrastructureFromLocalConfig(configPath, infraLogger.GetZapLogger())
 		if err != nil {
-			logger.Warn("Failed to load infrastructure from local config", zap.Error(err))
+			infraLogger.Warn("Failed to load infrastructure from local config", zap.Error(err))
 			return nil // Don't fail startup if infrastructure loading fails
 		}
-		logger.Info("🏗️ Loaded infrastructure containers from local config", zap.Int("count", len(infraContainers)))
+		infraLogger.Info("Loaded infrastructure containers from local config", zap.Int("count", len(infraContainers)))
 	}
 
 	// Check if we have any infrastructure to create
 	if len(infraContainers) == 0 {
-		logger.Info("🏗️ No infrastructure containers found")
+		infraLogger.Info("No infrastructure containers found")
 		return nil
 	}
 
 	// Generate database passwords if needed
-	passwords, wasGenerated, err := infrastructure.GetOrGeneratePasswords(infraContainers, logger)
+	passwords, wasGenerated, err := infrastructure.GetOrGeneratePasswords(infraContainers, infraLogger.GetZapLogger())
 	if err != nil {
 		return fmt.Errorf("failed to generate database passwords: %w", err)
 	}
@@ -388,19 +432,19 @@ func startInfrastructure() error {
 
 	// Create and start each infrastructure container
 	for _, infraConfig := range infraContainers {
-		logger.Info("Creating infrastructure container",
+		infraLogger.Info("Creating infrastructure container",
 			zap.String("name", infraConfig.Name),
 			zap.String("type", "database"))
 
-		if err := infrastructure.CreateDatabaseContainer(infraConfig, dataPath, passwords, logger); err != nil {
-			logger.Error("Failed to create infrastructure container",
+		if err := infrastructure.CreateDatabaseContainer(infraConfig, dataPath, passwords, infraLogger.GetZapLogger()); err != nil {
+			infraLogger.Error("Failed to create infrastructure container",
 				zap.String("name", infraConfig.Name),
 				zap.Error(err))
 			// Don't fail startup, continue with other containers
 			continue
 		}
 
-		logger.Info("✅ Infrastructure container started successfully",
+		infraLogger.Info("Infrastructure container started successfully",
 			zap.String("name", infraConfig.Name))
 	}
 
