@@ -65,13 +65,9 @@ func GetNetworkContainers() ([]container.Summary, error) {
 	return serverContainers, nil
 }
 
-// todo check this and the below function, it's against DRY
 func containerExists(containerName string) bool {
-	containerFilter := filters.NewArgs()
-	containerFilter.Add("name", containerName)
-
-	containerList, _ := cli.ContainerList(ctx, container.ListOptions{All: true, Filters: containerFilter})
-	return len(containerList) > 0
+	_, err := GetContainer(containerName)
+	return err == nil
 }
 
 func GetContainer(containerName string) (container.Summary, error) {

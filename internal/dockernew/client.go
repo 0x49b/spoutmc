@@ -16,8 +16,7 @@ import (
 var (
 	cli  *client.Client
 	once sync.Once
-	//TODO do we really need to declare this here?
-	logger *zap.Logger
+	logger = log.GetLogger(log.ModuleDocker).GetZapLogger()
 )
 
 // Create cli client on start of application
