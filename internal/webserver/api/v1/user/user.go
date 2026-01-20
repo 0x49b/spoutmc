@@ -170,18 +170,6 @@ func getUsers(c echo.Context) error {
 			"error": "Failed to fetch users",
 		})
 	}
-
-	var response []models.UserResponse
-	for _, user := range users {
-		response = append(response, models.UserResponse{
-			ID:          user.ID,
-			CreatedAt:   user.CreatedAt,
-			MinecraftID: user.MinecraftID,
-			DisplayName: user.DisplayName,
-			Email:       user.Email,
-			Roles:       convertRolesToResponse(user.Roles),
-		})
-	}
 	return c.JSON(http.StatusOK, users)
 }
 
