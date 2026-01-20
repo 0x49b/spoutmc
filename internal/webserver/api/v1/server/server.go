@@ -718,8 +718,10 @@ func updateServerHandler(c echo.Context) error {
 
 	// Stop and remove old container
 	logger.Info("Stopping and removing old container", zap.String("name", currentName))
-	if err := docker.StopAndRemoveContainerById(containerID); err != nil {
-		logger.Error("Failed to stop and remove container", zap.Error(err))
+	docker.StopContainerById(containerID)
+	// false means do NOT remove volumes, which is critical for updates
+	if err := docker.RemoveContainerById(containerID, false); err != nil {
+		logger.Error("Failed to remove container", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("Failed to remove container: %v", err),
 		})

@@ -38,7 +38,7 @@ func PullImage(imageName string) {
 			logger.Error("Cannot close image pull", zap.Error(err))
 		}
 	}(pull)
-	if _, err := io.ReadAll(pull); err != nil {
+	if _, err := io.Copy(io.Discard, pull); err != nil {
 		logger.Error("Cannot pull image", zap.Error(err))
 	}
 
@@ -398,13 +398,21 @@ func RemoveLocalVolumeDataForContainer(containerId string) {
 	containerVolume, err := GetContainerById(containerId)
 	if err != nil {
 		logger.Error("cannot load container", zap.Error(err))
+		return
 	}
 
 	for _, c := range containerVolume.Mounts {
+		// Safety check: ensure we don't delete system directories
+		if c.Source == "" || c.Source == "/" || c.Source == "." {
+			logger.Error("Refusing to delete unsafe volume path", zap.String("path", c.Source))
+			continue
+		}
+
 		logger.Info(c.Source)
 		dir, err := os.ReadDir(c.Source)
 		if err != nil {
 			logger.Error("cannot read dir", zap.Error(err))
+			continue
 		}
 		for _, d := range dir {
 			err := os.RemoveAll(filepath.Join(c.Source, d.Name()))
