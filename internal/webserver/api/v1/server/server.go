@@ -172,9 +172,6 @@ func getServerLogs(c echo.Context) error {
 // @Failure 500 {object} map[string]string
 // @Router /server/{id} [get]
 func getServer(c echo.Context) error {
-	lock.Lock()
-	defer lock.Unlock()
-
 	// Get detailed container info for StartedAt
 	inspectData, err := docker.GetContainerById(c.Param("id"))
 	if err != nil {
