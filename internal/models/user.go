@@ -23,7 +23,6 @@ type UserResponse struct {
 	MinecraftID uuid.UUID      `json:"minecraftId"`
 	DisplayName string         `json:"displayName"`
 	Email       string         `json:"email"`
-	Password    string         `json:"password"`
 	Roles       []RoleResponse `json:"roles"`
 	Avatar      string         `json:"avatar"`
 }
