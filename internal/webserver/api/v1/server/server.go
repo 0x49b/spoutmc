@@ -17,7 +17,6 @@ import (
 	"spoutmc/internal/servercfg"
 	"spoutmc/internal/sse"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -26,7 +25,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var lock = sync.Mutex{}
 var logger = log.GetLogger(log.ModuleAPI)
 
 // RegisterServerRoutes registers container/server-related API endpoints.
@@ -222,9 +220,6 @@ func getServer(c echo.Context) error {
 // @Failure 500 {object} map[string]string
 // @Router /server [get]
 func getServers(c echo.Context) error {
-	lock.Lock()
-	defer lock.Unlock()
-
 	containers, err := docker.GetNetworkContainers()
 	if err != nil {
 		return err
@@ -937,9 +932,7 @@ func streamServers(c echo.Context) error {
 			logger.Info("SSE client disconnected from server stream", zap.String("ip", c.RealIP()))
 			return nil
 		case <-ticker.C:
-			lock.Lock()
 			containers, err := docker.GetNetworkContainers()
-			lock.Unlock()
 
 			if err != nil {
 				logger.Error("Error fetching containers for stream", zap.Error(err))
@@ -1506,7 +1499,7 @@ func getServerFileHandler(c echo.Context) error {
 
 	// Security check: ensure path is within server directory
 	serverDir := filepath.Join(dataPath, serverName)
-	if !filepath.HasPrefix(fullPath, serverDir) {
+	if !strings.HasPrefix(fullPath, serverDir+string(filepath.Separator)) {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid file path",
 		})
@@ -1629,7 +1622,7 @@ func updateServerFileHandler(c echo.Context) error {
 
 	// Security check: ensure path is within server directory
 	serverDir := filepath.Join(dataPath, serverName)
-	if !filepath.HasPrefix(fullPath, serverDir) {
+	if !strings.HasPrefix(fullPath, serverDir+string(filepath.Separator)) {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid file path",
 		})
