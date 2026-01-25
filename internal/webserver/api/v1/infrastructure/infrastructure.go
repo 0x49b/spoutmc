@@ -7,7 +7,6 @@ import (
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
 	"spoutmc/internal/sse"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -18,7 +17,6 @@ import (
 
 var (
 	logger = log.GetLogger(log.ModuleInfrastructure)
-	lock   sync.Mutex
 )
 
 // RegisterInfrastructureRoutes registers infrastructure-related routes
@@ -258,9 +256,7 @@ func streamInfrastructure(c echo.Context) error {
 			logger.Info("SSE client disconnected from infrastructure stream", zap.String("ip", c.RealIP()))
 			return nil
 		case <-ticker.C:
-			lock.Lock()
 			containers, err := docker.GetInfrastructureContainers()
-			lock.Unlock()
 
 			if err != nil {
 				logger.Error("Error fetching infrastructure containers for stream", zap.Error(err))

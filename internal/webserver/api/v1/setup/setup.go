@@ -8,7 +8,6 @@ import (
 	"spoutmc/internal/config"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -16,7 +15,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var lock = sync.Mutex{}
 var logger = log.GetLogger(log.ModuleSetup)
 
 // RegisterSetupRoutes registers setup-related API endpoints.
@@ -41,9 +39,6 @@ type SetupRequest struct {
 // @Failure 500 {object} map[string]string
 // @Router /setup/complete [post]
 func completeSetup(c echo.Context) error {
-	lock.Lock()
-	defer lock.Unlock()
-
 	var req SetupRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
