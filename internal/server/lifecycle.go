@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"spoutmc/internal/config"
 	"spoutmc/internal/docker"
@@ -25,15 +26,15 @@ func DetermineServerType(labels map[string]string) string {
 }
 
 // FindProxyServer finds the proxy server container
-func FindProxyServer() (*container.Summary, error) {
-	containers, err := docker.GetNetworkContainers()
+func FindProxyServer(ctx context.Context) (*container.Summary, error) {
+	containers, err := docker.GetNetworkContainers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get containers: %w", err)
 	}
 
 	for _, c := range containers {
 		// Get detailed container info to check environment variables
-		containerInfo, err := docker.GetContainerById(c.ID)
+		containerInfo, err := docker.GetContainerById(ctx, c.ID)
 		if err != nil {
 			continue
 		}

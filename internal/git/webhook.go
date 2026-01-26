@@ -47,7 +47,7 @@ func (h *WebhookHandler) HandleWebhook(c echo.Context) error {
 	}
 
 	// Trigger sync
-	if err := h.poller.TriggerSync(); err != nil {
+	if err := h.poller.TriggerSync(c.Request().Context()); err != nil {
 		logger.Error("Failed to sync after webhook", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to sync configuration",

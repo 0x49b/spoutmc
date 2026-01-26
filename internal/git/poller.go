@@ -41,13 +41,13 @@ func (p *Poller) Start(ctx context.Context) {
 			logger.Info("Git poller shutting down")
 			return
 		case <-ticker.C:
-			p.poll()
+			p.poll(ctx)
 		}
 	}
 }
 
 // poll performs a single poll cycle
-func (p *Poller) poll() {
+func (p *Poller) poll(ctx context.Context) {
 	logger.Debug("Polling Git repository for changes")
 
 	// Pull latest changes
@@ -65,7 +65,7 @@ func (p *Poller) poll() {
 	logger.Info("Changes detected in Git repository, reloading configuration")
 
 	// Load new configuration
-	if err := p.reloadConfiguration(); err != nil {
+	if err := p.reloadConfiguration(ctx); err != nil {
 		logger.Error("Failed to reload configuration from Git", zap.Error(err))
 		return
 	}
@@ -77,7 +77,7 @@ func (p *Poller) poll() {
 }
 
 // reloadConfiguration loads the new configuration from Git and applies changes
-func (p *Poller) reloadConfiguration() error {
+func (p *Poller) reloadConfiguration(ctx context.Context) error {
 	// Get current configuration
 	currentConfig := config.All()
 
@@ -98,13 +98,13 @@ func (p *Poller) reloadConfiguration() error {
 	config.UpdateConfiguration(newConfig)
 
 	// Apply configuration changes
-	config.ApplyConfigChanges(currentConfig, newConfig)
+	config.ApplyConfigChanges(ctx, currentConfig, newConfig)
 
 	return nil
 }
 
 // TriggerSync manually triggers a sync (used by webhooks)
-func (p *Poller) TriggerSync() error {
+func (p *Poller) TriggerSync(ctx context.Context) error {
 	logger.Info("Manual sync triggered via webhook")
 
 	// Pull latest changes
@@ -119,7 +119,7 @@ func (p *Poller) TriggerSync() error {
 	}
 
 	// Reload configuration
-	if err := p.reloadConfiguration(); err != nil {
+	if err := p.reloadConfiguration(ctx); err != nil {
 		return err
 	}
 

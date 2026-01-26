@@ -49,7 +49,7 @@ func handleWebhook(c echo.Context) error {
 func handleManualSync(c echo.Context) error {
 	logger.Info("Manual sync triggered via API", zap.String("remote_addr", c.RealIP()))
 
-	if err := gitops.TriggerManualSync(); err != nil {
+	if err := gitops.TriggerManualSync(c.Request().Context()); err != nil {
 		logger.Error("Failed to trigger manual sync", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),

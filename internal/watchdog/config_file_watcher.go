@@ -1,6 +1,7 @@
 package watchdog
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"spoutmc/internal/config"
@@ -43,7 +44,7 @@ func StartFileWatcher() {
 						logger.Error("📁 error reloading configuration", zap.Error(err))
 					}
 					newConfig := config.All()
-					config.ApplyConfigChanges(currentConfig, newConfig)
+					config.ApplyConfigChanges(context.Background(), currentConfig, newConfig)
 				}
 
 			case err, ok := <-watcher.Errors:

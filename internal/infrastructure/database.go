@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"context"
 	"fmt"
 
 	"spoutmc/internal/docker"
@@ -31,7 +32,7 @@ type PortMapping struct {
 }
 
 // CreateDatabaseContainer creates and starts the database container
-func CreateDatabaseContainer(infraConfig InfrastructureContainer, dataPath string, passwords map[string]string, logger *zap.Logger) error {
+func CreateDatabaseContainer(ctx context.Context, infraConfig InfrastructureContainer, dataPath string, passwords map[string]string, logger *zap.Logger) error {
 	// Replace password placeholders with generated passwords
 	env := make(map[string]string)
 	for k, v := range infraConfig.Env {
@@ -65,10 +66,10 @@ func CreateDatabaseContainer(infraConfig InfrastructureContainer, dataPath strin
 		zap.String("image", server.Image))
 
 	// Pull image if needed
-	docker.PullImage(server.Image)
+	docker.PullImage(ctx, server.Image)
 
 	// Create container with infrastructure label
-	containerID, err := docker.CreateInfrastructureContainer(server, dataPath)
+	containerID, err := docker.CreateInfrastructureContainer(ctx, server, dataPath)
 	if err != nil {
 		return fmt.Errorf("failed to create database container: %w", err)
 	}
@@ -77,7 +78,7 @@ func CreateDatabaseContainer(infraConfig InfrastructureContainer, dataPath strin
 		zap.String("container_id", containerID))
 
 	// Start container
-	if err := docker.StartContainerByIdSimple(containerID); err != nil {
+	if err := docker.StartContainerByIdSimple(ctx, containerID); err != nil {
 		return fmt.Errorf("failed to start database container: %w", err)
 	}
 

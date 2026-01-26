@@ -126,7 +126,7 @@ func getShutdownOperations() map[string]operation {
 	return map[string]operation{
 		"fileWatcher": func(ctx context.Context) error { return nil },
 		"watchdog":    func(ctx context.Context) error { return nil },
-		"containers":  func(ctx context.Context) error { return docker.ShutdownContainers() },
+		"containers":  func(ctx context.Context) error { return docker.ShutdownContainers(ctx) },
 		"webserver":   func(ctx context.Context) error { return webserver.Shutdown(c) },
 	}
 }
@@ -194,12 +194,12 @@ func startVelocityEnvVars(ctx context.Context) error {
 func startInfrastructureOp(ctx context.Context) error {
 	infraLogger := log.GetLogger(log.ModuleInfrastructure)
 	infraLogger.Info("Initializing infrastructure containers")
-	return startInfrastructure()
+	return startInfrastructure(ctx)
 }
 
 // startSpoutMCOp starts the SpoutMC server network
 func startSpoutMCOp(ctx context.Context) error {
-	return startSpoutMC()
+	return startSpoutMC(ctx)
 }
 
 // startWatchdogOp starts the watchdog service
@@ -232,16 +232,16 @@ func startWebserverOp(ctx context.Context) error {
 	return err
 }
 
-func startSpoutMC() error {
+func startSpoutMC(ctx context.Context) error {
 	serverLogger := log.GetLogger(log.ModuleServer)
-	docker.CreateSpoutNetwork("spoutnetwork")
+	docker.CreateSpoutNetwork(ctx, "spoutnetwork")
 
 	// Step 1: Start all non-proxy servers (game servers and lobby)
 	serverLogger.Info("Starting non-proxy servers (lobby and game servers)")
-	startNonProxyContainers()
+	startNonProxyContainers(ctx)
 
 	// Step 2: Cleanup containers that are not in config
-	cleanupContainersNotInConfig()
+	cleanupContainersNotInConfig(ctx)
 
 	// Step 3: Create/update velocity.toml with all server configurations
 	cfg := config.All()
@@ -253,13 +253,13 @@ func startSpoutMC() error {
 
 	// Step 4: Start proxy server AFTER velocity.toml is ready
 	serverLogger.Info("Starting proxy server with configured velocity.toml")
-	startProxyContainer()
+	startProxyContainer(ctx)
 
 	return nil
 }
 
-func cleanupContainersNotInConfig() {
-	container, err := docker.GetNetworkContainers()
+func cleanupContainersNotInConfig(ctx context.Context) {
+	container, err := docker.GetNetworkContainers(ctx)
 	if err != nil {
 		logger.Error(err.Error())
 	}
@@ -271,7 +271,7 @@ func cleanupContainersNotInConfig() {
 	for _, c := range container {
 		_, err := config.GetServerConfigForContainerName(strings.TrimLeft(c.Names[0], "/"))
 		if err != nil {
-			err := docker.RemoveContainerById(c.ID, true)
+			err := docker.RemoveContainerById(ctx, c.ID, true)
 			if err != nil {
 				logger.Error(err.Error())
 			}
@@ -282,7 +282,7 @@ func cleanupContainersNotInConfig() {
 }
 
 // startNonProxyContainers starts all game servers and lobby servers (not proxy)
-func startNonProxyContainers() {
+func startNonProxyContainers(ctx context.Context) {
 	serverLogger := log.GetLogger(log.ModuleServer)
 	cfg := config.All()
 
@@ -305,11 +305,11 @@ func startNonProxyContainers() {
 			continue
 		}
 
-		err := docker.RecreateContainer(s, dataPath)
+		err := docker.RecreateContainer(ctx, s, dataPath)
 		if err != nil {
 			if strings.Contains(err.Error(), "Cannot find container") {
 				serverLogger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
-				if err := docker.StartContainer(s, dataPath); err != nil {
+				if err := docker.StartContainer(ctx, s, dataPath); err != nil {
 					serverLogger.Error(fmt.Sprintf("failed to start %s: %v", s.Name, err))
 				}
 				continue
@@ -319,7 +319,7 @@ func startNonProxyContainers() {
 	}
 
 	// List started containers
-	containers, err := docker.GetNetworkContainers()
+	containers, err := docker.GetNetworkContainers(ctx)
 	if err != nil {
 		serverLogger.Error("Failed to list containers", zap.Error(err))
 		return
@@ -334,7 +334,7 @@ func startNonProxyContainers() {
 }
 
 // startProxyContainer starts the proxy server after velocity.toml is configured
-func startProxyContainer() {
+func startProxyContainer(ctx context.Context) {
 	serverLogger := log.GetLogger(log.ModuleServer)
 	cfg := config.All()
 
@@ -356,11 +356,11 @@ func startProxyContainer() {
 		}
 
 		serverLogger.Info(fmt.Sprintf("Starting proxy server: %s", s.Name))
-		err := docker.RecreateContainer(s, dataPath)
+		err := docker.RecreateContainer(ctx, s, dataPath)
 		if err != nil {
 			if strings.Contains(err.Error(), "Cannot find container") {
 				serverLogger.Info(fmt.Sprintf("Container not found, creating new container for %s", s.Name))
-				if err := docker.StartContainer(s, dataPath); err != nil {
+				if err := docker.StartContainer(ctx, s, dataPath); err != nil {
 					serverLogger.Error(fmt.Sprintf("failed to start proxy %s: %v", s.Name, err))
 					return
 				}
@@ -378,7 +378,7 @@ func startProxyContainer() {
 }
 
 // startInfrastructure initializes and starts infrastructure containers (database, etc.)
-func startInfrastructure() error {
+func startInfrastructure(ctx context.Context) error {
 	infraLogger := log.GetLogger(log.ModuleInfrastructure)
 	cfg := config.All()
 
@@ -436,7 +436,7 @@ func startInfrastructure() error {
 			zap.String("name", infraConfig.Name),
 			zap.String("type", "database"))
 
-		if err := infrastructure.CreateDatabaseContainer(infraConfig, dataPath, passwords, infraLogger.GetZapLogger()); err != nil {
+		if err := infrastructure.CreateDatabaseContainer(ctx, infraConfig, dataPath, passwords, infraLogger.GetZapLogger()); err != nil {
 			infraLogger.Error("Failed to create infrastructure container",
 				zap.String("name", infraConfig.Name),
 				zap.Error(err))

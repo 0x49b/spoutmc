@@ -7,7 +7,6 @@ import (
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
 	"spoutmc/internal/sse"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -18,7 +17,6 @@ import (
 
 var (
 	logger = log.GetLogger(log.ModuleInfrastructure)
-	lock   sync.Mutex
 )
 
 // RegisterInfrastructureRoutes registers infrastructure-related routes
@@ -46,7 +44,7 @@ type InfrastructureContainer struct {
 // @Failure 500 {object} map[string]string
 // @Router /infrastructure [get]
 func listInfrastructure(c echo.Context) error {
-	containers, err := docker.GetInfrastructureContainers()
+	containers, err := docker.GetInfrastructureContainers(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to get infrastructure containers",
@@ -78,7 +76,7 @@ func getInfrastructureContainer(c echo.Context) error {
 	containerID := c.Param("id")
 
 	// Get detailed container info
-	inspectData, err := docker.GetContainerById(containerID)
+	inspectData, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{
 			"error": "Infrastructure container not found",
@@ -86,7 +84,7 @@ func getInfrastructureContainer(c echo.Context) error {
 	}
 
 	// Get container summary
-	containers, err := docker.GetInfrastructureContainers()
+	containers, err := docker.GetInfrastructureContainers(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to get infrastructure containers",
@@ -189,7 +187,7 @@ func restartInfrastructureContainer(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.RestartContainer(containerID); err != nil {
+	if err := containerpkg.RestartContainer(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to restart container",
 		})
@@ -221,7 +219,7 @@ func stopInfrastructureContainer(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.StopContainer(containerID); err != nil {
+	if err := containerpkg.StopContainer(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to stop container",
 		})
@@ -258,9 +256,7 @@ func streamInfrastructure(c echo.Context) error {
 			logger.Info("SSE client disconnected from infrastructure stream", zap.String("ip", c.RealIP()))
 			return nil
 		case <-ticker.C:
-			lock.Lock()
-			containers, err := docker.GetInfrastructureContainers()
-			lock.Unlock()
+			containers, err := docker.GetInfrastructureContainers(c.Request().Context())
 
 			if err != nil {
 				logger.Error("Error fetching infrastructure containers for stream", zap.Error(err))
