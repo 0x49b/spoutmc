@@ -1,6 +1,6 @@
 module spoutmc
 
-go 1.25.0
+go 1.26.1
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
@@ -14,7 +14,6 @@ require (
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/samber/slog-zap v1.0.0
-	github.com/samber/slog-zap/v2 v2.6.3
 	github.com/shirou/gopsutil/v4 v4.25.11
 	github.com/swaggo/echo-swagger v1.4.1
 	github.com/swaggo/swag v1.16.6
