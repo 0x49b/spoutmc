@@ -14,6 +14,7 @@ require (
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/samber/slog-zap v1.0.0
+	github.com/samber/slog-zap/v2 v2.6.3
 	github.com/shirou/gopsutil/v4 v4.25.11
 	github.com/swaggo/echo-swagger v1.4.1
 	github.com/swaggo/swag v1.16.6
@@ -78,7 +79,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/samber/lo v1.47.0 // indirect
+	github.com/samber/lo v1.52.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/swaggo/files/v2 v2.0.2 // indirect
