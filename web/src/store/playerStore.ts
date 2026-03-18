@@ -12,10 +12,11 @@ interface PlayerState {
   fetchPlayers: () => Promise<void>;
   connectSSE: () => void;
   disconnectSSE: () => void;
-  sendMessage: (playerName: string, message: string) => Promise<void>;
+  sendMessage: (playerName: string, message: string, sender?: string, role?: string) => Promise<void>;
   kickPlayer: (playerName: string, reason: string) => Promise<void>;
   banPlayer: (playerName: string, reason: string) => Promise<void>;
   unbanPlayer: (playerName: string) => Promise<void>;
+  getPlayerChat: (playerName: string) => Promise<api.PlayerChatMessageDTO[]>;
 
   getPlayerById: (id: string) => Player | undefined;
   getBannedPlayers: () => Player[];
@@ -100,7 +101,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  sendMessage: async (playerName: string, message: string) => {
+  sendMessage: async (playerName: string, message: string, sender?: string, role?: string) => {
     set(state => ({
       actionInProgressByPlayer: {
         ...state.actionInProgressByPlayer,
@@ -108,7 +109,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
     }));
     try {
-      await api.sendPlayerMessage(playerName, message);
+      await api.sendPlayerMessage(playerName, message, sender, role);
     } finally {
       set(state => ({
         actionInProgressByPlayer: {
@@ -117,6 +118,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         }
       }));
     }
+  },
+
+  getPlayerChat: async (playerName: string) => {
+    const response = await api.getPlayerChat(playerName);
+    return response.data;
   },
 
   kickPlayer: async (playerName: string, reason: string) => {

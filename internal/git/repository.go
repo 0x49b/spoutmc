@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"strings"
@@ -52,15 +53,22 @@ func NewRepository(config *models.GitConfig) (*Repository, error) {
 	}, nil
 }
 
-// Clone clones the repository or opens it if it already exists
+// Clone performs a fresh clone by clearing the local repository path first.
 func (r *Repository) Clone() error {
 	logger.Info("Cloning Git repository", zap.String("repository", r.config.Repository))
 
-	// Check if directory exists
+	// Always start from a clean repository directory to avoid stale/deleted files
+	// or local drift impacting startup behavior.
 	if _, err := os.Stat(r.config.LocalPath); err == nil {
-		// Directory exists, try to open it
-		logger.Info("Local repository exists, opening", zap.String("path", r.config.LocalPath))
-		return r.open()
+		if err := validateSafeDeletePath(r.config.LocalPath); err != nil {
+			return fmt.Errorf("unsafe git local path for cleanup: %w", err)
+		}
+
+		logger.Info("Removing existing local Git repository before fresh clone",
+			zap.String("path", r.config.LocalPath))
+		if err := os.RemoveAll(r.config.LocalPath); err != nil {
+			return fmt.Errorf("failed to remove existing local repository: %w", err)
+		}
 	}
 
 	// Create parent directory if needed
@@ -99,6 +107,24 @@ func (r *Repository) Clone() error {
 	}
 
 	logger.Info("Repository cloned successfully", zap.String("commit", shortCommit(r.lastCommit)))
+	return nil
+}
+
+func validateSafeDeletePath(pathValue string) error {
+	cleanPath := filepath.Clean(pathValue)
+	if cleanPath == "." || cleanPath == string(filepath.Separator) {
+		return fmt.Errorf("refusing to delete path %q", cleanPath)
+	}
+
+	volume := filepath.VolumeName(cleanPath)
+	if volume != "" {
+		withoutVolume := strings.TrimPrefix(cleanPath, volume)
+		withoutVolume = strings.Trim(withoutVolume, `/\`)
+		if withoutVolume == "" {
+			return fmt.Errorf("refusing to delete volume root %q", cleanPath)
+		}
+	}
+
 	return nil
 }
 

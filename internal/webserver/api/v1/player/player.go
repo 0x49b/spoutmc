@@ -16,6 +16,7 @@ func RegisterPlayerRoutes(g *echo.Group) {
 
 	playerGroup.GET("", listPlayers)
 	playerGroup.GET("/stream", streamPlayers)
+	playerGroup.GET("/:name/chat", getPlayerChat)
 	playerGroup.POST("/:name/message", messagePlayer)
 	playerGroup.POST("/:name/kick", kickPlayer)
 	playerGroup.POST("/:name/ban", banPlayer)
@@ -83,11 +84,19 @@ func messagePlayer(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	if err := bridgeClient.MessagePlayer(c.Request().Context(), c.Param("name"), cmd.Message); err != nil {
+	if err := bridgeClient.MessagePlayerWithMeta(c.Request().Context(), c.Param("name"), cmd.Message, cmd.Sender, cmd.Role); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]string{"status": "message sent"})
+}
+
+func getPlayerChat(c echo.Context) error {
+	messages, err := bridgeClient.GetPlayerChat(c.Request().Context(), c.Param("name"))
+	if err != nil {
+		return c.JSON(http.StatusBadGateway, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, messages)
 }
 
 func kickPlayer(c echo.Context) error {

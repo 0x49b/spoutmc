@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
+	"spoutmc/internal/pathutil"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -48,6 +49,8 @@ func ReadConfiguration() error {
 		return err
 	}
 
+	normalizeConfigurationPaths(&spoutConfiguration)
+
 	return nil
 }
 
@@ -69,6 +72,7 @@ func GetServerConfigForContainerName(name string) (models.SpoutServer, error) {
 // UpdateConfiguration updates the package-scoped configuration.
 // This is used by GitOps to update configuration from Git repository.
 func UpdateConfiguration(newConfig models.SpoutConfiguration) {
+	normalizeConfigurationPaths(&newConfig)
 	spoutConfiguration = newConfig
 }
 
@@ -83,6 +87,20 @@ func GetGitConfig() *models.GitConfig {
 		return spoutConfiguration.Git
 	}
 	return nil
+}
+
+func normalizeConfigurationPaths(cfg *models.SpoutConfiguration) {
+	if cfg == nil || cfg.Storage == nil {
+		return
+	}
+
+	normalizedPath := pathutil.NormalizeHostPath(cfg.Storage.DataPath)
+	if normalizedPath != cfg.Storage.DataPath {
+		log.GetLogger(log.ModuleConfig).Info("Normalized storage data path",
+			zap.String("original", cfg.Storage.DataPath),
+			zap.String("normalized", normalizedPath))
+	}
+	cfg.Storage.DataPath = normalizedPath
 }
 
 // EnsureVelocityEnvVars checks all backend servers and injects required Velocity forwarding

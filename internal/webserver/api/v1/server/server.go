@@ -126,7 +126,14 @@ func getServerLogs(c echo.Context) error {
 	logChan, err := docker.FetchDockerLogs(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		logger.Error("Error fetching docker logs", zap.Error(err))
-		return err
+		if strings.Contains(strings.ToLower(err.Error()), "no such container") {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "Container not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to fetch container logs",
+		})
 	}
 
 	w := c.Response()

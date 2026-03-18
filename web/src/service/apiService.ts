@@ -24,8 +24,19 @@ export interface PlayerDTO {
   status: 'online' | 'offline' | 'banned' | string;
 }
 
+export interface PlayerChatMessageDTO {
+  direction: 'incoming' | 'outgoing' | string;
+  player: string;
+  sender?: string;
+  role?: string;
+  message: string;
+  timestamp: string;
+}
+
 export const getPlayers = () => api.get<PlayerDTO[]>('/player');
-export const sendPlayerMessage = (name: string, message: string) => api.post(`/player/${encodeURIComponent(name)}/message`, { message });
+export const sendPlayerMessage = (name: string, message: string, sender?: string, role?: string) =>
+  api.post(`/player/${encodeURIComponent(name)}/message`, { message, sender, role });
+export const getPlayerChat = (name: string) => api.get<PlayerChatMessageDTO[]>(`/player/${encodeURIComponent(name)}/chat`);
 export const kickPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/kick`, { reason });
 export const banPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/ban`, { reason });
 export const unbanPlayer = (name: string) => api.post(`/player/${encodeURIComponent(name)}/unban`);

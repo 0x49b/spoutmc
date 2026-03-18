@@ -15,10 +15,22 @@ It exposes:
 - `GET /healthz`
 - `GET /players`
 - `GET /players/stream` (SSE)
+- `GET /players/{name}/chat`
 - `POST /players/{name}/message` body: `{ "message": "..." }`
 - `POST /players/{name}/kick` body: `{ "reason": "..." }`
 - `POST /players/{name}/ban` body: `{ "reason": "..." }`
 - `POST /players/{name}/unban`
+
+Message payload supports optional metadata:
+- `sender`: display name shown to the player
+- `role`: role tag prepended as `[ROLE]`
+
+Player replies can be captured by using private message commands to one of:
+- `admin`, `mod`, `moderator`, `editor`, `staff`
+
+Examples:
+- `/msg admin hello`
+- `/tell mod can you help?`
 
 ## Build
 

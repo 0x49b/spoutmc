@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
   Button,
@@ -22,7 +22,9 @@ import {
 import { ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import PageHeader from '../UI/PageHeader';
 import { usePlayerStore } from '../../store/playerStore';
+import { useAuthStore } from '../../store/authStore';
 import StatusBadge from '../UI/StatusBadge';
+import { PlayerChatMessageDTO } from '../../service/apiService';
 
 const PlayersList: React.FC = () => {
   const {
@@ -34,9 +36,11 @@ const PlayersList: React.FC = () => {
     connectSSE,
     disconnectSSE,
     sendMessage,
+    getPlayerChat,
     kickPlayer,
     banPlayer
   } = usePlayerStore();
+  const currentUser = useAuthStore(state => state.user);
 
   const [messagePlayer, setMessagePlayer] = useState<string | null>(null);
   const [kickTarget, setKickTarget] = useState<string | null>(null);
@@ -45,6 +49,9 @@ const PlayersList: React.FC = () => {
   const [kickReason, setKickReason] = useState('');
   const [banReason, setBanReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<PlayerChatMessageDTO[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const pollingRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchPlayers();
@@ -77,7 +84,60 @@ const PlayersList: React.FC = () => {
     setKickReason('');
     setBanReason('');
     setActionError(null);
+    setChatMessages([]);
+    setChatLoading(false);
+    if (pollingRef.current) {
+      window.clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
   };
+
+  const getPrimaryRole = () => {
+    const roles = currentUser?.roles ?? [];
+    if (roles.includes('admin')) return 'admin';
+    if (roles.includes('moderator')) return 'moderator';
+    if (roles.includes('viewer')) return 'viewer';
+    return 'staff';
+  };
+
+  const getSenderDisplayName = () => {
+    return currentUser?.displayName?.trim() || currentUser?.email?.trim() || 'SpoutMC';
+  };
+
+  const loadChat = async (playerName: string) => {
+    setChatLoading(true);
+    try {
+      const messages = await getPlayerChat(playerName);
+      setChatMessages(messages);
+      setActionError(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to load chat');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!messagePlayer) {
+      if (pollingRef.current) {
+        window.clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+
+    void loadChat(messagePlayer);
+    pollingRef.current = window.setInterval(() => {
+      void loadChat(messagePlayer);
+    }, 2500);
+
+    return () => {
+      if (pollingRef.current) {
+        window.clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [messagePlayer]);
 
   const executeAction = async (action: () => Promise<void>) => {
     setActionError(null);
@@ -92,7 +152,18 @@ const PlayersList: React.FC = () => {
   const submitMessageForm = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!messagePlayer || messageText.trim() === '') return;
-    void executeAction(() => sendMessage(messagePlayer, messageText.trim()));
+    const sender = getSenderDisplayName();
+    const role = getPrimaryRole();
+    setActionError(null);
+    void (async () => {
+      try {
+        await sendMessage(messagePlayer, messageText.trim(), sender, role);
+        setMessageText('');
+        await loadChat(messagePlayer);
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : 'Action failed');
+      }
+    })();
   };
 
   const submitKickForm = (event: React.FormEvent<HTMLFormElement>) => {
@@ -204,16 +275,55 @@ const PlayersList: React.FC = () => {
       </PageSection>
 
       <Modal
-        variant={ModalVariant.small}
+        variant={ModalVariant.medium}
         title={`Send private message${messagePlayer ? ` to ${messagePlayer}` : ''}`}
         isOpen={Boolean(messagePlayer)}
         onClose={resetActionState}
       >
         <ModalBody>
+          {messagePlayer ? (
+            <div
+              style={{
+                border: '1px solid var(--pf-t--global--border--color--default)',
+                borderRadius: '8px',
+                padding: '0.75rem',
+                maxHeight: '280px',
+                overflowY: 'auto',
+                marginBottom: '1rem',
+                background: 'var(--pf-t--global--background--color--primary--default)'
+              }}
+            >
+              {chatLoading && chatMessages.length === 0 ? <div>Loading chat…</div> : null}
+              {!chatLoading && chatMessages.length === 0 ? (
+                <div className="pf-v6-u-color-200">No chat messages yet. Start a conversation below.</div>
+              ) : null}
+              {chatMessages.map((entry, index) => {
+                const isOutgoing = entry.direction === 'outgoing';
+                const senderLabel = isOutgoing
+                  ? `[${(entry.role || 'staff').toUpperCase()}] ${entry.sender || 'SpoutMC'}`
+                  : `${entry.player}`;
+                return (
+                  <div key={`${entry.timestamp}-${index}`} style={{ marginBottom: '0.6rem' }}>
+                    <div
+                      className="pf-v6-u-font-size-sm pf-v6-u-color-200"
+                      style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}
+                    >
+                      <span>{senderLabel}</span>
+                      <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div>{entry.message}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
           <Form id="player-message-form" onSubmit={submitMessageForm}>
             <FormGroup label="Message" fieldId="player-message">
               <TextInput id="player-message" value={messageText} onChange={(_event, value) => setMessageText(value)} />
             </FormGroup>
+            <div className="pf-v6-u-font-size-sm pf-v6-u-color-200 pf-v6-u-mb-sm">
+              Sent as [{getPrimaryRole().toUpperCase()}] {getSenderDisplayName()}
+            </div>
             {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
           </Form>
         </ModalBody>

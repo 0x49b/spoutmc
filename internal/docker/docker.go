@@ -11,11 +11,13 @@ import (
 	"path/filepath"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
+	"spoutmc/internal/pathutil"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"go.uber.org/zap"
@@ -129,6 +131,7 @@ func getHostNetworkId(ctx context.Context) (network.Inspect, error) {
 }
 
 func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) error {
+	normalizedDataPath := pathutil.NormalizeHostPath(dataPath)
 
 	// Check if image exists, if not pull it
 	_, err := cli.ImageInspect(ctx, s.Image)
@@ -139,7 +142,7 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 
 	// Pre-create volume directories with proper user ownership
 	// This prevents Docker from creating them as root on Linux
-	if err := ensureVolumeDirectoriesExist(s.Volumes, dataPath, s.Name); err != nil {
+	if err := ensureVolumeDirectoriesExist(s.Volumes, normalizedDataPath, s.Name); err != nil {
 		logger.Error("Failed to create volume directories", zap.Error(err))
 		return fmt.Errorf("failed to create volume directories: %w", err)
 	}
@@ -177,14 +180,14 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 		envVars := MapEnvironmentVariables(s.Env)
 
 		// Prepare volume bindings
-		binds := MapVolumeBindings(s.Volumes, dataPath, s.Name)
+		mounts := MapVolumeBindings(s.Volumes, normalizedDataPath, s.Name)
 
 		// For proxy servers, mount the forwarding.secret file
 		// The itzg/mc-proxy image copies files from /config to /server on startup
 		if s.Proxy {
 			// Ensure the forwarding.secret file exists BEFORE mounting it
 			// If we try to mount a non-existent file, Docker creates it as a directory
-			secretSourcePath := filepath.Join(dataPath, s.Name, "server", "forwarding.secret")
+			secretSourcePath := filepath.Join(normalizedDataPath, s.Name, "server", "forwarding.secret")
 			if err := ensureForwardingSecret(secretSourcePath); err != nil {
 				logger.Warn("Failed to create forwarding.secret file before mounting",
 					zap.Error(err),
@@ -193,7 +196,12 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 			}
 
 			secretTargetPath := "/config/forwarding.secret"
-			binds = append(binds, fmt.Sprintf("%s:%s:ro", secretSourcePath, secretTargetPath))
+			mounts = append(mounts, mount.Mount{
+				Type:     mount.TypeBind,
+				Source:   secretSourcePath,
+				Target:   secretTargetPath,
+				ReadOnly: true,
+			})
 			logger.Info("Mounting Velocity forwarding secret",
 				zap.String("source", secretSourcePath),
 				zap.String("target", secretTargetPath))
@@ -209,7 +217,7 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 			ExposedPorts: exposedPorts,
 			Labels:       containerLabels,
 		}, &container.HostConfig{
-			Binds:        binds,
+			Mounts:       mounts,
 			PortBindings: containerPortBinding,
 		}, &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{spoutNetwork.ID: {NetworkID: spoutNetwork.ID}}},
@@ -349,21 +357,13 @@ func filterForContainerLabel(ctx context.Context, label string) (container.Summa
 	return container.Summary{}, errors.New(fmt.Sprintf("no Server found for label %s", label))
 }
 
-func getContainerNameById(ctx context.Context, containerId string) string {
-	interestedContainer, err := GetContainerById(ctx, containerId)
-	if err != nil {
-		logger.Error("cannot load container", zap.Error(err))
-	}
-	return interestedContainer.Name
-}
-
 // fetchDockerLogs retrieves logs from the Docker container
 func FetchDockerLogs(ctx context.Context, id string) (<-chan string, error) {
 	options := container.LogsOptions{ShowStdout: true, Follow: true, Tail: "1000"}
 
-	reader, err := cli.ContainerLogs(ctx, getContainerNameById(ctx, id), options)
+	reader, err := cli.ContainerLogs(ctx, id, options)
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve logs: %v", err)
+		return nil, fmt.Errorf("unable to retrieve logs for container %s: %w", id, err)
 	}
 
 	logChan := make(chan string)
@@ -449,6 +449,7 @@ func StopAndRemoveContainerById(ctx context.Context, containerId string) error {
 // CreateInfrastructureContainer creates a container with infrastructure labels
 func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, dataPath string) (string, error) {
 	logger.Info("Creating infrastructure container", zap.String("name", s.Name))
+	normalizedDataPath := pathutil.NormalizeHostPath(dataPath)
 
 	// Check if image exists, if not pull it
 	_, err := cli.ImageInspect(ctx, s.Image)
@@ -469,7 +470,7 @@ func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, da
 
 	// Pre-create volume directories with proper user ownership
 	// This prevents Docker from creating them as root on Linux
-	if err := ensureVolumeDirectoriesExist(s.Volumes, dataPath, s.Name); err != nil {
+	if err := ensureVolumeDirectoriesExist(s.Volumes, normalizedDataPath, s.Name); err != nil {
 		return "", fmt.Errorf("failed to create volume directories: %w", err)
 	}
 
@@ -491,7 +492,7 @@ func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, da
 	envVars := MapEnvironmentVariables(s.Env)
 
 	// Prepare volume bindings
-	binds := MapVolumeBindings(s.Volumes, dataPath, s.Name)
+	mounts := MapVolumeBindings(s.Volumes, normalizedDataPath, s.Name)
 
 	// Create container
 	infraContainer, err := cli.ContainerCreate(ctx, &container.Config{
@@ -504,7 +505,7 @@ func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, da
 		ExposedPorts: exposedPorts,
 		Labels:       containerLabels,
 	}, &container.HostConfig{
-		Binds:        binds,
+		Mounts:       mounts,
 		PortBindings: containerPortBinding,
 		RestartPolicy: container.RestartPolicy{
 			Name: container.RestartPolicyAlways,

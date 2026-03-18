@@ -27,6 +27,17 @@ type PlayerState struct {
 type PlayerCommand struct {
 	Message string `json:"message,omitempty"`
 	Reason  string `json:"reason,omitempty"`
+	Sender  string `json:"sender,omitempty"`
+	Role    string `json:"role,omitempty"`
+}
+
+type PlayerChatMessage struct {
+	Direction string `json:"direction"`
+	Player    string `json:"player"`
+	Sender    string `json:"sender,omitempty"`
+	Role      string `json:"role,omitempty"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
 }
 
 type bridgePlayer struct {
@@ -140,6 +151,18 @@ func (c *BridgeClient) MessagePlayer(ctx context.Context, playerName string, mes
 	return c.postPlayerAction(ctx, playerName, "message", body)
 }
 
+func (c *BridgeClient) MessagePlayerWithMeta(ctx context.Context, playerName, message, sender, role string) error {
+	body, err := json.Marshal(PlayerCommand{
+		Message: message,
+		Sender:  sender,
+		Role:    role,
+	})
+	if err != nil {
+		return err
+	}
+	return c.postPlayerAction(ctx, playerName, "message", body)
+}
+
 func (c *BridgeClient) KickPlayer(ctx context.Context, playerName string, reason string) error {
 	body, err := json.Marshal(PlayerCommand{Reason: reason})
 	if err != nil {
@@ -182,6 +205,34 @@ func (c *BridgeClient) postPlayerAction(ctx context.Context, playerName string, 
 		return fmt.Errorf("players bridge action failed (%d): %s", resp.StatusCode, string(payload))
 	}
 	return nil
+}
+
+func (c *BridgeClient) GetPlayerChat(ctx context.Context, playerName string) ([]PlayerChatMessage, error) {
+	encodedName := url.PathEscape(playerName)
+	endpoint := fmt.Sprintf("%s/players/%s/chat", c.baseURL, encodedName)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	c.applyAuth(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call players bridge chat endpoint: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		payload, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("players bridge chat failed (%d): %s", resp.StatusCode, string(payload))
+	}
+
+	var messages []PlayerChatMessage
+	if err := json.NewDecoder(resp.Body).Decode(&messages); err != nil {
+		return nil, fmt.Errorf("invalid players bridge chat payload: %w", err)
+	}
+	return messages, nil
 }
 
 func (c *BridgeClient) applyAuth(req *http.Request) {

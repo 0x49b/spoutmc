@@ -37,6 +37,7 @@ import {
     MenuToggle,
     MenuToggleElement,
     Nav,
+    NavExpandable,
     NavItem,
     NavList,
     Page,
@@ -90,7 +91,6 @@ const PageLayout = () => {
         {to: '/', label: 'Dashboard', icon: <ChartLineIcon/>},
         {to: '/servers', label: 'Servers', icon: <ServerIcon/>},
         {to: '/infrastructure', label: 'Infrastructure', icon: <DatabaseIcon/>},
-        {to: '/players', label: 'Players', icon: <UsersIcon/>},
         {to: '/plugins', label: 'Plugins', icon: <CubeIcon/>}
     ];
 
@@ -179,6 +179,32 @@ const PageLayout = () => {
                         {item.label}
                     </NavItem>
                 ))}
+                <NavExpandable
+                    title={
+                        <span>
+                            <span style={{marginRight: '8px'}}><UsersIcon/></span>
+                            Players
+                        </span>
+                    }
+                    itemId="players"
+                    isExpanded={location.pathname.startsWith('/players')}
+                    isActive={location.pathname.startsWith('/players')}
+                >
+                    <NavItem
+                        itemId="/players/list"
+                        isActive={location.pathname === '/players'}
+                        onClick={() => navigate('/players')}
+                    >
+                        Overview
+                    </NavItem>
+                    <NavItem
+                        itemId="/players/banned"
+                        isActive={location.pathname.startsWith('/players/banned')}
+                        onClick={() => navigate('/players/banned')}
+                    >
+                        Banned Players
+                    </NavItem>
+                </NavExpandable>
             </NavList>
         </Nav>
     );

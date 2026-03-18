@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"runtime"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"strconv"
@@ -40,11 +41,31 @@ func ensureVolumeDirectoriesExist(volumes []models.SpoutServerVolumes, dataPath,
 		return nil
 	}
 
+	// Windows has no portable UID/GID/chown model for Docker bind paths.
+	// Create directories only and let ACLs apply naturally.
+	if runtime.GOOS == "windows" {
+		for _, vol := range volumes {
+			hostPath := createHostPath(dataPath, containerName, vol.Containerpath)
+			if err := os.MkdirAll(hostPath, 0755); err != nil {
+				return fmt.Errorf("failed to create volume directory %s: %w", hostPath, err)
+			}
+			volumeLogger.Debug("Created volume directory (Windows)",
+				zap.String("path", hostPath))
+		}
+		return nil
+	}
+
 	uid, gid, err := getCurrentUser()
 	if err != nil {
 		volumeLogger.Warn("Failed to get current user, directories may have incorrect ownership",
 			zap.Error(err))
-		// Continue anyway - directories will be created by Docker
+		// Continue creating directories even if ownership cannot be set.
+		for _, vol := range volumes {
+			hostPath := createHostPath(dataPath, containerName, vol.Containerpath)
+			if mkErr := os.MkdirAll(hostPath, 0755); mkErr != nil {
+				return fmt.Errorf("failed to create volume directory %s: %w", hostPath, mkErr)
+			}
+		}
 		return nil
 	}
 
