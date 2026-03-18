@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PageSection, Card, CardBody } from '@patternfly/react-core';
 import PageHeader from '../UI/PageHeader';
 import { usePlayerStore } from '../../store/playerStore';
 
 const BannedPlayersList: React.FC = () => {
-  const { getBannedPlayers } = usePlayerStore();
+  const { getBannedPlayers, fetchPlayers } = usePlayerStore();
   const bannedPlayers = getBannedPlayers();
+
+  useEffect(() => {
+    fetchPlayers();
+  }, [fetchPlayers]);
 
   return (
     <>

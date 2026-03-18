@@ -6,7 +6,7 @@ SpoutMC now supports GitOps-style configuration management, allowing you to mana
 
 When GitOps is enabled, SpoutMC will:
 1. Clone a Git repository containing server configurations
-2. Read all YAML files from the repository (each representing a server)
+2. Read server manifests from the repository (each representing a server)
 3. Create an in-memory configuration
 4. Monitor the repository for changes (via polling and/or webhooks)
 5. Automatically apply changes when the repository is updated
@@ -74,26 +74,48 @@ spoutmc-servers/
 └── README.md
 ```
 
-**Important:** Each YAML file in the repository represents a single server configuration. The files can be in any directory structure.
+**Important:** SpoutMC looks for server files in `servers/` and infrastructure files in `infrastructure/`.
+Legacy flat YAML files are still supported, but new setups should use manifest format.
 
 ### Example Server Configuration
 
 `servers/lobby.yaml`:
 ```yaml
-name: lobby
-image: itzg/minecraft-server
-lobby: true
-env:
-  EULA: "TRUE"
-  TYPE: PAPER
-  VERSION: 1.21.10
-  MAX_MEMORY: 4G
-volumes:
-  - hostpath:
-      - testservers
-      - data
-      - lobby
-    containerpath: "/data"
+apiVersion: spoutmc.io/v1alpha1
+kind: SpoutServer
+metadata:
+  name: lobby
+spec:
+  name: lobby
+  image: itzg/minecraft-server
+  lobby: true
+  env:
+    EULA: "TRUE"
+    TYPE: PAPER
+    VERSION: 1.21.10
+    MAX_MEMORY: 4G
+  volumes:
+    - containerpath: "/data"
+```
+
+### Example Infrastructure Configuration
+
+`infrastructure/database.yaml`:
+```yaml
+apiVersion: spoutmc.io/v1alpha1
+kind: InfrastructureContainer
+metadata:
+  name: database
+spec:
+  name: database
+  image: mariadb:latest
+  restart: always
+  ports:
+    - host: "3306"
+      container: "3306"
+  env:
+    MARIADB_ROOT_PASSWORD: changeme
+    MARIADB_PASSWORD: changeme
 ```
 
 ## Authentication
@@ -267,8 +289,10 @@ Failed to parse YAML file as SpoutServer, skipping
 ```
 
 SpoutMC will skip invalid files and continue. Check:
-- File has `name` field
-- File has `image` field
+- `apiVersion` is set for manifest files
+- `kind` is `SpoutServer` or `InfrastructureContainer`
+- `metadata.name` matches `spec.name` (if both are set)
+- `spec.image` is set
 - YAML syntax is correct
 
 ### No Servers Loaded
@@ -278,9 +302,8 @@ no valid server configurations found in repository
 ```
 
 Verify:
-- Repository contains `.yaml` or `.yml` files
-- Files are not in `.git` directory
-- Files have valid server configuration
+- Repository contains `.yaml` or `.yml` files in `servers/`
+- Files have valid server manifests/configuration
 
 ## Migration from File-Based Config
 
@@ -301,10 +324,15 @@ servers:
 
 **To:** `servers/lobby.yaml`
 ```yaml
-name: lobby
-image: itzg/minecraft-server
-env:
-  EULA: "TRUE"
+apiVersion: spoutmc.io/v1alpha1
+kind: SpoutServer
+metadata:
+  name: lobby
+spec:
+  name: lobby
+  image: itzg/minecraft-server
+  env:
+    EULA: "TRUE"
 ```
 
 ### Step 2: Update spoutmc.yaml

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { TextInput, Button, Flex, FlexItem, Alert, Menu, MenuContent, MenuList, MenuItem, Popper } from '@patternfly/react-core';
+import { TextInput, Button, Flex, FlexItem, Alert, Menu, MenuContent, MenuList, MenuItem } from '@patternfly/react-core';
 import { PaperPlaneIcon } from '@patternfly/react-icons';
 import { LogViewer, LogViewerSearch } from '@patternfly/react-log-viewer';
 import AnsiToHtml from 'ansi-to-html';
@@ -11,18 +11,32 @@ interface ConsoleTabProps {
     isActive: boolean;
 }
 
-// Minecraft server commands (without leading /)
-const MINECRAFT_COMMANDS = [
-    'help', 'list', 'stop', 'say', 'tell', 'msg', 'give', 'clear', 'enchant',
-    'gamemode', 'difficulty', 'tp', 'teleport', 'kill', 'summon', 'effect',
-    'time', 'weather', 'setworldspawn', 'spawnpoint', 'seed', 'gamerule',
-    'kick', 'ban', 'ban-ip', 'pardon', 'pardon-ip', 'op', 'deop',
-    'whitelist', 'save-all', 'save-on', 'save-off', 'setblock', 'fill',
-    'clone', 'execute', 'scoreboard', 'function', 'data', 'datapack',
-    'advancement', 'xp', 'experience', 'attribute', 'bossbar', 'locate',
-    'locatebiome', 'playsound', 'stopsound', 'particle', 'recipe', 'reload',
-    'tag', 'team', 'teammsg', 'tm', 'title', 'trigger', 'worldborder'
+// Java Edition commands (without leading slash) for command-name completion.
+const JAVA_EDITION_COMMANDS = [
+    '?', 'advancement', 'attribute', 'ban', 'ban-ip', 'banlist', 'bossbar', 'clear',
+    'clone', 'damage', 'data', 'datapack', 'debug', 'defaultgamemode', 'deop', 'dialog',
+    'difficulty', 'effect', 'enchant', 'execute', 'experience', 'fetchprofile', 'fill',
+    'fillbiome', 'forceload', 'function', 'gamemode', 'gamerule', 'give', 'help', 'item',
+    'jfr', 'kick', 'kill', 'list', 'locate', 'loot', 'me', 'msg', 'op', 'pardon',
+    'pardon-ip', 'particle', 'perf', 'place', 'playsound', 'publish', 'random', 'recipe',
+    'reload', 'return', 'ride', 'rotate', 'save-all', 'save-off', 'save-on', 'say',
+    'schedule', 'scoreboard', 'seed', 'setblock', 'setidletimeout', 'setworldspawn',
+    'spawnpoint', 'spectate', 'spreadplayers', 'stop', 'stopsound', 'summon', 'swing',
+    'tag', 'team', 'teammsg', 'teleport', 'tell', 'tellraw', 'test', 'tick', 'time',
+    'title', 'tm', 'tp', 'transfer', 'trigger', 'version', 'w', 'waypoint', 'weather',
+    'whitelist', 'worldborder', 'xp'
 ];
+
+const getCommandToken = (rawInput: string) => {
+    if (!rawInput.startsWith('/')) {
+        return { base: '', remainder: '', hasRemainder: false };
+    }
+    const withoutSlash = rawInput.slice(1);
+    const match = withoutSlash.match(/^([^\s]*)([\s\S]*)$/);
+    const base = match?.[1] ?? '';
+    const remainder = match?.[2] ?? '';
+    return { base, remainder, hasRemainder: remainder.trim().length > 0 || remainder.startsWith(' ') };
+};
 
 export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
     const [command, setCommand] = useState('');
@@ -34,7 +48,7 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
     const [filteredCommands, setFilteredCommands] = useState<string[]>([]);
     const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
     const eventSourceRef = useRef<EventSource | null>(null);
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const ansiConverter = useRef(new AnsiToHtml());
     const maxReconnectAttempts = 10;
@@ -129,25 +143,38 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
         };
     }, [isActive, server.id, connectToLogs]);
 
-    // Update suggestions when command changes
+    // Command-name completion for Java Edition commands.
     useEffect(() => {
-        if (command.startsWith('/')) {
-            const searchTerm = command.slice(1).toLowerCase();
-            if (searchTerm) {
-                const matches = MINECRAFT_COMMANDS.filter(cmd =>
-                    cmd.toLowerCase().startsWith(searchTerm)
-                );
-                setFilteredCommands(matches);
-                setShowSuggestions(matches.length > 0);
-                setSelectedSuggestionIndex(0);
-            } else {
-                setFilteredCommands(MINECRAFT_COMMANDS);
-                setShowSuggestions(true);
-                setSelectedSuggestionIndex(0);
-            }
-        } else {
+        const { base, hasRemainder } = getCommandToken(command);
+
+        // Suggest command names only while typing the command token itself.
+        if (!command.startsWith('/') || hasRemainder) {
             setShowSuggestions(false);
+            return;
         }
+
+        const searchTerm = base.toLowerCase();
+        if (searchTerm.length > 0) {
+            const matches = JAVA_EDITION_COMMANDS.filter(cmdName =>
+                cmdName.toLowerCase().startsWith(searchTerm)
+            );
+            setFilteredCommands(matches);
+            setShowSuggestions(matches.length > 0);
+            setSelectedSuggestionIndex(0);
+        } else {
+            setFilteredCommands(JAVA_EDITION_COMMANDS);
+            setShowSuggestions(true);
+            setSelectedSuggestionIndex(0);
+        }
+    }, [command]);
+
+    const applySuggestion = useCallback((selectedCmd: string) => {
+        const { remainder } = getCommandToken(command);
+        // Keep already typed remainder if present, otherwise add a trailing space for next arg.
+        const suffix = remainder.length > 0 ? remainder : ' ';
+        setCommand('/' + selectedCmd + suffix);
+        setShowSuggestions(false);
+        inputRef.current?.focus();
     }, [command]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -163,14 +190,12 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
             setSelectedSuggestionIndex(prev =>
                 prev > 0 ? prev - 1 : filteredCommands.length - 1
             );
-        } else if (e.key === 'Tab' || e.key === 'Enter') {
+        } else if (e.key === 'Tab') {
             if (showSuggestions) {
                 e.preventDefault();
                 const selectedCmd = filteredCommands[selectedSuggestionIndex];
                 if (selectedCmd) {
-                    setCommand('/' + selectedCmd + ' ');
-                    setShowSuggestions(false);
-                    inputRef.current?.focus();
+                    applySuggestion(selectedCmd);
                 }
             }
         } else if (e.key === 'Escape') {
@@ -179,9 +204,7 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
     };
 
     const acceptSuggestion = (cmd: string) => {
-        setCommand('/' + cmd + ' ');
-        setShowSuggestions(false);
-        inputRef.current?.focus();
+        applySuggestion(cmd);
     };
 
     const handleCommand = async (e: React.FormEvent) => {
@@ -191,9 +214,7 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
         if (showSuggestions && filteredCommands.length > 0) {
             const selectedCmd = filteredCommands[selectedSuggestionIndex];
             if (selectedCmd) {
-                setCommand('/' + selectedCmd + ' ');
-                setShowSuggestions(false);
-                inputRef.current?.focus();
+                applySuggestion(selectedCmd);
                 return;
             }
         }

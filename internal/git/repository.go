@@ -19,9 +19,10 @@ var logger = log.GetLogger(log.ModuleGit)
 
 // Repository manages a Git repository for configuration
 type Repository struct {
-	config     *models.GitConfig
-	repo       *git.Repository
-	lastCommit string
+	config            *models.GitConfig
+	repo              *git.Repository
+	lastCommit        string
+	lastCommitMessage string
 }
 
 // NewRepository creates a new repository manager
@@ -69,11 +70,19 @@ func (r *Repository) Clone() error {
 
 	// Prepare clone options
 	cloneOpts := &git.CloneOptions{
-		URL:           r.buildAuthURL(),
+		URL:           r.config.Repository,
 		ReferenceName: plumbing.NewBranchReferenceName(r.config.Branch),
 		SingleBranch:  true,
 		Depth:         1, // Shallow clone for performance
 		Progress:      nil,
+	}
+
+	// Only add auth if token is provided
+	if r.config.Token != "" {
+		cloneOpts.Auth = &http.BasicAuth{
+			Username: "token", // Can be anything for PAT
+			Password: r.config.Token,
+		}
 	}
 
 	// Clone the repository
@@ -89,7 +98,7 @@ func (r *Repository) Clone() error {
 		return err
 	}
 
-	logger.Info("Repository cloned successfully", zap.String("commit", r.lastCommit[:7]))
+	logger.Info("Repository cloned successfully", zap.String("commit", shortCommit(r.lastCommit)))
 	return nil
 }
 
@@ -171,8 +180,8 @@ func (r *Repository) Pull() (bool, error) {
 
 	if hasChanges {
 		logger.Info("Changes detected, forcing reset to remote branch",
-			zap.String("old_commit", headRef.Hash().String()[:7]),
-			zap.String("new_commit", remoteRef.Hash().String()[:7]))
+			zap.String("old_commit", shortCommit(headRef.Hash().String())),
+			zap.String("new_commit", shortCommit(remoteRef.Hash().String())))
 
 		// Force reset to remote branch (this discards all local changes including untracked files)
 		err = worktree.Reset(&git.ResetOptions{
@@ -198,8 +207,8 @@ func (r *Repository) Pull() (bool, error) {
 		}
 
 		logger.Info("Repository updated successfully",
-			zap.String("old_commit", oldCommit[:7]),
-			zap.String("new_commit", r.lastCommit[:7]))
+			zap.String("old_commit", shortCommit(oldCommit)),
+			zap.String("new_commit", shortCommit(r.lastCommit)))
 	} else {
 		logger.Debug("Repository already up to date")
 	}
@@ -217,6 +226,11 @@ func (r *Repository) GetLastCommit() string {
 	return r.lastCommit
 }
 
+// GetLastCommitMessage returns the latest commit's subject/message.
+func (r *Repository) GetLastCommitMessage() string {
+	return r.lastCommitMessage
+}
+
 // updateCommitHash updates the last commit hash
 func (r *Repository) updateCommitHash() error {
 	ref, err := r.repo.Head()
@@ -225,23 +239,13 @@ func (r *Repository) updateCommitHash() error {
 	}
 
 	r.lastCommit = ref.Hash().String()
+
+	commitObj, err := r.repo.CommitObject(ref.Hash())
+	if err != nil {
+		return fmt.Errorf("failed to get commit object: %w", err)
+	}
+	r.lastCommitMessage = normalizeCommitMessage(commitObj.Message)
 	return nil
-}
-
-// buildAuthURL builds the repository URL with authentication
-func (r *Repository) buildAuthURL() string {
-	if r.config.Token == "" {
-		return r.config.Repository
-	}
-
-	// Add token to URL for HTTPS authentication
-	// Format: https://token@github.com/user/repo.git
-	if strings.HasPrefix(r.config.Repository, "https://") {
-		url := strings.TrimPrefix(r.config.Repository, "https://")
-		return fmt.Sprintf("https://%s@%s", r.config.Token, url)
-	}
-
-	return r.config.Repository
 }
 
 // CommitAndPush commits all changes and pushes to the remote repository
@@ -277,7 +281,7 @@ func (r *Repository) CommitAndPush(message string) error {
 		return fmt.Errorf("failed to commit: %w", err)
 	}
 
-	logger.Info("Changes committed", zap.String("commit", commit.String()[:7]))
+	logger.Info("Changes committed", zap.String("commit", shortCommit(commit.String())))
 
 	// Prepare push options
 	pushOpts := &git.PushOptions{
@@ -303,7 +307,7 @@ func (r *Repository) CommitAndPush(message string) error {
 		return err
 	}
 
-	logger.Info("Changes pushed successfully", zap.String("commit", r.lastCommit[:7]))
+	logger.Info("Changes pushed successfully", zap.String("commit", shortCommit(r.lastCommit)))
 	return nil
 }
 
@@ -341,7 +345,7 @@ func CommitAndPushChanges(repoPath, message string) error {
 		return fmt.Errorf("failed to commit: %w", err)
 	}
 
-	logger.Info("Changes committed", zap.String("commit", commit.String()[:7]))
+	logger.Info("Changes committed", zap.String("commit", shortCommit(commit.String())))
 
 	// Get git config to check for token
 	gitConfig, err := repo.Config()
@@ -383,4 +387,20 @@ func CommitAndPushChanges(repoPath, message string) error {
 
 	logger.Info("Changes pushed successfully")
 	return nil
+}
+
+func shortCommit(hash string) string {
+	if len(hash) <= 7 {
+		return hash
+	}
+	return hash[:7]
+}
+
+func normalizeCommitMessage(message string) string {
+	trimmed := strings.TrimSpace(message)
+	if trimmed == "" {
+		return ""
+	}
+	lines := strings.Split(trimmed, "\n")
+	return strings.TrimSpace(lines[0])
 }

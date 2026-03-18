@@ -18,8 +18,10 @@ var (
 func InitializeGitOps() error {
 	gitConfig := config.GetGitConfig()
 	if gitConfig == nil {
+		InitializeStatus(false)
 		return fmt.Errorf("git config is nil")
 	}
+	InitializeStatus(true)
 
 	logger.Info("Initializing GitOps",
 		zap.String("repository", gitConfig.Repository),
@@ -40,6 +42,7 @@ func InitializeGitOps() error {
 
 	// Load initial configuration from Git
 	if err := LoadConfigurationFromGit(); err != nil {
+		MarkSyncError("", "", err)
 		return fmt.Errorf("failed to load initial configuration: %w", err)
 	}
 
@@ -53,6 +56,7 @@ func InitializeGitOps() error {
 	}
 
 	logger.Info("GitOps initialized successfully")
+	MarkSyncSuccess(repo.GetLastCommit(), repo.GetLastCommitMessage(), SyncSummary{})
 	return nil
 }
 
@@ -114,4 +118,9 @@ func TriggerManualSync(ctx context.Context) error {
 	}
 
 	return globalPoller.TriggerSync(ctx)
+}
+
+// GetSyncStatus returns the latest GitOps synchronization status.
+func GetSyncStatus() GitOpsStatus {
+	return GetStatus()
 }

@@ -1,225 +1,53 @@
 import { create } from 'zustand';
 import { Player } from '../types';
+import * as api from '../service/apiService';
 
 interface PlayerState {
   players: Player[];
   loading: boolean;
   error: string | null;
+  eventSource: EventSource | null;
+  actionInProgressByPlayer: Record<string, boolean>;
 
-  // Actions
   fetchPlayers: () => Promise<void>;
-  banPlayer: (playerId: string, reason: string) => Promise<void>;
-  unbanPlayer: (playerId: string) => Promise<void>;
+  connectSSE: () => void;
+  disconnectSSE: () => void;
+  sendMessage: (playerName: string, message: string) => Promise<void>;
+  kickPlayer: (playerName: string, reason: string) => Promise<void>;
+  banPlayer: (playerName: string, reason: string) => Promise<void>;
 
-  // Selectors
   getPlayerById: (id: string) => Player | undefined;
   getBannedPlayers: () => Player[];
 }
 
-// Mock data for initial state
-const mockPlayers: Player[] = [
-  {
-    id: '1',
-    username: 'flind_',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '2',
-    username: 'Player2',
-    serverId: '2',
-    lastSeen: new Date(),
-    status: 'offline'
-  },
-  {
-    id: '3',
-    username: 'PermaBannedPlayer',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'banned',
-    banReason: 'Inappropriate behavior',
-    bannedAt: new Date(),
-    permanentBanned: true
-  },
-  {
-    id: '4',
-    username: 'Player3',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '5',
-    username: 'Player4',
-    serverId: '3',
-    lastSeen: new Date(),
-    status: 'offline'
-  },
-  {
-    id: '6',
-    username: 'ToxicGamer',
-    serverId: '2',
-    lastSeen: new Date(),
-    status: 'banned',
-    banReason: 'Toxic language',
-    bannedAt: new Date(),
-    bannedUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  },
-  {
-    id: '7',
-    username: 'Player5',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '8',
-    username: 'Player6',
-    serverId: '3',
-    lastSeen: new Date(),
-    status: 'offline'
-  },
-  {
-    id: '9',
-    username: 'Cheater01',
-    serverId: '2',
-    lastSeen: new Date(),
-    status: 'banned',
-    banReason: 'Cheating',
-    bannedAt: new Date()
-  },
-  {
-    id: '10',
-    username: 'Player7',
-    serverId: '2',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '11',
-    username: 'Player8',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'offline'
-  },
-  {
-    id: '12',
-    username: 'Player9',
-    serverId: '3',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '13',
-    username: 'Spammer',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'banned',
-    banReason: 'Spam messages',
-    bannedAt: new Date()
-  },
-  {
-    id: '14',
-    username: 'Player10',
-    serverId: '2',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '15',
-    username: 'Player11',
-    serverId: '3',
-    lastSeen: new Date(),
-    status: 'offline'
-  },
-  {
-    id: '16',
-    username: 'Player12',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '17',
-    username: 'HackerX',
-    serverId: '3',
-    lastSeen: new Date(),
-    status: 'banned',
-    banReason: 'Exploiting game bugs',
-    bannedAt: new Date()
-  },
-  {
-    id: '18',
-    username: 'Player13',
-    serverId: '2',
-    lastSeen: new Date(),
-    status: 'offline'
-  },
-  {
-    id: '19',
-    username: 'Player14',
-    serverId: '3',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '20',
-    username: 'Player15',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'offline'
-  },
-  {
-    id: '21',
-    username: 'Player16',
-    serverId: '2',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '22',
-    username: 'Griefer',
-    serverId: '2',
-    lastSeen: new Date(),
-    status: 'banned',
-    banReason: 'Griefing other players',
-    bannedAt: new Date()
-  },
-  {
-    id: '23',
-    username: 'Player17',
-    serverId: '3',
-    lastSeen: new Date(),
-    status: 'offline'
-  },
-  {
-    id: '24',
-    username: 'Player18',
-    serverId: '1',
-    lastSeen: new Date(),
-    status: 'online'
-  },
-  {
-    id: '25',
-    username: 'Player19',
-    serverId: '3',
-    lastSeen: new Date(),
-    status: 'offline'
-  }
-];
+const API_BASE_URL = 'http://localhost:3000/api/v1';
+
+const mapPlayer = (dto: api.PlayerDTO): Player => ({
+  id: dto.name,
+  username: dto.name,
+  avatarDataUrl: dto.avatarDataUrl,
+  currentServer: dto.currentServer,
+  lastLoggedInAt: dto.lastLoggedInAt,
+  lastLoggedOutAt: dto.lastLoggedOutAt,
+  status: dto.status === 'banned' ? 'banned' : dto.status === 'online' ? 'online' : 'offline',
+  banned: dto.banned,
+  banReason: dto.banReason
+});
+
+const mapPlayers = (dtos: api.PlayerDTO[]): Player[] => dtos.map(mapPlayer);
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
-  players: mockPlayers,
+  players: [],
   loading: false,
   error: null,
+  eventSource: null,
+  actionInProgressByPlayer: {},
 
   fetchPlayers: async () => {
     set({ loading: true, error: null });
-
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      set({ players: mockPlayers, loading: false });
+      const response = await api.getPlayers();
+      set({ players: mapPlayers(response.data), loading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch players',
@@ -228,66 +56,113 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  banPlayer: async (playerId: string, reason: string) => {
-    set({ loading: true, error: null });
+  connectSSE: () => {
+    const current = get().eventSource;
+    if (current) {
+      current.close();
+    }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const eventSource = new EventSource(`${API_BASE_URL}/player/stream`);
+      eventSource.onopen = () => set({ error: null });
+      eventSource.onmessage = event => {
+        try {
+          const data = JSON.parse(event.data);
+          const payload = data.Data ? (typeof data.Data === 'string' ? JSON.parse(data.Data) : data.Data) : data;
+          const players = Array.isArray(payload) ? mapPlayers(payload) : [];
+          set({ players, loading: false });
+        } catch (err) {
+          console.error('Failed to parse players SSE payload', err);
+        }
+      };
+      eventSource.onerror = () => {
+        eventSource.close();
+        setTimeout(() => {
+          const state = get();
+          if (!state.eventSource || state.eventSource.readyState === EventSource.CLOSED) {
+            get().connectSSE();
+          }
+        }, 5000);
+      };
 
-      set(state => ({
-        players: state.players.map(player =>
-          player.id === playerId
-            ? {
-              ...player,
-              status: 'banned',
-              banReason: reason,
-              bannedAt: new Date()
-            }
-            : player
-        ),
-        loading: false
-      }));
+      set({ eventSource });
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to ban player',
-        loading: false
-      });
+      set({ error: error instanceof Error ? error.message : 'Failed to establish players SSE connection' });
     }
   },
 
-  unbanPlayer: async (playerId: string) => {
-    set({ loading: true, error: null });
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      set(state => ({
-        players: state.players.map(player =>
-          player.id === playerId
-            ? {
-              ...player,
-              status: 'offline',
-              banReason: undefined,
-              bannedAt: undefined
-            }
-            : player
-        ),
-        loading: false
-      }));
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to unban player',
-        loading: false
-      });
+  disconnectSSE: () => {
+    const eventSource = get().eventSource;
+    if (eventSource) {
+      eventSource.close();
+      set({ eventSource: null });
     }
   },
 
-  // Selectors
-  getPlayerById: (id: string) => {
-    return get().players.find(player => player.id === id);
+  sendMessage: async (playerName: string, message: string) => {
+    set(state => ({
+      actionInProgressByPlayer: {
+        ...state.actionInProgressByPlayer,
+        [playerName]: true
+      }
+    }));
+    try {
+      await api.sendPlayerMessage(playerName, message);
+    } finally {
+      set(state => ({
+        actionInProgressByPlayer: {
+          ...state.actionInProgressByPlayer,
+          [playerName]: false
+        }
+      }));
+    }
   },
 
-  getBannedPlayers: () => {
-    return get().players.filter(player => player.status === 'banned');
-  }
+  kickPlayer: async (playerName: string, reason: string) => {
+    set(state => ({
+      actionInProgressByPlayer: {
+        ...state.actionInProgressByPlayer,
+        [playerName]: true
+      }
+    }));
+    try {
+      await api.kickPlayer(playerName, reason);
+    } finally {
+      set(state => ({
+        actionInProgressByPlayer: {
+          ...state.actionInProgressByPlayer,
+          [playerName]: false
+        }
+      }));
+    }
+  },
+
+  banPlayer: async (playerName: string, reason: string) => {
+    set(state => ({
+      actionInProgressByPlayer: {
+        ...state.actionInProgressByPlayer,
+        [playerName]: true
+      }
+    }));
+    try {
+      await api.banPlayer(playerName, reason);
+      set(state => ({
+        players: state.players.map(player =>
+          player.username === playerName
+            ? { ...player, status: 'banned', banned: true, banReason: reason, currentServer: '' }
+            : player
+        )
+      }));
+    } finally {
+      set(state => ({
+        actionInProgressByPlayer: {
+          ...state.actionInProgressByPlayer,
+          [playerName]: false
+        }
+      }));
+    }
+  },
+
+  getPlayerById: (id: string) => get().players.find(player => player.id === id),
+  getBannedPlayers: () => get().players.filter(player => player.status === 'banned' || player.banned)
 }));

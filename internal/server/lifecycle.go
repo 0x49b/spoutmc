@@ -92,6 +92,8 @@ func GetDefaultEnvVars(isProxy, isLobby bool) map[string]string {
 		return map[string]string{
 			"EULA":                     "TRUE",
 			"TYPE":                     "PAPER",
+			"ENABLE_RCON":              "false",
+			"CREATE_CONSOLE_IN_PIPE":   "true",
 			"ONLINE_MODE":              "FALSE",
 			"GUI":                      "FALSE",
 			"CONSOLE":                  "FALSE",

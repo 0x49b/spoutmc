@@ -81,6 +81,7 @@ const ServerDetail: React.FC = () => {
         fileName: string;
         volume?: string
     } | null>(null);
+    const [gitOpsStatus, setGitOpsStatus] = useState<api.GitOpsStatus | null>(null);
     const statsEventSourceRef = useRef<EventSource | null>(null);
 
     const server = getServerById(id || '');
@@ -116,6 +117,29 @@ const ServerDetail: React.FC = () => {
             loadServerFiles();
         }
     }, [activeTab, server?.id]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadGitOpsStatus = async () => {
+            try {
+                const response = await api.getGitOpsStatus();
+                if (isMounted) {
+                    setGitOpsStatus(response.data);
+                }
+            } catch (error) {
+                console.error('Failed to load GitOps status:', error);
+            }
+        };
+
+        loadGitOpsStatus();
+        const interval = setInterval(loadGitOpsStatus, 10000);
+
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, []);
 
     const loadServerFiles = async () => {
         if (!server?.id) return;
@@ -229,6 +253,9 @@ const ServerDetail: React.FC = () => {
     };
 
     const handleDeleteServer = async (removeData: boolean) => {
+        if (gitOpsStatus?.enabled) {
+            return;
+        }
         setIsDeleting(true);
         try {
             await deleteServer(server.id, removeData);
@@ -293,11 +320,19 @@ const ServerDetail: React.FC = () => {
                             variant="danger"
                             icon={<TrashIcon/>}
                             onClick={() => setIsDeleteModalOpen(true)}
-                            isDisabled={isRestarting || isPowerActionLoading}
+                            isDisabled={isRestarting || isPowerActionLoading || gitOpsStatus?.enabled === true}
                         />
                     </>
                 }
             />
+
+            {gitOpsStatus?.enabled ? (
+                <PageSection className="pf-v6-u-pb-0">
+                    <div className="pf-v6-u-color-200">
+                        GitOps is enabled: server removal is disabled in the UI. Remove the server from the Git repository instead.
+                    </div>
+                </PageSection>
+            ) : null}
 
             {/* Modals */}
             <StopServerModal

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 )
@@ -25,20 +27,22 @@ func ExecCommand(ctx context.Context, containerId string, cmdChan <-chan string)
 					return
 				}
 
-				// Remove leading slash if present
-				cmdToExecute := cmd
-				if len(cmdToExecute) > 0 && cmdToExecute[0] == '/' {
-					cmdToExecute = cmdToExecute[1:]
-				}
-
 				execCreateResp, err := cli.ContainerExecCreate(ctx, containerId, container.ExecOptions{
-					Cmd:          []string{"rcon-cli", cmdToExecute},
+					Cmd:          buildConsoleCommand(cmd),
+					User:         "1000:1000",
 					AttachStdout: true,
 					AttachStderr: true,
 				})
 				if err != nil {
-					outputChan <- fmt.Sprintf("exec create error: %v", err)
-					return
+					execCreateResp, err = cli.ContainerExecCreate(ctx, containerId, container.ExecOptions{
+						Cmd:          buildRCONCommand(cmd),
+						AttachStdout: true,
+						AttachStderr: true,
+					})
+					if err != nil {
+						outputChan <- fmt.Sprintf("exec create error (console and rcon fallback): %v", err)
+						return
+					}
 				}
 
 				resp, err := cli.ContainerExecAttach(ctx, execCreateResp.ID, container.ExecStartOptions{
@@ -67,18 +71,26 @@ func ExecCommand(ctx context.Context, containerId string, cmdChan <-chan string)
 	return outputChan
 }
 
-// ExecuteCommand executes a single command in a container using rcon-cli
+// ExecuteCommand executes a single command in a container using console pipe access.
 // Commands can start with or without a leading slash (/)
 func ExecuteCommand(ctx context.Context, containerId string, command string) error {
-	// Remove leading slash if present (Minecraft commands can optionally start with /)
-	// rcon-cli doesn't require the slash
-	if len(command) > 0 && command[0] == '/' {
-		command = command[1:]
+	err := runExecAndWait(ctx, containerId, buildConsoleCommand(command), "1000:1000")
+	if err != nil {
+		// Fallback for containers without console pipe or with missing console setup.
+		fallbackErr := runExecAndWait(ctx, containerId, buildRCONCommand(command), "")
+		if fallbackErr != nil {
+			return fmt.Errorf("command execution failed (console path: %v, rcon fallback: %w)", err, fallbackErr)
+		}
+		return nil
 	}
 
-	// Use rcon-cli which is enabled by default in itzg/minecraft-server
-	execCreateResp, err := cli.ContainerExecCreate(ctx, containerId, container.ExecOptions{
-		Cmd:          []string{"rcon-cli", command},
+	return nil
+}
+
+func runExecAndWait(ctx context.Context, containerID string, cmd []string, user string) error {
+	execCreateResp, err := cli.ContainerExecCreate(ctx, containerID, container.ExecOptions{
+		Cmd:          cmd,
+		User:         user,
 		AttachStdout: false,
 		AttachStderr: false,
 	})
@@ -86,13 +98,52 @@ func ExecuteCommand(ctx context.Context, containerId string, command string) err
 		return fmt.Errorf("failed to create exec: %w", err)
 	}
 
-	// Start the exec without waiting for output
-	err = cli.ContainerExecStart(ctx, execCreateResp.ID, container.ExecStartOptions{
-		Detach: true,
-	})
-	if err != nil {
+	if err := cli.ContainerExecStart(ctx, execCreateResp.ID, container.ExecStartOptions{Detach: true}); err != nil {
 		return fmt.Errorf("failed to start exec: %w", err)
 	}
 
-	return nil
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("command context canceled: %w", ctx.Err())
+		case <-time.After(100 * time.Millisecond):
+			inspect, err := cli.ContainerExecInspect(ctx, execCreateResp.ID)
+			if err != nil {
+				return fmt.Errorf("failed to inspect exec: %w", err)
+			}
+			if !inspect.Running {
+				if inspect.ExitCode != 0 {
+					return fmt.Errorf("command exited with code %d", inspect.ExitCode)
+				}
+				return nil
+			}
+		}
+	}
+}
+
+func buildConsoleCommand(command string) []string {
+	cmd := cleanMinecraftCommand(command)
+	if cmd == "" {
+		return []string{"mc-send-to-console"}
+	}
+
+	// Use mc-send-to-console to avoid enabling RCON by default.
+	return []string{"mc-send-to-console", cmd}
+}
+
+func buildRCONCommand(command string) []string {
+	cmd := cleanMinecraftCommand(command)
+	if cmd == "" {
+		return []string{"rcon-cli"}
+	}
+	// rcon-cli expects the command as a single argument
+	return []string{"rcon-cli", cmd}
+}
+
+func cleanMinecraftCommand(command string) string {
+	cmd := strings.TrimSpace(command)
+	if strings.HasPrefix(cmd, "/") {
+		cmd = strings.TrimPrefix(cmd, "/")
+	}
+	return strings.TrimSpace(cmd)
 }

@@ -134,27 +134,26 @@ func getServerLogs(c echo.Context) error {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
 	for {
 		select {
 		case <-c.Request().Context().Done():
 			logger.Info("SSE client disconnected", zap.String("ip", c.RealIP()))
 			return nil
-		default:
-			for logline := range logChan {
-				id, _ := shortid.Generate()
-				event := sse.Event{
-					ID:        []byte(id),
-					Data:      []byte(logline),
-					Timestamp: time.Now().Unix(),
-				}
-				if err := event.MarshalTo(w); err != nil {
-					return err
-				}
-				w.Flush()
+		case logline, ok := <-logChan:
+			if !ok {
+				return nil
 			}
+
+			id, _ := shortid.Generate()
+			event := sse.Event{
+				ID:        []byte(id),
+				Data:      []byte(logline),
+				Timestamp: time.Now().Unix(),
+			}
+			if err := event.MarshalTo(w); err != nil {
+				return err
+			}
+			w.Flush()
 		}
 	}
 }
@@ -277,6 +276,12 @@ type AddServerRequest struct {
 // @Failure 500 {object} map[string]string
 // @Router /server [post]
 func addServerHandler(c echo.Context) error {
+	if config.IsGitOpsEnabled() {
+		return c.JSON(http.StatusForbidden, map[string]string{
+			"error": "Add server is disabled while GitOps is enabled. Add the server manifest to the Git repository instead.",
+		})
+	}
+
 	var req AddServerRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
@@ -789,6 +794,12 @@ func updateServerHandler(c echo.Context) error {
 // @Failure 500 {object} map[string]string
 // @Router /server/{id} [delete]
 func deleteServerHandler(c echo.Context) error {
+	if config.IsGitOpsEnabled() {
+		return c.JSON(http.StatusForbidden, map[string]string{
+			"error": "Remove server is disabled while GitOps is enabled. Delete the server manifest from the Git repository instead.",
+		})
+	}
+
 	containerID := c.Param("id")
 
 	if containerID == "" {

@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 )
 
 var logEmoji = "🗄️"
@@ -25,8 +24,17 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 	// Track server names to detect duplicates
 	serverNames := make(map[string]bool)
 
-	// Walk through all files in the repository
-	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
+	serversPath := filepath.Join(repoPath, "servers")
+	searchPath := repoPath
+	if info, err := os.Stat(serversPath); err == nil && info.IsDir() {
+		searchPath = serversPath
+	} else {
+		logger.Warn(logEmoji+" No servers directory found, using legacy repository-wide YAML scan",
+			zap.String("path", repoPath))
+	}
+
+	// Walk through all server YAML files
+	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -61,10 +69,10 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			return nil // Continue processing other files
 		}
 
-		// Try to parse as SpoutServer
-		var server models.SpoutServer
-		if err := yaml.Unmarshal(data, &server); err != nil {
-			logger.Warn(logEmoji+" Failed to parse YAML file as SpoutServer, skipping",
+		// Parse as either manifest format or legacy server format
+		server, err := ParseServerYAML(data)
+		if err != nil {
+			logger.Warn(logEmoji+" Failed to parse server YAML file, skipping",
 				zap.String("file", path),
 				zap.Error(err))
 			return nil // Continue processing other files
@@ -82,6 +90,13 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			logger.Warn(logEmoji+" Server configuration missing 'image' field, skipping",
 				zap.String("file", path),
 				zap.String("server", server.Name))
+			return nil
+		}
+
+		if err := ValidateServerConfig(&server); err != nil {
+			logger.Warn(logEmoji+" Invalid server configuration, skipping",
+				zap.String("file", path),
+				zap.Error(err))
 			return nil
 		}
 
@@ -186,10 +201,10 @@ func LoadInfrastructureFromRepository(repoPath string) ([]infrastructure.Infrast
 			return nil
 		}
 
-		// Try to parse as InfrastructureContainer
-		var container infrastructure.InfrastructureContainer
-		if err := yaml.Unmarshal(data, &container); err != nil {
-			logger.Warn(logEmoji+" Failed to parse YAML file as InfrastructureContainer, skipping",
+		// Parse as either manifest format or legacy infrastructure format
+		container, err := ParseInfrastructureYAML(data)
+		if err != nil {
+			logger.Warn(logEmoji+" Failed to parse infrastructure YAML file, skipping",
 				zap.String("file", path),
 				zap.Error(err))
 			return nil

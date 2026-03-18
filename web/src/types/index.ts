@@ -1,13 +1,13 @@
 export interface Player {
   id: string;
   username: string;
-  serverId?: string;
-  lastSeen: Date;
+  avatarDataUrl?: string;
+  currentServer?: string;
+  lastLoggedInAt?: string;
+  lastLoggedOutAt?: string;
   status: 'online' | 'offline' | 'banned';
-  permanentBanned?: boolean;
+  banned: boolean;
   banReason?: string;
-  bannedAt?: Date;
-  bannedUntil?: Date;
 }
 
 export interface Server {

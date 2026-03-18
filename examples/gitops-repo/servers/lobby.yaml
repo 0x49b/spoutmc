@@ -1,16 +1,21 @@
-name: lobby
-image: itzg/minecraft-server
-lobby: true
-env:
-  EULA: "TRUE"
-  TYPE: PAPER
-  ONLINE_MODE: 'FALSE'
-  ENFORCE_SECURE_PROFILE: 'FALSE'
-  MAX_MEMORY: 4G
-  VERSION: 1.21.10
-  GUI: 'FALSE'
-  CONSOLE: 'FALSE'
-  LOG_TIMESTAMP: 'TRUE'
-  TZ: Europe/Zurich
-volumes:
-  - containerpath: "/data"
+apiVersion: spoutmc.io/v1alpha1
+kind: SpoutServer
+metadata:
+  name: lobby
+spec:
+  name: lobby
+  image: itzg/minecraft-server
+  lobby: true
+  env:
+    EULA: "TRUE"
+    TYPE: PAPER
+    ONLINE_MODE: "FALSE"
+    ENFORCE_SECURE_PROFILE: "FALSE"
+    MAX_MEMORY: 4G
+    VERSION: 1.21.10
+    GUI: "FALSE"
+    CONSOLE: "FALSE"
+    LOG_TIMESTAMP: "TRUE"
+    TZ: Europe/Zurich
+  volumes:
+    - containerpath: "/data"

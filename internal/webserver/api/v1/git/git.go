@@ -2,6 +2,7 @@ package git
 
 import (
 	"net/http"
+	"spoutmc/internal/config"
 	gitops "spoutmc/internal/git"
 	"spoutmc/internal/log"
 
@@ -15,8 +16,24 @@ var logger = log.GetLogger(log.ModuleGit)
 func RegisterGitRoutes(g *echo.Group) {
 	git := g.Group("/git")
 
+	git.GET("/status", handleGitStatus)
 	git.POST("/webhook", handleWebhook)
 	git.POST("/sync", handleManualSync)
+}
+
+// @Summary Get GitOps sync status
+// @Description Returns current GitOps mode and synchronization status metadata
+// @Tags git
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /git/status [get]
+func handleGitStatus(c echo.Context) error {
+	status := gitops.GetSyncStatus()
+	status.Enabled = config.IsGitOpsEnabled()
+	if !status.Enabled && status.State == "" {
+		status.State = "disabled"
+	}
+	return c.JSON(http.StatusOK, status)
 }
 
 // @Summary Handle Git webhook

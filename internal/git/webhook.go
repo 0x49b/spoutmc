@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -55,9 +56,10 @@ func (h *WebhookHandler) HandleWebhook(c echo.Context) error {
 	}
 
 	logger.Info("Webhook processed successfully")
+	commit := h.poller.repo.GetLastCommit()
 	return c.JSON(http.StatusOK, map[string]string{
 		"status": "success",
-		"commit": h.poller.repo.GetLastCommit()[:7],
+		"commit": shortCommit(commit),
 	})
 }
 
@@ -89,7 +91,7 @@ func (h *WebhookHandler) verifySignature(c echo.Context, webhookType string) err
 	}
 
 	// Reset body so it can be read again
-	c.Request().Body = io.NopCloser(strings.NewReader(string(payload)))
+	c.Request().Body = io.NopCloser(bytes.NewReader(payload))
 
 	switch webhookType {
 	case "github":
@@ -103,9 +105,8 @@ func (h *WebhookHandler) verifySignature(c echo.Context, webhookType string) err
 		signature = strings.TrimPrefix(signature, "sha256=")
 
 		// Verify signature
-		expectedMAC := h.computeHMAC(payload)
-		if !hmac.Equal([]byte(signature), []byte(expectedMAC)) {
-			return fmt.Errorf("signature mismatch")
+		if err := h.verifyHMACHexSignature(payload, signature); err != nil {
+			return err
 		}
 
 	case "gitlab":
@@ -128,14 +129,12 @@ func (h *WebhookHandler) verifySignature(c echo.Context, webhookType string) err
 		}
 
 		if signature == "" {
-			logger.Warn("No signature header found, skipping verification")
-			return nil
+			return fmt.Errorf("missing signature header")
 		}
 
 		signature = strings.TrimPrefix(signature, "sha256=")
-		expectedMAC := h.computeHMAC(payload)
-		if !hmac.Equal([]byte(signature), []byte(expectedMAC)) {
-			return fmt.Errorf("signature mismatch")
+		if err := h.verifyHMACHexSignature(payload, signature); err != nil {
+			return err
 		}
 	}
 
@@ -147,4 +146,22 @@ func (h *WebhookHandler) computeHMAC(payload []byte) string {
 	mac := hmac.New(sha256.New, []byte(h.secret))
 	mac.Write(payload)
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// verifyHMACHexSignature validates a hex-encoded SHA256 HMAC signature.
+func (h *WebhookHandler) verifyHMACHexSignature(payload []byte, signature string) error {
+	givenMAC, err := hex.DecodeString(signature)
+	if err != nil {
+		return fmt.Errorf("invalid signature encoding")
+	}
+
+	expectedMAC := hmac.New(sha256.New, []byte(h.secret))
+	expectedMAC.Write(payload)
+	expected := expectedMAC.Sum(nil)
+
+	if !hmac.Equal(givenMAC, expected) {
+		return fmt.Errorf("signature mismatch")
+	}
+
+	return nil
 }

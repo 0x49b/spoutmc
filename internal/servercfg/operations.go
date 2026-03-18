@@ -22,8 +22,8 @@ func AddServerToGit(server models.SpoutServer) error {
 		return fmt.Errorf("git configuration not found")
 	}
 
-	// Marshal the server directly (without servers: wrapper)
-	yamlData, err := yaml.Marshal(server)
+	// Marshal using GitOps manifest format (apiVersion/kind/metadata/spec)
+	yamlData, err := git.MarshalServerManifest(server)
 	if err != nil {
 		return fmt.Errorf("failed to marshal server config: %w", err)
 	}
@@ -87,8 +87,8 @@ func UpdateServerInGit(oldName string, server models.SpoutServer) error {
 		}
 	}
 
-	// Marshal the updated server
-	yamlData, err := yaml.Marshal(server)
+	// Marshal using GitOps manifest format (apiVersion/kind/metadata/spec)
+	yamlData, err := git.MarshalServerManifest(server)
 	if err != nil {
 		return fmt.Errorf("failed to marshal server config: %w", err)
 	}

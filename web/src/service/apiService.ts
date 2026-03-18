@@ -12,6 +12,23 @@ const api = axios.create({
 
 export const getUsers = () => api.get('/user');
 
+// Players API
+export interface PlayerDTO {
+  name: string;
+  avatarDataUrl?: string;
+  lastLoggedInAt?: string;
+  lastLoggedOutAt?: string;
+  currentServer?: string;
+  banned: boolean;
+  banReason?: string;
+  status: 'online' | 'offline' | 'banned' | string;
+}
+
+export const getPlayers = () => api.get<PlayerDTO[]>('/player');
+export const sendPlayerMessage = (name: string, message: string) => api.post(`/player/${encodeURIComponent(name)}/message`, { message });
+export const kickPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/kick`, { reason });
+export const banPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/ban`, { reason });
+
 // Setup API functions
 export const completeSetup = (setupData: { dataPath: string; acceptEula: boolean }) =>
   api.post('/setup/complete', setupData);
@@ -76,3 +93,29 @@ export const getServerFile = (serverId: string, path: string, volume?: string) =
 
 export const updateServerFile = (serverId: string, path: string, content: string, volume?: string) =>
   api.put(`/server/${serverId}/file`, { content }, { params: { path, volume } });
+
+// GitOps API
+export interface GitOpsSyncSummary {
+  added: number;
+  updated: number;
+  removed: number;
+  created: number;
+  recreated: number;
+  pruned: number;
+  driftCorrections: number;
+}
+
+export interface GitOpsStatus {
+  enabled: boolean;
+  state: 'disabled' | 'initializing' | 'syncing' | 'synced' | 'error' | string;
+  lastSyncAt?: string;
+  lastSuccessfulSyncAt?: string;
+  lastChangeDetectedAt?: string;
+  lastSyncCommit?: string;
+  lastSyncCommitMessage?: string;
+  lastError?: string;
+  lastSummary?: GitOpsSyncSummary;
+}
+
+export const getGitOpsStatus = () => api.get<GitOpsStatus>('/git/status');
+export const triggerGitOpsSync = () => api.post('/git/sync');

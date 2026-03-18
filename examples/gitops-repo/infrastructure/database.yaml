@@ -1,11 +1,16 @@
-name: database
-image: mariadb:latest
-restart: always
-volumes:
-  - ./backup:/backup
-ports:
-  - host: 3306
-    container: 3306
-env:
-  MARIADB_ROOT_PASSWORD: changeme
-  MARIADB_PASSWORD: changeme
+apiVersion: spoutmc.io/v1alpha1
+kind: InfrastructureContainer
+metadata:
+  name: database
+spec:
+  name: database
+  image: mariadb:latest
+  restart: always
+  volumes:
+    - ./backup:/backup
+  ports:
+    - host: "3306"
+      container: "3306"
+  env:
+    MARIADB_ROOT_PASSWORD: changeme
+    MARIADB_PASSWORD: changeme
