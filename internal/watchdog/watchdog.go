@@ -102,7 +102,7 @@ func (w *Watchdog) ensurePaperVelocityConfig(ctx context.Context) {
 }
 
 func (w *Watchdog) checkExistingContainers(ctx context.Context) {
-	containers, err := docker.GetNetworkContainers()
+	containers, err := docker.GetNetworkContainers(ctx)
 	if err != nil {
 		w.logger.Error("error getting network containers", zap.Error(err))
 		return
@@ -166,7 +166,7 @@ func (w *Watchdog) checkMissingServers(ctx context.Context) {
 	}
 
 	// Get list of running containers
-	containers, err := docker.GetNetworkContainers()
+	containers, err := docker.GetNetworkContainers(ctx)
 	if err != nil {
 		w.logger.Error("error getting network containers", zap.Error(err))
 		return
@@ -191,16 +191,16 @@ func (w *Watchdog) checkMissingServers(ctx context.Context) {
 			w.logger.Warn("server defined in config but not running, creating",
 				zap.String("server", server.Name),
 			)
-			w.createMissingServer(server, dataPath)
+			w.createMissingServer(ctx, server, dataPath)
 		}
 	}
 }
 
-func (w *Watchdog) createMissingServer(server models.SpoutServer, dataPath string) {
+func (w *Watchdog) createMissingServer(ctx context.Context, server models.SpoutServer, dataPath string) {
 	w.logger.Info("creating missing server", zap.String("server", server.Name))
 
 	// Use docker.StartContainer which handles creation if container doesn't exist
-	if err := docker.StartContainer(server, dataPath); err != nil {
+	if err := docker.StartContainer(ctx, server, dataPath); err != nil {
 		w.logger.Error("failed to create missing server",
 			zap.String("server", server.Name),
 			zap.Error(err))
@@ -229,7 +229,7 @@ func (w *Watchdog) restartContainer(ctx context.Context, containerID, containerN
 
 func (w *Watchdog) checkInfrastructureContainers(ctx context.Context) {
 	// Get all infrastructure containers
-	containers, err := docker.GetInfrastructureContainers()
+	containers, err := docker.GetInfrastructureContainers(ctx)
 	if err != nil {
 		w.logger.Error("error getting infrastructure containers", zap.Error(err))
 		return

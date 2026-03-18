@@ -108,10 +108,10 @@ func LoadConfigurationFromGit() error {
 }
 
 // TriggerManualSync triggers a manual sync (for testing or manual operations)
-func TriggerManualSync() error {
+func TriggerManualSync(ctx context.Context) error {
 	if globalPoller == nil {
 		return fmt.Errorf("git poller not initialized")
 	}
 
-	return globalPoller.TriggerSync()
+	return globalPoller.TriggerSync(ctx)
 }

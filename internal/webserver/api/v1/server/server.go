@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"spoutmc/internal/servercfg"
 	"spoutmc/internal/sse"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -26,7 +24,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var lock = sync.Mutex{}
 var logger = log.GetLogger(log.ModuleAPI)
 
 // RegisterServerRoutes registers container/server-related API endpoints.
@@ -91,7 +88,7 @@ func getServerStats(c echo.Context) error {
 			logger.Info("SSE client disconnected", zap.String("ip", c.RealIP()))
 			return nil
 		case <-ticker.C:
-			container, err := docker.GetContainerStats(c.Param("id"))
+			container, err := docker.GetContainerStats(c.Request().Context(), c.Param("id"))
 			if err != nil {
 				return err
 			}
@@ -126,8 +123,7 @@ func getServerStats(c echo.Context) error {
 func getServerLogs(c echo.Context) error {
 	logger.Info("SSE Client connected", zap.String("ip", c.RealIP()))
 
-	ctx := context.Background()
-	logChan, err := docker.FetchDockerLogs(ctx, c.Param("id"))
+	logChan, err := docker.FetchDockerLogs(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		logger.Error("Error fetching docker logs", zap.Error(err))
 		return err
@@ -173,13 +169,13 @@ func getServerLogs(c echo.Context) error {
 // @Router /server/{id} [get]
 func getServer(c echo.Context) error {
 	// Get detailed container info for StartedAt
-	inspectData, err := docker.GetContainerById(c.Param("id"))
+	inspectData, err := docker.GetContainerById(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
 
 	// Get container summary for labels and basic info
-	containers, err := docker.GetNetworkContainers()
+	containers, err := docker.GetNetworkContainers(c.Request().Context())
 	if err != nil {
 		return err
 	}
@@ -222,10 +218,7 @@ func getServer(c echo.Context) error {
 // @Failure 500 {object} map[string]string
 // @Router /server [get]
 func getServers(c echo.Context) error {
-	lock.Lock()
-	defer lock.Unlock()
-
-	containers, err := docker.GetNetworkContainers()
+	containers, err := docker.GetNetworkContainers(c.Request().Context())
 	if err != nil {
 		return err
 	}
@@ -239,7 +232,7 @@ func getServers(c echo.Context) error {
 		}
 
 		// Get detailed container info to extract StartedAt
-		inspectData, err := docker.GetContainerById(container.ID)
+		inspectData, err := docker.GetContainerById(c.Request().Context(), container.ID)
 		if err == nil && inspectData.State != nil {
 			enriched.StartedAt = inspectData.State.StartedAt
 		}
@@ -398,7 +391,7 @@ func addServerHandler(c echo.Context) error {
 	}
 
 	// Start the new container
-	if err := docker.StartContainer(newServer, dataPath); err != nil {
+	if err := docker.StartContainer(c.Request().Context(), newServer, dataPath); err != nil {
 		logger.Error("Failed to start container", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("Failed to start container: %v", err),
@@ -441,7 +434,7 @@ func startServerHandler(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.StartContainer(containerID); err != nil {
+	if err := containerpkg.StartContainer(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to start container",
 		})
@@ -473,7 +466,7 @@ func stopServerHandler(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.StopContainer(containerID); err != nil {
+	if err := containerpkg.StopContainer(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to stop container",
 		})
@@ -505,7 +498,7 @@ func restartServerHandler(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.RestartContainer(containerID); err != nil {
+	if err := containerpkg.RestartContainer(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to restart container",
 		})
@@ -556,8 +549,7 @@ func executeCommandHandler(c echo.Context) error {
 	}
 
 	// Execute the command in the container
-	ctx := context.Background()
-	if err := docker.ExecuteCommand(ctx, containerID, req.Command); err != nil {
+	if err := docker.ExecuteCommand(c.Request().Context(), containerID, req.Command); err != nil {
 		logger.Error("Failed to execute command",
 			zap.String("container", containerID[:12]),
 			zap.String("command", req.Command),
@@ -601,7 +593,7 @@ func getServerEnvHandler(c echo.Context) error {
 	}
 
 	// Get container info
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -667,7 +659,7 @@ func updateServerHandler(c echo.Context) error {
 	}
 
 	// Get container info to find current server name
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -718,7 +710,7 @@ func updateServerHandler(c echo.Context) error {
 
 	// Stop and remove old container
 	logger.Info("Stopping and removing old container", zap.String("name", currentName))
-	if err := docker.StopAndRemoveContainerById(containerID); err != nil {
+	if err := docker.StopAndRemoveContainerById(c.Request().Context(), containerID); err != nil {
 		logger.Error("Failed to stop and remove container", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("Failed to remove container: %v", err),
@@ -772,7 +764,7 @@ func updateServerHandler(c echo.Context) error {
 	}
 
 	// Start the updated container
-	if err := docker.StartContainer(*serverConfig, dataPath); err != nil {
+	if err := docker.StartContainer(c.Request().Context(), *serverConfig, dataPath); err != nil {
 		logger.Error("Failed to start updated container", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("Failed to start container: %v", err),
@@ -816,7 +808,7 @@ func deleteServerHandler(c echo.Context) error {
 		zap.Bool("removeData", removeData))
 
 	// Get container details to find server name
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -849,14 +841,14 @@ func deleteServerHandler(c echo.Context) error {
 	}
 
 	// Stop the container (this also excludes from watchdog)
-	if err := containerpkg.StopContainer(containerID); err != nil {
+	if err := containerpkg.StopContainer(c.Request().Context(), containerID); err != nil {
 		logger.Error("Failed to stop container", zap.Error(err))
 		// Continue with removal even if stop fails
 	}
 
 	// Remove container (without removing volumes - handled separately below)
 	logger.Info("Removing container", zap.String("name", serverName))
-	if err := docker.RemoveContainerById(containerID, false); err != nil {
+	if err := docker.RemoveContainerById(c.Request().Context(), containerID, false); err != nil {
 		logger.Error("Failed to remove container", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("Failed to remove container: %v", err),
@@ -937,9 +929,7 @@ func streamServers(c echo.Context) error {
 			logger.Info("SSE client disconnected from server stream", zap.String("ip", c.RealIP()))
 			return nil
 		case <-ticker.C:
-			lock.Lock()
-			containers, err := docker.GetNetworkContainers()
-			lock.Unlock()
+			containers, err := docker.GetNetworkContainers(c.Request().Context())
 
 			if err != nil {
 				logger.Error("Error fetching containers for stream", zap.Error(err))
@@ -956,7 +946,7 @@ func streamServers(c echo.Context) error {
 				}
 
 				// Get detailed container info to extract StartedAt
-				inspectData, err := docker.GetContainerById(container.ID)
+				inspectData, err := docker.GetContainerById(c.Request().Context(), container.ID)
 				if err == nil && inspectData.State != nil {
 					enrichedContainer.StartedAt = inspectData.State.StartedAt
 				}
@@ -966,7 +956,7 @@ func streamServers(c echo.Context) error {
 				}
 
 				// Try to fetch stats for this container (non-blocking)
-				stats, err := docker.GetContainerStats(container.ID)
+				stats, err := docker.GetContainerStats(c.Request().Context(), container.ID)
 				if err != nil {
 					// Log but don't fail the whole stream
 					logger.Debug("Could not fetch stats for container",
@@ -1019,7 +1009,7 @@ func listConfigFilesHandler(c echo.Context) error {
 	}
 
 	// Get container info to find server name and type
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -1123,7 +1113,7 @@ func getConfigFileHandler(c echo.Context) error {
 	}
 
 	// Get container info to find server name and type
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -1239,7 +1229,7 @@ func updateConfigFileHandler(c echo.Context) error {
 	}
 
 	// Get container info to find server name and type
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -1351,7 +1341,7 @@ func listServerFilesHandler(c echo.Context) error {
 	}
 
 	// Get container info to find server name
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -1449,7 +1439,7 @@ func getServerFileHandler(c echo.Context) error {
 	}
 
 	// Get container info to find server name
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -1506,7 +1496,8 @@ func getServerFileHandler(c echo.Context) error {
 
 	// Security check: ensure path is within server directory
 	serverDir := filepath.Join(dataPath, serverName)
-	if !filepath.HasPrefix(fullPath, serverDir) {
+	rel, err := filepath.Rel(serverDir, fullPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid file path",
 		})
@@ -1572,7 +1563,7 @@ func updateServerFileHandler(c echo.Context) error {
 	}
 
 	// Get container info to find server name
-	containerInfo, err := docker.GetContainerById(containerID)
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
 		return c.JSON(http.StatusNotFound, map[string]string{
@@ -1629,7 +1620,8 @@ func updateServerFileHandler(c echo.Context) error {
 
 	// Security check: ensure path is within server directory
 	serverDir := filepath.Join(dataPath, serverName)
-	if !filepath.HasPrefix(fullPath, serverDir) {
+	rel, err := filepath.Rel(serverDir, fullPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid file path",
 		})

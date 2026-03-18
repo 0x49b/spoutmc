@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"context"
+
 	"github.com/docker/docker/api/types/network"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
@@ -12,7 +14,7 @@ func GetNetworkName() string {
 	return networkName
 }
 
-func CreateSpoutNetwork(networkName string) network.Inspect {
+func CreateSpoutNetwork(ctx context.Context, networkName string) network.Inspect {
 
 	networkList, err := cli.NetworkList(ctx, network.ListOptions{})
 	if err != nil {
@@ -42,7 +44,7 @@ func CreateSpoutNetwork(networkName string) network.Inspect {
 	return network.Inspect{}
 }
 
-func GetSpoutNetwork() network.Inspect {
+func GetSpoutNetwork(ctx context.Context) network.Inspect {
 	networkList, _ := cli.NetworkList(ctx, network.ListOptions{})
 	for _, n := range networkList {
 		if networkName == n.Name {

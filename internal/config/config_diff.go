@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"sort"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
@@ -88,7 +89,7 @@ func cmpOptions() []cmp.Option {
 	}
 }
 
-func ApplyConfigChanges(oldConfig, newConfig models.SpoutConfiguration) {
+func ApplyConfigChanges(ctx context.Context, oldConfig, newConfig models.SpoutConfiguration) {
 
 	changeSet := DiffServers(oldConfig.Servers, newConfig.Servers)
 
@@ -100,7 +101,7 @@ func ApplyConfigChanges(oldConfig, newConfig models.SpoutConfiguration) {
 
 	if len(changeSet.Updated) > 0 {
 		for _, changed := range changeSet.Updated {
-			err := docker.RecreateContainer(changed.After, dataPath)
+			err := docker.RecreateContainer(ctx, changed.After, dataPath)
 			if err != nil {
 				logger.Error("cannot recreate container", zap.Error(err))
 			}
@@ -110,7 +111,7 @@ func ApplyConfigChanges(oldConfig, newConfig models.SpoutConfiguration) {
 
 	if len(changeSet.Added) > 0 {
 		for _, added := range changeSet.Added {
-			if err := docker.StartContainer(added, dataPath); err != nil {
+			if err := docker.StartContainer(ctx, added, dataPath); err != nil {
 				logger.Error("failed to start added server",
 					zap.String("server", added.Name),
 					zap.Error(err))
@@ -119,9 +120,9 @@ func ApplyConfigChanges(oldConfig, newConfig models.SpoutConfiguration) {
 	}
 	if len(changeSet.Removed) > 0 {
 		for _, removed := range changeSet.Removed {
-			removedContainer, _ := docker.GetContainer(removed.Name)
+			removedContainer, _ := docker.GetContainer(ctx, removed.Name)
 
-			err := docker.StopAndRemoveContainerById(removedContainer.ID)
+			err := docker.StopAndRemoveContainerById(ctx, removedContainer.ID)
 			if err != nil {
 				logger.Error("cannot remove container", zap.Error(err))
 			}
