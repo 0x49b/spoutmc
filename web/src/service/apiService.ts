@@ -28,6 +28,7 @@ export const getPlayers = () => api.get<PlayerDTO[]>('/player');
 export const sendPlayerMessage = (name: string, message: string) => api.post(`/player/${encodeURIComponent(name)}/message`, { message });
 export const kickPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/kick`, { reason });
 export const banPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/ban`, { reason });
+export const unbanPlayer = (name: string) => api.post(`/player/${encodeURIComponent(name)}/unban`);
 
 // Setup API functions
 export const completeSetup = (setupData: { dataPath: string; acceptEula: boolean }) =>

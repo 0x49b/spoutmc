@@ -15,6 +15,7 @@ interface PlayerState {
   sendMessage: (playerName: string, message: string) => Promise<void>;
   kickPlayer: (playerName: string, reason: string) => Promise<void>;
   banPlayer: (playerName: string, reason: string) => Promise<void>;
+  unbanPlayer: (playerName: string) => Promise<void>;
 
   getPlayerById: (id: string) => Player | undefined;
   getBannedPlayers: () => Player[];
@@ -150,6 +151,37 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         players: state.players.map(player =>
           player.username === playerName
             ? { ...player, status: 'banned', banned: true, banReason: reason, currentServer: '' }
+            : player
+        )
+      }));
+    } finally {
+      set(state => ({
+        actionInProgressByPlayer: {
+          ...state.actionInProgressByPlayer,
+          [playerName]: false
+        }
+      }));
+    }
+  },
+
+  unbanPlayer: async (playerName: string) => {
+    set(state => ({
+      actionInProgressByPlayer: {
+        ...state.actionInProgressByPlayer,
+        [playerName]: true
+      }
+    }));
+    try {
+      await api.unbanPlayer(playerName);
+      set(state => ({
+        players: state.players.map(player =>
+          player.username === playerName
+            ? {
+              ...player,
+              status: player.currentServer ? 'online' : 'offline',
+              banned: false,
+              banReason: undefined
+            }
             : player
         )
       }));

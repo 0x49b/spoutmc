@@ -19,44 +19,54 @@ func RegisterPlayerRoutes(g *echo.Group) {
 	playerGroup.POST("/:name/message", messagePlayer)
 	playerGroup.POST("/:name/kick", kickPlayer)
 	playerGroup.POST("/:name/ban", banPlayer)
+	playerGroup.POST("/:name/unban", unbanPlayer)
 }
 
+var bridgeClient = playerpkg.NewBridgeClientFromEnv()
+
 func listPlayers(c echo.Context) error {
-	tracker := playerpkg.GetTracker()
-	tracker.EnsureStarted()
-	return c.JSON(http.StatusOK, tracker.List())
+	players, err := bridgeClient.ListPlayers(c.Request().Context())
+	if err != nil {
+		return c.JSON(http.StatusBadGateway, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, players)
 }
 
 func streamPlayers(c echo.Context) error {
-	tracker := playerpkg.GetTracker()
-	tracker.EnsureStarted()
-
 	w := c.Response()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
 
-	events, unsubscribe := tracker.Subscribe()
-	defer unsubscribe()
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	var lastPayload string
 
 	for {
 		select {
 		case <-c.Request().Context().Done():
 			return nil
-		case players, ok := <-events:
-			if !ok {
-				return nil
+		case <-ticker.C:
+			players, err := bridgeClient.ListPlayers(c.Request().Context())
+			if err != nil {
+				continue
 			}
-
 			data, err := json.Marshal(players)
 			if err != nil {
 				return err
 			}
+			payload := string(data)
+			if payload == lastPayload {
+				continue
+			}
+			lastPayload = payload
 
 			id, _ := shortid.Generate()
 			event := sse.Event{
 				ID:        []byte(id),
-				Data:      data,
+				Data:      []byte(payload),
 				Timestamp: time.Now().Unix(),
 			}
 			if err := event.MarshalTo(w); err != nil {
@@ -73,9 +83,7 @@ func messagePlayer(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	tracker := playerpkg.GetTracker()
-	tracker.EnsureStarted()
-	if err := tracker.MessagePlayer(c.Request().Context(), c.Param("name"), cmd.Message); err != nil {
+	if err := bridgeClient.MessagePlayer(c.Request().Context(), c.Param("name"), cmd.Message); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
@@ -88,9 +96,7 @@ func kickPlayer(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	tracker := playerpkg.GetTracker()
-	tracker.EnsureStarted()
-	if err := tracker.KickPlayer(c.Request().Context(), c.Param("name"), cmd.Reason); err != nil {
+	if err := bridgeClient.KickPlayer(c.Request().Context(), c.Param("name"), cmd.Reason); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
@@ -103,11 +109,16 @@ func banPlayer(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	tracker := playerpkg.GetTracker()
-	tracker.EnsureStarted()
-	if err := tracker.BanPlayer(c.Request().Context(), c.Param("name"), cmd.Reason); err != nil {
+	if err := bridgeClient.BanPlayer(c.Request().Context(), c.Param("name"), cmd.Reason); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]string{"status": "player banned"})
+}
+
+func unbanPlayer(c echo.Context) error {
+	if err := bridgeClient.UnbanPlayer(c.Request().Context(), c.Param("name")); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusAccepted, map[string]string{"status": "player unbanned"})
 }

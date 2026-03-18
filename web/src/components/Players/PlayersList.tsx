@@ -10,6 +10,8 @@ import {
   Form,
   FormGroup,
   Modal,
+  ModalBody,
+  ModalFooter,
   ModalVariant,
   PageSection,
   TextInput,
@@ -85,6 +87,24 @@ const PlayersList: React.FC = () => {
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Action failed');
     }
+  };
+
+  const submitMessageForm = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!messagePlayer || messageText.trim() === '') return;
+    void executeAction(() => sendMessage(messagePlayer, messageText.trim()));
+  };
+
+  const submitKickForm = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!kickTarget) return;
+    void executeAction(() => kickPlayer(kickTarget, kickReason.trim()));
+  };
+
+  const submitBanForm = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!banTarget) return;
+    void executeAction(() => banPlayer(banTarget, banReason.trim()));
   };
 
   const getActions = (playerName: string): IAction[] => [
@@ -188,29 +208,29 @@ const PlayersList: React.FC = () => {
         title={`Send private message${messagePlayer ? ` to ${messagePlayer}` : ''}`}
         isOpen={Boolean(messagePlayer)}
         onClose={resetActionState}
-        actions={[
+      >
+        <ModalBody>
+          <Form id="player-message-form" onSubmit={submitMessageForm}>
+            <FormGroup label="Message" fieldId="player-message">
+              <TextInput id="player-message" value={messageText} onChange={(_event, value) => setMessageText(value)} />
+            </FormGroup>
+            {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
+          </Form>
+        </ModalBody>
+        <ModalFooter>
           <Button
             key="send"
             variant="primary"
+            type="submit"
+            form="player-message-form"
             isDisabled={!messagePlayer || messageText.trim() === ''}
-            onClick={() => {
-              if (!messagePlayer) return;
-              void executeAction(() => sendMessage(messagePlayer, messageText.trim()));
-            }}
           >
             Send
-          </Button>,
-          <Button key="cancel" variant="link" onClick={resetActionState}>
+          </Button>
+          <Button key="cancel" variant="link" type="button" onClick={resetActionState}>
             Cancel
           </Button>
-        ]}
-      >
-        <Form>
-          <FormGroup label="Message" fieldId="player-message">
-            <TextInput id="player-message" value={messageText} onChange={(_event, value) => setMessageText(value)} />
-          </FormGroup>
-          {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
-        </Form>
+        </ModalFooter>
       </Modal>
 
       <Modal
@@ -218,28 +238,23 @@ const PlayersList: React.FC = () => {
         title={`Kick player${kickTarget ? ` ${kickTarget}` : ''}`}
         isOpen={Boolean(kickTarget)}
         onClose={resetActionState}
-        actions={[
-          <Button
-            key="kick"
-            variant="warning"
-            onClick={() => {
-              if (!kickTarget) return;
-              void executeAction(() => kickPlayer(kickTarget, kickReason.trim()));
-            }}
-          >
+      >
+        <ModalBody>
+          <Form id="player-kick-form" onSubmit={submitKickForm}>
+            <FormGroup label="Reason" fieldId="kick-reason">
+              <TextInput id="kick-reason" value={kickReason} onChange={(_event, value) => setKickReason(value)} />
+            </FormGroup>
+            {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
+          </Form>
+        </ModalBody>
+        <ModalFooter>
+          <Button key="kick" variant="warning" type="submit" form="player-kick-form">
             Kick
-          </Button>,
-          <Button key="cancel" variant="link" onClick={resetActionState}>
+          </Button>
+          <Button key="cancel" variant="link" type="button" onClick={resetActionState}>
             Cancel
           </Button>
-        ]}
-      >
-        <Form>
-          <FormGroup label="Reason" fieldId="kick-reason">
-            <TextInput id="kick-reason" value={kickReason} onChange={(_event, value) => setKickReason(value)} />
-          </FormGroup>
-          {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
-        </Form>
+        </ModalFooter>
       </Modal>
 
       <Modal
@@ -247,28 +262,23 @@ const PlayersList: React.FC = () => {
         title={`Ban player${banTarget ? ` ${banTarget}` : ''}`}
         isOpen={Boolean(banTarget)}
         onClose={resetActionState}
-        actions={[
-          <Button
-            key="ban"
-            variant="danger"
-            onClick={() => {
-              if (!banTarget) return;
-              void executeAction(() => banPlayer(banTarget, banReason.trim()));
-            }}
-          >
+      >
+        <ModalBody>
+          <Form id="player-ban-form" onSubmit={submitBanForm}>
+            <FormGroup label="Reason" fieldId="ban-reason">
+              <TextInput id="ban-reason" value={banReason} onChange={(_event, value) => setBanReason(value)} />
+            </FormGroup>
+            {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
+          </Form>
+        </ModalBody>
+        <ModalFooter>
+          <Button key="ban" variant="danger" type="submit" form="player-ban-form">
             Ban
-          </Button>,
-          <Button key="cancel" variant="link" onClick={resetActionState}>
+          </Button>
+          <Button key="cancel" variant="link" type="button" onClick={resetActionState}>
             Cancel
           </Button>
-        ]}
-      >
-        <Form>
-          <FormGroup label="Reason" fieldId="ban-reason">
-            <TextInput id="ban-reason" value={banReason} onChange={(_event, value) => setBanReason(value)} />
-          </FormGroup>
-          {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
-        </Form>
+        </ModalFooter>
       </Modal>
     </>
   );
