@@ -1,4 +1,4 @@
-name: Build and Release Go Binaries
+name: Build and Release
 
 on:
   push:
@@ -14,14 +14,41 @@ permissions:
   contents: write
 
 env:
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.26.1'
   NODE_VERSION: '20'
+  JAVA_VERSION: '17'
   BINARY_NAME: 'spoutmc'
 
 jobs:
-  # Step 1: Build frontend once and cache it
+  prepare:
+    name: Resolve release version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Resolve tag and semantic version
+        id: version
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+
+          if [ -z "$TAG" ]; then
+            echo "Tag is required (e.g. v1.2.3)"
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG"
+          echo "Release version: $VERSION"
+
   frontend:
     name: Build Frontend
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -56,10 +83,48 @@ jobs:
           path: internal/webserver/static/dist/
           retention-days: 1
 
-  # Step 2: Build Go binaries for all architectures (reusing frontend)
-  build:
-    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+  plugins:
+    name: Build Plugins
     needs: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Build plugin jars
+        run: |
+          cd plugins/velocity-players-bridge
+          chmod +x gradlew
+          ./gradlew clean shadowJar
+
+      - name: Prepare plugin artifacts
+        run: |
+          mkdir -p release/plugins
+          cp plugins/velocity-players-bridge/build/libs/*.jar release/plugins/
+          for f in release/plugins/*.jar; do
+            sha256sum "$f" > "$f.sha256"
+          done
+
+      - name: Upload plugin artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugins
+          path: release/plugins/*
+          retention-days: 1
+
+  go:
+    name: Build Go ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs:
+      - frontend
+      - plugins
+      - prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -106,13 +171,9 @@ jobs:
           # Set output filename
           OUTPUT="${{ env.BINARY_NAME }}-${GOOS}-${GOARCH}${EXT}"
 
-          # Extract version from tag (v1.2.3 -> 1.2.3)
-          VERSION="${{ github.ref_name || github.event.inputs.tag }}"
-          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
-
           # Build with version info and optimizations
           go build \
-            -ldflags="-s -w -X main.Version=${VERSION}" \
+            -ldflags="-s -w -X main.Version=${{ needs.prepare.outputs.version }}" \
             -o "${OUTPUT}" \
             ./cmd/spoutmc
 
@@ -124,60 +185,70 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.BINARY_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
             ${{ env.BINARY_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}*
           retention-days: 1
 
-  # Step 3: Create GitHub release with all binaries
   release:
     name: Create Release
-    needs: build
+    needs:
+      - prepare
+      - go
+      - plugins
     runs-on: ubuntu-latest
     steps:
-      - name: Download all binary artifacts
+      - name: Download Go artifacts
         uses: actions/download-artifact@v8
         with:
-          path: binaries
+          path: release-assets
           merge-multiple: true
-          pattern: ${{ env.BINARY_NAME }}-*
+          pattern: binaries-*
+
+      - name: Download plugin artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          merge-multiple: true
+          name: plugins
 
       - name: List artifacts
         run: |
           echo "📦 Release artifacts:"
-          ls -lh binaries/
+          ls -lh release-assets/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          name: Release ${{ github.event.inputs.tag || github.ref_name  }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: Release ${{ needs.prepare.outputs.tag }}
           generate_release_notes: true
           draft: false
           prerelease: false
-          files: binaries/*
+          files: release-assets/*
           body: |
-            ## 🚀 SpoutMC Release ${{ github.event.inputs.tag || github.ref_name}}
+            ## 🚀 SpoutMC Release ${{ needs.prepare.outputs.tag }}
 
             ### 📦 Downloads
 
-            Choose the binary for your platform:
+            This release contains:
 
             - **Linux (AMD64)**: `spoutmc-linux-amd64`
             - **Linux (ARM64)**: `spoutmc-linux-arm64`
             - **macOS (Intel)**: `spoutmc-darwin-amd64`
             - **macOS (Apple Silicon)**: `spoutmc-darwin-arm64`
             - **Windows (AMD64)**: `spoutmc-windows-amd64.exe`
+            - **Velocity plugin**: `velocity-players-bridge-*.jar`
 
             ### ✅ Verification
 
-            Each binary includes a `.sha256` checksum file for verification:
+            Every artifact includes a `.sha256` checksum file for verification.
 
             ```bash
-            # Linux/macOS
+            # Linux/macOS example
             sha256sum -c spoutmc-linux-amd64.sha256
 
-            # Windows (PowerShell)
+            # Windows PowerShell example
             Get-FileHash spoutmc-windows-amd64.exe -Algorithm SHA256
             ```
 

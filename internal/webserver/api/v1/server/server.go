@@ -27,13 +27,6 @@ import (
 var logger = log.GetLogger(log.ModuleAPI)
 
 // RegisterServerRoutes registers container/server-related API endpoints.
-//
-// @Tags server
-// @Router /server [get]
-// @Router /server/{id} [get]
-// @Router /server/{id}/stats [get]
-// @Router /server/{id}/logs [get]
-// @Produce json
 func RegisterServerRoutes(g *echo.Group) {
 	// REST
 	g.GET("/server", getServers)

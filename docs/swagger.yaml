@@ -1,4 +1,2232 @@
+definitions:
+  container.ContainerState:
+    enum:
+    - created
+    - running
+    - paused
+    - restarting
+    - removing
+    - exited
+    - dead
+    type: string
+    x-enum-comments:
+      StateCreated: StateCreated indicates the container is created, but not (yet)
+        started.
+      StateDead: StateDead indicates that the container failed to be deleted. Containers
+        in this state are attempted to be cleaned up when the daemon restarts.
+      StateExited: StateExited indicates that the container exited.
+      StatePaused: StatePaused indicates that the container's current state is paused.
+      StateRemoving: StateRemoving indicates that the container is being removed.
+      StateRestarting: StateRestarting indicates that the container is currently restarting.
+      StateRunning: StateRunning indicates that the container is running.
+    x-enum-varnames:
+    - StateCreated
+    - StateRunning
+    - StatePaused
+    - StateRestarting
+    - StateRemoving
+    - StateExited
+    - StateDead
+  container.Isolation:
+    enum:
+    - ""
+    - default
+    - process
+    - hyperv
+    type: string
+    x-enum-comments:
+      IsolationDefault: IsolationDefault is the default isolation mode on current
+        daemon
+      IsolationEmpty: IsolationEmpty is unspecified (same behavior as default)
+      IsolationHyperV: IsolationHyperV is HyperV isolation mode
+      IsolationProcess: IsolationProcess is process isolation mode
+    x-enum-varnames:
+    - IsolationEmpty
+    - IsolationDefault
+    - IsolationProcess
+    - IsolationHyperV
+  container.MountPoint:
+    properties:
+      destination:
+        description: |-
+          Destination is the path relative to the container root (`/`) where the
+          Source is mounted inside the container.
+        type: string
+      driver:
+        description: Driver is the volume driver used to create the volume (if it
+          is a volume).
+        type: string
+      mode:
+        description: |-
+          Mode is a comma separated list of options supplied by the user when
+          creating the bind/volume mount.
+
+          The default is platform-specific (`"z"` on Linux, empty on Windows).
+        type: string
+      name:
+        description: |-
+          Name is the name reference to the underlying data defined by `Source`
+          e.g., the volume name.
+        type: string
+      propagation:
+        allOf:
+        - $ref: '#/definitions/mount.Propagation'
+        description: |-
+          Propagation describes how mounts are propagated from the host into the
+          mount point, and vice-versa. Refer to the Linux kernel documentation
+          for details:
+          https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
+
+          This field is not used on Windows.
+      rw:
+        description: RW indicates whether the mount is mounted writable (read-write).
+        type: boolean
+      source:
+        description: |-
+          Source is the source location of the mount.
+
+          For volumes, this contains the storage location of the volume (within
+          `/var/lib/docker/volumes/`). For bind-mounts, and `npipe`, this contains
+          the source (host) part of the bind-mount. For `tmpfs` mount points, this
+          field is empty.
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/mount.Type'
+        description: |-
+          Type is the type of mount, see `Type<foo>` definitions in
+          github.com/docker/docker/api/types/mount.Type
+    type: object
+  container.NetworkSettingsSummary:
+    properties:
+      networks:
+        additionalProperties:
+          $ref: '#/definitions/network.EndpointSettings'
+        type: object
+    type: object
+  container.Port:
+    properties:
+      IP:
+        description: Host IP address that the container's port is mapped to
+        type: string
+      PrivatePort:
+        description: |-
+          Port on the container
+          Required: true
+        type: integer
+      PublicPort:
+        description: Port exposed on the host
+        type: integer
+      Type:
+        description: |-
+          type
+          Required: true
+        type: string
+    type: object
+  container.Summary:
+    properties:
+      Id:
+        type: string
+      ImageManifestDescriptor:
+        $ref: '#/definitions/v1.Descriptor'
+      command:
+        type: string
+      created:
+        type: integer
+      hostConfig:
+        properties:
+          annotations:
+            additionalProperties:
+              type: string
+            type: object
+          networkMode:
+            type: string
+        type: object
+      image:
+        type: string
+      imageID:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      mounts:
+        items:
+          $ref: '#/definitions/container.MountPoint'
+        type: array
+      names:
+        items:
+          type: string
+        type: array
+      networkSettings:
+        $ref: '#/definitions/container.NetworkSettingsSummary'
+      ports:
+        items:
+          $ref: '#/definitions/container.Port'
+        type: array
+      sizeRootFs:
+        type: integer
+      sizeRw:
+        type: integer
+      state:
+        $ref: '#/definitions/container.ContainerState'
+      status:
+        type: string
+    type: object
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
+    type: object
+  internal_webserver_api_v1_host.DiskStat:
+    properties:
+      mount:
+        type: string
+      total_bytes:
+        type: integer
+      used_bytes:
+        type: integer
+      used_percent:
+        type: number
+    type: object
+  internal_webserver_api_v1_host.OSInfo:
+    properties:
+      hostname:
+        type: string
+      kernel_arch:
+        description: e.g. "x86_64", "arm64"
+        type: string
+      kernel_version:
+        description: Linux kernel; Windows NT version; macOS kernel
+        type: string
+      os:
+        description: '"linux", "windows", "darwin", ...'
+        type: string
+      platform:
+        description: e.g. "ubuntu", "windows"
+        type: string
+      platform_family:
+        description: e.g. "debian", "fedora", "windows"
+        type: string
+      platform_version:
+        description: e.g. "22.04", "10.0.22631"
+        type: string
+    type: object
+  internal_webserver_api_v1_host.Stats:
+    properties:
+      cpu_percent:
+        description: CPU / Memory
+        type: number
+      cpus_logical:
+        type: integer
+      cpus_physical:
+        type: integer
+      disks:
+        description: Storage
+        items:
+          $ref: '#/definitions/internal_webserver_api_v1_host.DiskStat'
+        type: array
+      docker:
+        allOf:
+        - $ref: '#/definitions/system.Info'
+        description: |-
+          Docker
+          Docker *DockerInfo `json:"docker,omitempty"`
+      load1:
+        description: Load / Uptime
+        type: number
+      load5:
+        type: number
+      load15:
+        type: number
+      mem_total_bytes:
+        type: integer
+      mem_used_bytes:
+        type: integer
+      mem_used_percent:
+        type: number
+      os_info:
+        allOf:
+        - $ref: '#/definitions/internal_webserver_api_v1_host.OSInfo'
+        description: Host/OS
+      timestamp:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
+  internal_webserver_api_v1_infrastructure.InfrastructureContainer:
+    properties:
+      summary:
+        $ref: '#/definitions/container.Summary'
+      type:
+        type: string
+    type: object
+  internal_webserver_api_v1_server.AddServerRequest:
+    properties:
+      env:
+        additionalProperties:
+          type: string
+        type: object
+      image:
+        type: string
+      lobby:
+        type: boolean
+      name:
+        type: string
+      port:
+        description: Optional - required for proxy, auto-assigned for lobby/game
+        type: integer
+      proxy:
+        type: boolean
+    required:
+    - image
+    - name
+    type: object
+  internal_webserver_api_v1_server.ExecuteCommandRequest:
+    properties:
+      command:
+        type: string
+    required:
+    - command
+    type: object
+  internal_webserver_api_v1_server.UpdateServerRequest:
+    properties:
+      env:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+    type: object
+  internal_webserver_api_v1_setup.SetupRequest:
+    properties:
+      acceptEula:
+        type: boolean
+      dataPath:
+        type: string
+    required:
+    - acceptEula
+    - dataPath
+    type: object
+  mount.Propagation:
+    enum:
+    - rprivate
+    - private
+    - rshared
+    - shared
+    - rslave
+    - slave
+    type: string
+    x-enum-varnames:
+    - PropagationRPrivate
+    - PropagationPrivate
+    - PropagationRShared
+    - PropagationShared
+    - PropagationRSlave
+    - PropagationSlave
+  mount.Type:
+    enum:
+    - bind
+    - volume
+    - tmpfs
+    - npipe
+    - cluster
+    - image
+    type: string
+    x-enum-varnames:
+    - TypeBind
+    - TypeVolume
+    - TypeTmpfs
+    - TypeNamedPipe
+    - TypeCluster
+    - TypeImage
+  network.EndpointIPAMConfig:
+    properties:
+      ipv4Address:
+        type: string
+      ipv6Address:
+        type: string
+      linkLocalIPs:
+        items:
+          type: string
+        type: array
+    type: object
+  network.EndpointSettings:
+    properties:
+      aliases:
+        description: Aliases holds the list of extra, user-specified DNS names for
+          this endpoint.
+        items:
+          type: string
+        type: array
+      dnsnames:
+        description: |-
+          DNSNames holds all the (non fully qualified) DNS names associated to this endpoint. First entry is used to
+          generate PTR records.
+        items:
+          type: string
+        type: array
+      driverOpts:
+        additionalProperties:
+          type: string
+        type: object
+      endpointID:
+        type: string
+      gateway:
+        type: string
+      globalIPv6Address:
+        type: string
+      globalIPv6PrefixLen:
+        type: integer
+      gwPriority:
+        description: |-
+          GwPriority determines which endpoint will provide the default gateway
+          for the container. The endpoint with the highest priority will be used.
+          If multiple endpoints have the same priority, they are lexicographically
+          sorted based on their network name, and the one that sorts first is picked.
+        type: integer
+      ipaddress:
+        type: string
+      ipamconfig:
+        allOf:
+        - $ref: '#/definitions/network.EndpointIPAMConfig'
+        description: Configurations
+      ipprefixLen:
+        type: integer
+      ipv6Gateway:
+        type: string
+      links:
+        items:
+          type: string
+        type: array
+      macAddress:
+        description: |-
+          MacAddress may be used to specify a MAC address when the container is created.
+          Once the container is running, it becomes operational data (it may contain a
+          generated address).
+        type: string
+      networkID:
+        description: Operational data
+        type: string
+    type: object
+  registry.IndexInfo:
+    properties:
+      mirrors:
+        description: Mirrors is a list of mirrors, expressed as URIs
+        items:
+          type: string
+        type: array
+      name:
+        description: Name is the name of the registry, such as "docker.io"
+        type: string
+      official:
+        description: Official indicates whether this is an official registry
+        type: boolean
+      secure:
+        description: |-
+          Secure is set to false if the registry is part of the list of
+          insecure registries. Insecure registries accept HTTP and/or accept
+          HTTPS with certificates from unknown CAs.
+        type: boolean
+    type: object
+  registry.NetIPNet:
+    properties:
+      ip:
+        description: network number
+        items:
+          type: integer
+        type: array
+      mask:
+        description: network mask
+        items:
+          type: integer
+        type: array
+    type: object
+  registry.ServiceConfig:
+    properties:
+      AllowNondistributableArtifactsCIDRs:
+        description: 'Deprecated: non-distributable artifacts are deprecated and enabled
+          by default. This field will be removed in the next release.'
+        items:
+          $ref: '#/definitions/registry.NetIPNet'
+        type: array
+      AllowNondistributableArtifactsHostnames:
+        description: 'Deprecated: non-distributable artifacts are deprecated and enabled
+          by default. This field will be removed in the next release.'
+        items:
+          type: string
+        type: array
+      IndexConfigs:
+        additionalProperties:
+          $ref: '#/definitions/registry.IndexInfo'
+        type: object
+      InsecureRegistryCIDRs:
+        items:
+          $ref: '#/definitions/registry.NetIPNet'
+        type: array
+      mirrors:
+        items:
+          type: string
+        type: array
+    type: object
+  spoutmc_internal_models.Role:
+    properties:
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      rolename:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  spoutmc_internal_models.RoleResponse:
+    properties:
+      rolename:
+        type: string
+    type: object
+  spoutmc_internal_models.User:
+    properties:
+      avatar:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      display_name:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      minecraft_id:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/spoutmc_internal_models.Role'
+        type: array
+      updatedAt:
+        type: string
+    type: object
+  spoutmc_internal_models.UserResponse:
+    properties:
+      avatar:
+        type: string
+      createdAt:
+        type: string
+      displayName:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      minecraftId:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/spoutmc_internal_models.RoleResponse'
+        type: array
+    type: object
+  swarm.CAConfig:
+    properties:
+      externalCAs:
+        description: |-
+          ExternalCAs is a list of CAs to which a manager node will make
+          certificate signing requests for node certificates.
+        items:
+          $ref: '#/definitions/swarm.ExternalCA'
+        type: array
+      forceRotate:
+        description: |-
+          If this value changes, and there is no specified signing cert and key,
+          then the swarm is forced to generate a new root certificate and key.
+        type: integer
+      nodeCertExpiry:
+        allOf:
+        - $ref: '#/definitions/time.Duration'
+        description: NodeCertExpiry is the duration certificates should be issued
+          for
+      signingCACert:
+        description: |-
+          SigningCACert and SigningCAKey specify the desired signing root CA and
+          root CA key for the swarm.  When inspecting the cluster, the key will
+          be redacted.
+        type: string
+      signingCAKey:
+        type: string
+    type: object
+  swarm.ClusterInfo:
+    properties:
+      createdAt:
+        type: string
+      dataPathPort:
+        type: integer
+      defaultAddrPool:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      rootRotationInProgress:
+        type: boolean
+      spec:
+        $ref: '#/definitions/swarm.Spec'
+      subnetSize:
+        type: integer
+      tlsinfo:
+        $ref: '#/definitions/swarm.TLSInfo'
+      updatedAt:
+        type: string
+      version:
+        $ref: '#/definitions/swarm.Version'
+    type: object
+  swarm.DiscreteGenericResource:
+    properties:
+      kind:
+        type: string
+      value:
+        type: integer
+    type: object
+  swarm.DispatcherConfig:
+    properties:
+      heartbeatPeriod:
+        allOf:
+        - $ref: '#/definitions/time.Duration'
+        description: |-
+          HeartbeatPeriod defines how often agent should send heartbeats to
+          dispatcher.
+    type: object
+  swarm.Driver:
+    properties:
+      name:
+        type: string
+      options:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  swarm.EncryptionConfig:
+    properties:
+      autoLockManagers:
+        description: |-
+          AutoLockManagers specifies whether or not managers TLS keys and raft data
+          should be encrypted at rest in such a way that they must be unlocked
+          before the manager node starts up again.
+        type: boolean
+    type: object
+  swarm.ExternalCA:
+    properties:
+      cacert:
+        description: |-
+          CACert specifies which root CA is used by this external CA.  This certificate must
+          be in PEM format.
+        type: string
+      options:
+        additionalProperties:
+          type: string
+        description: |-
+          Options is a set of additional key/value pairs whose interpretation
+          depends on the specified CA type.
+        type: object
+      protocol:
+        allOf:
+        - $ref: '#/definitions/swarm.ExternalCAProtocol'
+        description: Protocol is the protocol used by this external CA.
+      url:
+        description: URL is the URL where the external CA can be reached.
+        type: string
+    type: object
+  swarm.ExternalCAProtocol:
+    enum:
+    - cfssl
+    type: string
+    x-enum-varnames:
+    - ExternalCAProtocolCFSSL
+  swarm.GenericResource:
+    properties:
+      discreteResourceSpec:
+        $ref: '#/definitions/swarm.DiscreteGenericResource'
+      namedResourceSpec:
+        $ref: '#/definitions/swarm.NamedGenericResource'
+    type: object
+  swarm.Info:
+    properties:
+      cluster:
+        $ref: '#/definitions/swarm.ClusterInfo'
+      controlAvailable:
+        type: boolean
+      error:
+        type: string
+      localNodeState:
+        $ref: '#/definitions/swarm.LocalNodeState'
+      managers:
+        type: integer
+      nodeAddr:
+        type: string
+      nodeID:
+        type: string
+      nodes:
+        type: integer
+      remoteManagers:
+        items:
+          $ref: '#/definitions/swarm.Peer'
+        type: array
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  swarm.LocalNodeState:
+    enum:
+    - inactive
+    - pending
+    - active
+    - error
+    - locked
+    type: string
+    x-enum-varnames:
+    - LocalNodeStateInactive
+    - LocalNodeStatePending
+    - LocalNodeStateActive
+    - LocalNodeStateError
+    - LocalNodeStateLocked
+  swarm.NamedGenericResource:
+    properties:
+      kind:
+        type: string
+      value:
+        type: string
+    type: object
+  swarm.OrchestrationConfig:
+    properties:
+      taskHistoryRetentionLimit:
+        description: |-
+          TaskHistoryRetentionLimit is the number of historic tasks to keep per instance or
+          node. If negative, never remove completed or failed tasks.
+        type: integer
+    type: object
+  swarm.Peer:
+    properties:
+      addr:
+        type: string
+      nodeID:
+        type: string
+    type: object
+  swarm.RaftConfig:
+    properties:
+      electionTick:
+        description: |-
+          ElectionTick is the number of ticks that a follower will wait for a message
+          from the leader before becoming a candidate and starting an election.
+          ElectionTick must be greater than HeartbeatTick.
+
+          A tick currently defaults to one second, so these translate directly to
+          seconds currently, but this is NOT guaranteed.
+        type: integer
+      heartbeatTick:
+        description: |-
+          HeartbeatTick is the number of ticks between heartbeats. Every
+          HeartbeatTick ticks, the leader will send a heartbeat to the
+          followers.
+
+          A tick currently defaults to one second, so these translate directly to
+          seconds currently, but this is NOT guaranteed.
+        type: integer
+      keepOldSnapshots:
+        description: |-
+          KeepOldSnapshots is the number of snapshots to keep beyond the
+          current snapshot.
+        type: integer
+      logEntriesForSlowFollowers:
+        description: |-
+          LogEntriesForSlowFollowers is the number of log entries to keep
+          around to sync up slow followers after a snapshot is created.
+        type: integer
+      snapshotInterval:
+        description: SnapshotInterval is the number of log entries between snapshots.
+        type: integer
+    type: object
+  swarm.Spec:
+    properties:
+      Labels:
+        additionalProperties:
+          type: string
+        type: object
+      caconfig:
+        $ref: '#/definitions/swarm.CAConfig'
+      dispatcher:
+        $ref: '#/definitions/swarm.DispatcherConfig'
+      encryptionConfig:
+        $ref: '#/definitions/swarm.EncryptionConfig'
+      name:
+        type: string
+      orchestration:
+        $ref: '#/definitions/swarm.OrchestrationConfig'
+      raft:
+        $ref: '#/definitions/swarm.RaftConfig'
+      taskDefaults:
+        $ref: '#/definitions/swarm.TaskDefaults'
+    type: object
+  swarm.TLSInfo:
+    properties:
+      certIssuerPublicKey:
+        description: CertIssuerPublicKey is the raw public key bytes of the issuer
+        items:
+          type: integer
+        type: array
+      certIssuerSubject:
+        description: CertIssuer is the raw subject bytes of the issuer
+        items:
+          type: integer
+        type: array
+      trustRoot:
+        description: TrustRoot is the trusted CA root certificate in PEM format
+        type: string
+    type: object
+  swarm.TaskDefaults:
+    properties:
+      logDriver:
+        allOf:
+        - $ref: '#/definitions/swarm.Driver'
+        description: |-
+          LogDriver selects the log driver to use for tasks created in the
+          orchestrator if unspecified by a service.
+
+          Updating this value will only have an affect on new tasks. Old tasks
+          will continue use their previously configured log driver until
+          recreated.
+    type: object
+  swarm.Version:
+    properties:
+      index:
+        type: integer
+    type: object
+  system.Commit:
+    properties:
+      expected:
+        description: |-
+          Expected is the commit ID of external tool expected by dockerd as set at build time.
+
+          Deprecated: this field is no longer used in API v1.49, but kept for backward-compatibility with older API versions.
+        type: string
+      id:
+        description: ID is the actual commit ID or version of external tool.
+        type: string
+    type: object
+  system.ContainerdInfo:
+    properties:
+      address:
+        description: Address is the path to the containerd socket.
+        type: string
+      namespaces:
+        allOf:
+        - $ref: '#/definitions/system.ContainerdNamespaces'
+        description: Namespaces is the containerd namespaces used by the daemon.
+    type: object
+  system.ContainerdNamespaces:
+    properties:
+      containers:
+        description: |-
+          Containers holds the default containerd namespace used for
+          containers managed by the daemon.
+
+          The default namespace for containers is "moby", but will be
+          suffixed with the `<uid>.<gid>` of the remapped `root` if
+          user-namespaces are enabled and the containerd image-store
+          is used.
+        type: string
+      plugins:
+        description: |-
+          Plugins holds the default containerd namespace used for
+          plugins managed by the daemon.
+
+          The default namespace for plugins is "moby", but will be
+          suffixed with the `<uid>.<gid>` of the remapped `root` if
+          user-namespaces are enabled and the containerd image-store
+          is used.
+        type: string
+    type: object
+  system.DeviceInfo:
+    properties:
+      ID:
+        description: |-
+          ID is the unique identifier for the device.
+          Example: CDI FQDN like "vendor.com/gpu=0", or other driver-specific device ID
+        type: string
+      Source:
+        description: Source indicates the origin device driver.
+        type: string
+    type: object
+  system.FirewallInfo:
+    properties:
+      Driver:
+        description: Driver is the name of the firewall backend driver.
+        type: string
+      Info:
+        description: Info is a list of label/value pairs, containing information related
+          to the firewall.
+        items:
+          items:
+            type: string
+          type: array
+        type: array
+    type: object
+  system.Info:
+    properties:
+      CpuCfsPeriod:
+        type: boolean
+      CpuCfsQuota:
+        type: boolean
+      FirewallBackend:
+        $ref: '#/definitions/system.FirewallInfo'
+      HttpProxy:
+        type: string
+      HttpsProxy:
+        type: string
+      architecture:
+        type: string
+      cdispecDirs:
+        items:
+          type: string
+        type: array
+      cgroupDriver:
+        type: string
+      cgroupVersion:
+        type: string
+      containerd:
+        $ref: '#/definitions/system.ContainerdInfo'
+      containerdCommit:
+        $ref: '#/definitions/system.Commit'
+      containers:
+        type: integer
+      containersPaused:
+        type: integer
+      containersRunning:
+        type: integer
+      containersStopped:
+        type: integer
+      cpuset:
+        type: boolean
+      cpushares:
+        type: boolean
+      debug:
+        type: boolean
+      defaultAddressPools:
+        items:
+          $ref: '#/definitions/system.NetworkAddressPool'
+        type: array
+      defaultRuntime:
+        type: string
+      discoveredDevices:
+        items:
+          $ref: '#/definitions/system.DeviceInfo'
+        type: array
+      dockerRootDir:
+        type: string
+      driver:
+        type: string
+      driverStatus:
+        items:
+          items:
+            type: string
+          type: array
+        type: array
+      experimentalBuild:
+        type: boolean
+      genericResources:
+        items:
+          $ref: '#/definitions/swarm.GenericResource'
+        type: array
+      id:
+        type: string
+      images:
+        type: integer
+      indexServerAddress:
+        type: string
+      initBinary:
+        type: string
+      initCommit:
+        $ref: '#/definitions/system.Commit'
+      ipv4Forwarding:
+        type: boolean
+      isolation:
+        $ref: '#/definitions/container.Isolation'
+      kernelMemory:
+        description: 'Deprecated: kernel 5.4 deprecated kmem.limit_in_bytes'
+        type: boolean
+      kernelMemoryTCP:
+        description: |-
+          KernelMemoryLimit is not supported on cgroups v2.
+
+          Deprecated: This field is deprecated and will be removed in the next release.
+          Starting with kernel 6.12, the kernel has deprecated kernel memory tcp accounting
+        type: boolean
+      kernelVersion:
+        type: string
+      labels:
+        items:
+          type: string
+        type: array
+      liveRestoreEnabled:
+        description: |-
+          LiveRestoreEnabled determines whether containers should be kept
+          running when the daemon is shutdown or upon daemon start if
+          running containers are detected
+        type: boolean
+      loggingDriver:
+        type: string
+      memTotal:
+        type: integer
+      memoryLimit:
+        type: boolean
+      name:
+        type: string
+      ncpu:
+        type: integer
+      neventsListener:
+        type: integer
+      nfd:
+        type: integer
+      ngoroutines:
+        type: integer
+      noProxy:
+        type: string
+      oomKillDisable:
+        type: boolean
+      operatingSystem:
+        type: string
+      ostype:
+        type: string
+      osversion:
+        type: string
+      pidsLimit:
+        type: boolean
+      plugins:
+        $ref: '#/definitions/system.PluginsInfo'
+      productLicense:
+        type: string
+      registryConfig:
+        $ref: '#/definitions/registry.ServiceConfig'
+      runcCommit:
+        $ref: '#/definitions/system.Commit'
+      runtimes:
+        additionalProperties:
+          $ref: '#/definitions/system.RuntimeWithStatus'
+        type: object
+      securityOptions:
+        items:
+          type: string
+        type: array
+      serverVersion:
+        type: string
+      swapLimit:
+        type: boolean
+      swarm:
+        $ref: '#/definitions/swarm.Info'
+      systemStatus:
+        description: SystemStatus is only propagated by the Swarm standalone API
+        items:
+          items:
+            type: string
+          type: array
+        type: array
+      systemTime:
+        type: string
+      warnings:
+        description: |-
+          Warnings contains a slice of warnings that occurred  while collecting
+          system information. These warnings are intended to be informational
+          messages for the user, and are not intended to be parsed / used for
+          other purposes, as they do not have a fixed format.
+        items:
+          type: string
+        type: array
+    type: object
+  system.NetworkAddressPool:
+    properties:
+      base:
+        type: string
+      size:
+        type: integer
+    type: object
+  system.PluginsInfo:
+    properties:
+      authorization:
+        description: List of Authorization plugins registered
+        items:
+          type: string
+        type: array
+      log:
+        description: List of Log plugins registered
+        items:
+          type: string
+        type: array
+      network:
+        description: List of Network plugins registered
+        items:
+          type: string
+        type: array
+      volume:
+        description: List of Volume plugins registered
+        items:
+          type: string
+        type: array
+    type: object
+  system.RuntimeWithStatus:
+    properties:
+      options:
+        additionalProperties: true
+        type: object
+      path:
+        type: string
+      runtimeArgs:
+        items:
+          type: string
+        type: array
+      runtimeType:
+        type: string
+      status:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  time.Duration:
+    enum:
+    - -9223372036854775808
+    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
+    - 60000000000
+    - 3600000000000
+    type: integer
+    x-enum-varnames:
+    - minDuration
+    - maxDuration
+    - Nanosecond
+    - Microsecond
+    - Millisecond
+    - Second
+    - Minute
+    - Hour
+  v1.Descriptor:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        description: Annotations contains arbitrary metadata relating to the targeted
+          content.
+        type: object
+      artifactType:
+        description: ArtifactType is the IANA media type of this artifact.
+        type: string
+      data:
+        description: |-
+          Data is an embedding of the targeted content. This is encoded as a base64
+          string when marshalled to JSON (automatically, by encoding/json). If
+          present, Data can be used directly to avoid fetching the targeted content.
+        items:
+          type: integer
+        type: array
+      digest:
+        description: Digest is the digest of the targeted content.
+        type: string
+      mediaType:
+        description: MediaType is the media type of the object this schema refers
+          to.
+        type: string
+      platform:
+        allOf:
+        - $ref: '#/definitions/v1.Platform'
+        description: |-
+          Platform describes the platform which the image in the manifest runs on.
+
+          This should only be used when referring to a manifest.
+      size:
+        description: Size specifies the size in bytes of the blob.
+        type: integer
+      urls:
+        description: URLs specifies a list of URLs from which this object MAY be downloaded
+        items:
+          type: string
+        type: array
+    type: object
+  v1.Platform:
+    properties:
+      architecture:
+        description: |-
+          Architecture field specifies the CPU architecture, for example
+          `amd64` or `ppc64le`.
+        type: string
+      os:
+        description: OS specifies the operating system, for example `linux` or `windows`.
+        type: string
+      os.features:
+        description: |-
+          OSFeatures is an optional field specifying an array of strings,
+          each listing a required OS feature (for example on Windows `win32k`).
+        items:
+          type: string
+        type: array
+      os.version:
+        description: |-
+          OSVersion is an optional field specifying the operating system
+          version, for example on Windows `10.0.14393.1066`.
+        type: string
+      variant:
+        description: |-
+          Variant is an optional field specifying a variant of the CPU, for
+          example `v7` to specify ARMv7 when architecture is `arm`.
+        type: string
+    type: object
 info:
   contact: {}
-paths: {}
+paths:
+  /git/status:
+    get:
+      description: Returns current GitOps mode and synchronization status metadata
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get GitOps sync status
+      tags:
+      - git
+  /git/sync:
+    post:
+      description: Manually triggers synchronization with the GitOps repository
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Trigger manual Git sync
+      tags:
+      - git
+  /git/webhook:
+    post:
+      consumes:
+      - application/json
+      description: Receives and processes webhook requests from Git providers (GitHub,
+        GitLab)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Handle Git webhook
+      tags:
+      - git
+  /host/stats:
+    get:
+      description: Returns comprehensive host system statistics including CPU, memory,
+        disk usage, load averages, and Docker info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_webserver_api_v1_host.Stats'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get host system statistics
+      tags:
+      - host
+  /infrastructure:
+    get:
+      description: Returns all infrastructure containers (databases, cache, etc.)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_webserver_api_v1_infrastructure.InfrastructureContainer'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List infrastructure containers
+      tags:
+      - infrastructure
+  /infrastructure/{id}:
+    get:
+      description: Retrieves detailed information about a specific infrastructure
+        container
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get infrastructure container details
+      tags:
+      - infrastructure
+  /infrastructure/{id}/restart:
+    post:
+      description: Restarts an infrastructure container (database, cache, etc.)
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Restart infrastructure container
+      tags:
+      - infrastructure
+  /infrastructure/{id}/stop:
+    post:
+      description: Stops an infrastructure container (database, cache, etc.)
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Stop infrastructure container
+      tags:
+      - infrastructure
+  /infrastructure/debug/all:
+    get:
+      description: Returns all Docker containers with their labels for debugging purposes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Debug all containers
+      tags:
+      - infrastructure
+  /infrastructure/stream:
+    get:
+      description: Server-Sent Events (SSE) for real-time infrastructure container
+        updates
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Stream of infrastructure container updates
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Stream infrastructure updates
+      tags:
+      - infrastructure
+  /server:
+    get:
+      description: Returns a list of servers in the network
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items: {}
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get list of servers
+      tags:
+      - server
+    post:
+      consumes:
+      - application/json
+      description: Creates a new server configuration and deploys it (via GitOps or
+        local config)
+      parameters:
+      - description: Server configuration
+        in: body
+        name: server
+        required: true
+        schema:
+          $ref: '#/definitions/internal_webserver_api_v1_server.AddServerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Add a new server
+      tags:
+      - server
+  /server/{id}:
+    delete:
+      description: Stops, removes container, deletes data (optional), and removes
+        from config
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: true
+        description: Remove server data directory
+        in: query
+        name: removeData
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a server
+      tags:
+      - server
+    get:
+      description: Retrieve information about a specific Docker container
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema: {}
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get server details
+      tags:
+      - server
+    put:
+      consumes:
+      - application/json
+      description: Updates server configuration (name, environment variables)
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Server update data
+        in: body
+        name: server
+        required: true
+        schema:
+          $ref: '#/definitions/internal_webserver_api_v1_server.UpdateServerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update a server
+      tags:
+      - server
+  /server/{id}/command:
+    post:
+      consumes:
+      - application/json
+      description: Executes a Minecraft console command in the server container
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Command to execute
+        in: body
+        name: command
+        required: true
+        schema:
+          $ref: '#/definitions/internal_webserver_api_v1_server.ExecuteCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Execute a command in a server container
+      tags:
+      - server
+  /server/{id}/config/{filename}:
+    get:
+      description: Returns the content of a server config file
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Config filename (server.properties or spigot.yml)
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get config file content
+      tags:
+      - server
+    put:
+      consumes:
+      - application/json
+      description: Updates the content of a server config file
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Config filename (server.properties or spigot.yml)
+        in: path
+        name: filename
+        required: true
+        type: string
+      - description: File content
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update config file content
+      tags:
+      - server
+  /server/{id}/config/files:
+    get:
+      description: Returns list of editable config files for a server (server.properties,
+        spigot.yml)
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List available config files
+      tags:
+      - server
+  /server/{id}/env:
+    get:
+      description: Returns environment variables for a server (excluding system-managed
+        ones)
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get server environment variables
+      tags:
+      - server
+  /server/{id}/file:
+    get:
+      description: Returns the content of a file in server volumes
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Relative file path within volume
+        in: query
+        name: path
+        required: true
+        type: string
+      - description: 'Container volume path (default: first volume)'
+        in: query
+        name: volume
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get server file content
+      tags:
+      - server
+    put:
+      consumes:
+      - application/json
+      description: Updates the content of a file in server volumes
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Relative file path within volume
+        in: query
+        name: path
+        required: true
+        type: string
+      - description: 'Container volume path (default: first volume)'
+        in: query
+        name: volume
+        type: string
+      - description: File content
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update server file content
+      tags:
+      - server
+  /server/{id}/files:
+    get:
+      description: Returns a tree of files and directories in server volumes
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List server files
+      tags:
+      - server
+  /server/{id}/logs:
+    get:
+      description: Server-Sent Events (SSE) for container logs
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Stream of container logs
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Stream container logs
+      tags:
+      - server
+  /server/{id}/restart:
+    post:
+      description: Restarts a container (remains in watchdog monitoring)
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Restart a server
+      tags:
+      - server
+  /server/{id}/start:
+    post:
+      description: Starts a stopped container and includes it in watchdog monitoring
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Start a server
+      tags:
+      - server
+  /server/{id}/stats:
+    get:
+      description: Server-Sent Events (SSE) for real-time container statistics
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Stream of container stats
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get real-time container stats
+      tags:
+      - server
+  /server/{id}/stop:
+    post:
+      description: Stops a running container and excludes it from watchdog monitoring
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Stop a server
+      tags:
+      - server
+  /server/stream:
+    get:
+      description: Server-Sent Events (SSE) for real-time server list updates with
+        stats
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Stream of server list updates
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Stream server list updates
+      tags:
+      - server
+  /setup/complete:
+    post:
+      consumes:
+      - application/json
+      description: Saves setup configuration to config file
+      parameters:
+      - description: Setup configuration
+        in: body
+        name: setup
+        required: true
+        schema:
+          $ref: '#/definitions/internal_webserver_api_v1_setup.SetupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Complete setup wizard
+      tags:
+      - setup
+  /user:
+    get:
+      description: Returns a list of all registered users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/spoutmc_internal_models.UserResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all users
+      tags:
+      - user
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account
+      parameters:
+      - description: User object
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/spoutmc_internal_models.User'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/spoutmc_internal_models.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new user
+      tags:
+      - user
+  /user/{id}:
+    get:
+      description: Retrieves Docker container info for a given user ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/spoutmc_internal_models.UserResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get user container info
+      tags:
+      - user
 swagger: "2.0"

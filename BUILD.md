@@ -4,7 +4,12 @@ This document describes how to build SpoutMC for production deployment.
 
 ## Overview
 
-SpoutMC uses a single build script (`build.sh`) that:
+SpoutMC uses a single cross-platform build script (`build.mjs`) with thin platform wrappers:
+- Unix/macOS/Linux: `build.sh`
+- Windows PowerShell: `build.ps1`
+- Windows CMD: `build.cmd`
+
+The build process:
 1. Builds the React frontend with Vite
 2. Embeds the frontend into the Go binary using Go's native `embed` package
 3. Compiles multi-architecture Go binaries for production deployment
@@ -18,7 +23,7 @@ The result is a **single, standalone binary** for each platform that contains bo
 - **Go 1.24.0+** - [Download](https://go.dev/dl/)
 - **Node.js 20+** - [Download](https://nodejs.org/)
 - **npm** - Comes with Node.js
-- **Bash** - For running the build script (pre-installed on Linux/macOS, use Git Bash on Windows)
+- **No Bash required on Windows** - Native wrappers are provided for PowerShell/CMD
 
 ### Optional
 
@@ -29,7 +34,7 @@ The result is a **single, standalone binary** for each platform that contains bo
 
 ## Quick Start
 
-### 1. Make the build script executable (first time only)
+### 1. Make the Unix build wrapper executable (first time only)
 
 ```bash
 chmod +x build.sh
@@ -39,6 +44,16 @@ chmod +x build.sh
 
 ```bash
 ./build.sh
+```
+
+Or on Windows:
+
+```powershell
+.\build.ps1
+```
+
+```cmd
+build.cmd
 ```
 
 That's it! The script handles everything automatically.
@@ -176,7 +191,7 @@ The build script supports the following architectures by default:
 
 ### Customizing Build Targets
 
-Edit the `TARGETS` array in `build.sh`:
+Edit the `TARGETS` array in `build.mjs`:
 
 ```bash
 TARGETS=(
@@ -216,7 +231,7 @@ chmod +x build.sh
 
 **Cause:** Go binary was built without running `build.sh`
 
-**Solution:** Always use `./build.sh` instead of `go build` directly. The build script ensures the frontend is embedded before Go compilation.
+**Solution:** Always use the build wrapper (`./build.sh`, `.\build.ps1`, or `build.cmd`) instead of `go build` directly. The build script ensures the frontend is embedded before Go compilation.
 
 ### Binary Fails to Start: "failed to bind to port"
 
@@ -285,7 +300,7 @@ go build -o spoutmc ./cmd/spoutmc
 
 ### Custom Version Number
 
-Edit `build.sh` and change:
+Edit `build.mjs` and change:
 
 ```bash
 VERSION="0.0.1"  # Change to your version
@@ -377,7 +392,7 @@ build:
 
 ### Docker Deployment
 
-If using Docker, the `build.sh` script output can be used in a Docker image:
+If using Docker, the build script output can be used in a Docker image:
 
 ```dockerfile
 FROM alpine:latest
