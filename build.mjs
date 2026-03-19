@@ -124,11 +124,12 @@ async function main() {
     }
 
     console.log(`  Building for ${goos}/${goarch}...`);
+    const ldflags = `-s -w -X main.Version=${VERSION} -X spoutmc/internal/webserver.WriteRoutesOnStart=false`;
     runCommand(
       "go",
       [
         "build",
-        `-ldflags=-s -w -X main.Version=${VERSION}`,
+        `-ldflags=${ldflags}`,
         "-o",
         path.join(outputDir, outputName),
         "./cmd/spoutmc",

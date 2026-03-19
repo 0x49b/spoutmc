@@ -43,3 +43,4 @@ routes.json
 
 !/testservers/
 /.db-passwords
+/docs/routes.json

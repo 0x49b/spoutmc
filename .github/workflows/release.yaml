@@ -173,7 +173,7 @@ jobs:
 
           # Build with version info and optimizations
           go build \
-            -ldflags="-s -w -X main.Version=${{ needs.prepare.outputs.version }}" \
+            -ldflags="-s -w -X main.Version=${{ needs.prepare.outputs.version }} -X spoutmc/internal/webserver.WriteRoutesOnStart=false" \
             -o "${OUTPUT}" \
             ./cmd/spoutmc
 
