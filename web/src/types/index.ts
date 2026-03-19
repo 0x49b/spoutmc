@@ -45,11 +45,16 @@ export interface BreadcrumbItem {
   path: string;
 }
 
-export type Role = 'admin' | 'moderator' | 'viewer';
+export type Role = 'admin' | 'manager' | 'editor' | 'mod' | 'support';
 
 export interface Permission {
   action: string;
   subject: string;
+}
+
+export interface RoleDTO {
+  id: number;
+  name: string;
 }
 
 export interface UserProfile {
@@ -57,6 +62,7 @@ export interface UserProfile {
   email: string;
   roles: Role[];
   displayName: string;
+  minecraftName?: string;
   created_at: string;
   lastLoginAt?: string;
   aud: string;

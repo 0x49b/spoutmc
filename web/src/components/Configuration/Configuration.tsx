@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { PageSection, Card, CardBody, Button } from '@patternfly/react-core';
-import { UsersIcon } from '@patternfly/react-icons';
+import { UsersIcon, KeyIcon } from '@patternfly/react-icons';
 import PageHeader from '../UI/PageHeader';
 
 const Configuration: React.FC = () => {
@@ -11,9 +11,18 @@ const Configuration: React.FC = () => {
       <PageSection>
         <Card>
           <CardBody>
-            <Link to="/users">
-              <Button variant="link" icon={<UsersIcon />}>User Management</Button>
-            </Link>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <Link to="/users">
+                <Button variant="link" icon={<UsersIcon />}>
+                  User Management
+                </Button>
+              </Link>
+              <Link to="/configuration/roles">
+                <Button variant="link" icon={<KeyIcon />}>
+                  Role Management
+                </Button>
+              </Link>
+            </div>
           </CardBody>
         </Card>
       </PageSection>

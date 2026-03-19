@@ -45,3 +45,4 @@ routes.json
 /.db-passwords
 /docs/routes.json
 /config/spoutmc.yaml
+/data/spoutmc.db

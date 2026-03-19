@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import {
-  LoginPage as PFLoginPage,
-  LoginForm,
-  ListVariant
-} from '@patternfly/react-core';
+import { LoginPage as PFLoginPage, LoginForm } from '@patternfly/react-core';
 import { useAuthStore } from '../../store/authStore';
 import favicon from '../../assets/favicon.png';
 
@@ -37,12 +33,6 @@ const LoginPage: React.FC = () => {
       backgroundImgSrc="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3e%3cpath fill='%239C92AC' fill-opacity='0.1' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3e%3c/path%3e%3c/svg%3e"
       textContent="SpoutMC Server Management"
       loginTitle="Sign in to SpoutMC"
-      footerListVariants={ListVariant.inline}
-      footerListItems={
-        <p style={{ fontSize: '0.875rem', color: 'var(--pf-v6-global--Color--200)' }}>
-          Demo: admin@example.com / password
-        </p>
-      }
     >
       <LoginForm
         showHelperText={!!error}

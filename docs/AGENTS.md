@@ -233,80 +233,21 @@ Currently, no test files exist in the codebase. When adding tests:
 - Use standard Go testing package
 - Test container lifecycle operations with Docker test containers if needed
 
+## Database
+
+SpoutMC uses **SQLite** for its database. The database file is stored at `data/spoutmc.db` by default (configurable via `SQLITE_DB_PATH` environment variable).
+
+MySQL/MariaDB support has been removed.
+
 ## Infrastructure Containers
 
-SpoutMC supports infrastructure containers (databases, caches, etc.) that are managed separately from game servers.
-
-### Configuration
-
-Infrastructure containers can be configured in two ways:
-
-**1. Local Config File (GitOps Disabled)**
-- File: `config/infrastructure.yaml`
-- Example: `config/infrastructure.example.yaml`
-
-**2. GitOps Repository (GitOps Enabled)**
-- Directory: `infrastructure/` in your GitOps repository
-- Each `.yaml` file represents one infrastructure container
-
-### Example Configuration
-
-```yaml
-infrastructure:
-  - name: database
-    image: mariadb:latest
-    restart: always
-    ports:
-      - host: "3306"
-        container: "3306"
-    volumes:
-      - containerpath: /var/lib/mysql
-    env:
-      MARIADB_ROOT_PASSWORD: changeme  # Auto-generated
-      MARIADB_PASSWORD: changeme       # Auto-generated
-      MARIADB_USER: spoutmc
-      MARIADB_DATABASE: spoutmc
-```
-
-### Password Management
-
-- Passwords with value `changeme` are automatically replaced with secure generated passwords
-- Generated passwords are displayed in the console on first startup in a formatted box
-- Users must save these passwords securely as they are not persisted to disk
-- Passwords are regenerated on each startup if `changeme` placeholders are present
-
-### Container Labels
-
-Infrastructure containers are labeled with:
-- `io.spout.network=true` - Part of spout network
-- `io.spout.infrastructure=true` - Infrastructure container (excluded from Servers view)
-- `io.spout.database=true` - Database type (or other type-specific labels)
-
-### Frontend
-
-- **Infrastructure page**: `/infrastructure` - Shows only infrastructure containers
-- **Servers page**: `/servers` - Shows only game/lobby/proxy servers (excludes infrastructure)
-- Infrastructure containers appear with database icon and type badge
-
-### Watchdog Monitoring
-
-- Infrastructure containers are monitored every 15 seconds
-- Automatically restarted if stopped, dead, or unhealthy
-- Uses Docker health checks when available
-
-### API Endpoints
-
-- `GET /api/v1/infrastructure` - List all infrastructure containers
-- `GET /api/v1/infrastructure/:id` - Get single container details
-- `GET /api/v1/infrastructure/debug/all` - Debug endpoint showing all containers with labels
+The infrastructure API (`/api/v1/infrastructure`) lists Docker containers with the `io.spout.infrastructure=true` label. SpoutMC no longer creates database containers; it uses SQLite only.
 
 ### Key Files
 
-- `/internal/infrastructure/database.go` - Infrastructure container management
-- `/internal/infrastructure/passwords.go` - Password generation
 - `/internal/infrastructure/config_loader.go` - Local config file loader
 - `/internal/git/config_loader.go` - GitOps infrastructure loader
-- `/cmd/spoutmc/main.go` - `startInfrastructure()` function
+- `/internal/database/connection.go` - SQLite connection
 
 ## Recent Changes & Important Notes
 

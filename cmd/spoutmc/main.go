@@ -9,8 +9,8 @@ import (
 	"spoutmc/internal/docker"
 	"spoutmc/internal/git"
 	"spoutmc/internal/global"
-	"spoutmc/internal/infrastructure"
 	"spoutmc/internal/log"
+	"spoutmc/internal/storage"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
 	"strings"
@@ -104,6 +104,7 @@ func getStartupOperations() map[string]operation {
 		"spoutmc":         startSpoutMCOp,
 		"watchdog":        startWatchdogOp,
 		"fileWatcher":     startFileWatcherOp,
+		"database":        startDatabaseOp,
 		"webserver":       startWebserverOp,
 	}
 }
@@ -113,10 +114,11 @@ func getStartupOrder() []string {
 	return []string{
 		"gitSync",         // Initialize GitOps first (loads config from Git)
 		"velocityEnvVars", // Inject Velocity env vars to backend servers
-		"infrastructure",  // Start infrastructure containers (database, etc.)
+		"infrastructure",  // No-op (SQLite only; MySQL/MariaDB removed)
 		"spoutmc",         // Then start containers with loaded config
 		"watchdog",
 		"fileWatcher",
+		"database", // Connect to DB and run migrations (after infrastructure)
 		"webserver",
 	}
 }
@@ -223,6 +225,11 @@ func startFileWatcherOp(ctx context.Context) error {
 		logger.Info("GitOps is enabled, file watcher disabled")
 	}
 	return nil
+}
+
+// startDatabaseOp connects to the database and runs migrations
+func startDatabaseOp(ctx context.Context) error {
+	return storage.InitDB(ctx)
 }
 
 // startWebserverOp starts the web server
@@ -377,77 +384,11 @@ func startProxyContainer(ctx context.Context) {
 	serverLogger.Warn("No proxy server found in configuration")
 }
 
-// startInfrastructure initializes and starts infrastructure containers (database, etc.)
+// startInfrastructure is a no-op. SpoutMC uses SQLite only; MySQL/MariaDB support has been removed.
 func startInfrastructure(ctx context.Context) error {
+	_ = ctx
 	infraLogger := log.GetLogger(log.ModuleInfrastructure)
-	cfg := config.All()
-
-	// Get data path
-	dataPath := ""
-	if cfg.Storage != nil {
-		dataPath = cfg.Storage.DataPath
-	}
-
-	// Load infrastructure configurations from Git or local config
-	var infraContainers []infrastructure.InfrastructureContainer
-	var err error
-	if config.IsGitOpsEnabled() {
-		infraLogger.Info("GitOps is enabled, loading infrastructure from repository")
-		repoPath := git.GetLocalRepoPath()
-		infraLogger.Info("Repository path", zap.String("path", repoPath))
-		infraContainers, err = git.LoadInfrastructureFromRepository(repoPath)
-		if err != nil {
-			infraLogger.Warn("Failed to load infrastructure from Git", zap.Error(err))
-			return nil // Don't fail startup if infrastructure loading fails
-		}
-		infraLogger.Info("Loaded infrastructure containers from Git", zap.Int("count", len(infraContainers)))
-	} else {
-		// Load from local config file
-		infraLogger.Info("GitOps disabled, loading infrastructure from local config file")
-		configPath := infrastructure.GetDefaultInfrastructureConfigPath()
-		infraContainers, err = infrastructure.LoadInfrastructureFromLocalConfig(configPath, infraLogger.GetZapLogger())
-		if err != nil {
-			infraLogger.Warn("Failed to load infrastructure from local config", zap.Error(err))
-			return nil // Don't fail startup if infrastructure loading fails
-		}
-		infraLogger.Info("Loaded infrastructure containers from local config", zap.Int("count", len(infraContainers)))
-	}
-
-	// Check if we have any infrastructure to create
-	if len(infraContainers) == 0 {
-		infraLogger.Info("No infrastructure containers found")
-		return nil
-	}
-
-	// Generate database passwords if needed
-	passwords, wasGenerated, err := infrastructure.GetOrGeneratePasswords(infraContainers, infraLogger.GetZapLogger())
-	if err != nil {
-		return fmt.Errorf("failed to generate database passwords: %w", err)
-	}
-
-	// Print passwords to console if they were newly generated
-	if wasGenerated {
-		infrastructure.PrintPasswordsToConsole(passwords)
-	}
-
-	// Create and start each infrastructure container
-	for _, infraConfig := range infraContainers {
-		infraLogger.Info("Creating infrastructure container",
-			zap.String("name", infraConfig.Name),
-			zap.String("type", "database"))
-
-		if err := infrastructure.CreateDatabaseContainer(ctx, infraConfig, dataPath, passwords, infraLogger.GetZapLogger()); err != nil {
-			infraLogger.Error("Failed to create infrastructure container",
-				zap.String("name", infraConfig.Name),
-				zap.Error(err))
-			// Don't fail startup, continue with other containers
-			continue
-		}
-
-		infraLogger.Info("Infrastructure container started successfully",
-			zap.String("name", infraConfig.Name))
-	}
-
+	infraLogger.Info("Using SQLite for database; infrastructure containers skipped")
 	return nil
 }
 

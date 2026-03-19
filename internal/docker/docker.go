@@ -446,6 +446,23 @@ func StopAndRemoveContainerById(ctx context.Context, containerId string) error {
 	return RemoveContainerById(ctx, containerId, true)
 }
 
+// CreateOrRecreateInfrastructureContainer creates or recreates an infrastructure container.
+// Recreating ensures config changes (e.g. ports) are applied when the container already exists.
+func CreateOrRecreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, dataPath string) (string, error) {
+	if containerExists(ctx, s.Name) {
+		logger.Info("Recreating infrastructure container to apply config", zap.String("name", s.Name))
+		existingContainer, err := GetContainer(ctx, s.Name)
+		if err != nil {
+			return "", err
+		}
+		StopContainerById(ctx, existingContainer.ID)
+		if err := RemoveContainerById(ctx, existingContainer.ID, false); err != nil {
+			return "", fmt.Errorf("failed to remove existing container: %w", err)
+		}
+	}
+	return CreateInfrastructureContainer(ctx, s, dataPath)
+}
+
 // CreateInfrastructureContainer creates a container with infrastructure labels
 func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, dataPath string) (string, error) {
 	logger.Info("Creating infrastructure container", zap.String("name", s.Name))
@@ -456,16 +473,6 @@ func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, da
 	if err != nil {
 		logger.Info("Pulling infrastructure image", zap.String("image", s.Image))
 		PullImage(ctx, s.Image)
-	}
-
-	// Check if container already exists
-	if containerExists(ctx, s.Name) {
-		existingContainer, err := GetContainer(ctx, s.Name)
-		if err != nil {
-			return "", err
-		}
-		logger.Info("Infrastructure container already exists", zap.String("name", s.Name))
-		return existingContainer.ID, nil
 	}
 
 	// Pre-create volume directories with proper user ownership

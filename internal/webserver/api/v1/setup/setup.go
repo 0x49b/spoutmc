@@ -8,12 +8,15 @@ import (
 	"spoutmc/internal/config"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
+	"spoutmc/internal/security"
+	"spoutmc/internal/storage"
 	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	"gorm.io/gorm"
 )
 
 var lock = sync.Mutex{}
@@ -26,8 +29,11 @@ func RegisterSetupRoutes(g *echo.Group) {
 
 // SetupRequest represents the request body for completing setup
 type SetupRequest struct {
-	DataPath   string `json:"dataPath" binding:"required"`
-	AcceptEula bool   `json:"acceptEula" binding:"required"`
+	DataPath         string `json:"dataPath" binding:"required"`
+	AcceptEula       bool   `json:"acceptEula" binding:"required"`
+	AdminEmail       string `json:"adminEmail"`
+	AdminPassword    string `json:"adminPassword"`
+	AdminDisplayName string `json:"adminDisplayName"`
 }
 
 func completeSetup(c echo.Context) error {
@@ -85,6 +91,43 @@ func completeSetup(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("Failed to reload configuration: %v", err),
 		})
+	}
+
+	// Create initial admin user if credentials provided and no users exist
+	if req.AdminEmail != "" && req.AdminPassword != "" && len(req.AdminPassword) >= 6 {
+		db := storage.GetDB()
+		if db != nil {
+			var count int64
+			if db.Model(&models.User{}).Count(&count); count == 0 {
+				hashedPassword, err := security.Hash(req.AdminPassword)
+				if err != nil {
+					logger.Warn("Failed to hash admin password", zap.Error(err))
+				} else {
+					adminUser := models.User{
+						Email:       req.AdminEmail,
+						Password:    hashedPassword,
+						DisplayName: req.AdminDisplayName,
+					}
+					if adminUser.DisplayName == "" {
+						adminUser.DisplayName = "Admin"
+					}
+					if err := db.Transaction(func(tx *gorm.DB) error {
+						if err := tx.Create(&adminUser).Error; err != nil {
+							return err
+						}
+						var adminRole models.Role
+						if err := tx.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
+							return err
+						}
+						return tx.Model(&adminUser).Association("Roles").Append(&adminRole)
+					}); err != nil {
+						logger.Warn("Failed to create initial admin user", zap.Error(err))
+					} else {
+						logger.Info("Created initial admin user", zap.String("email", req.AdminEmail))
+					}
+				}
+			}
+		}
 	}
 
 	logger.Info("Setup completed successfully")

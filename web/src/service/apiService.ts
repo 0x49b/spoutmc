@@ -1,16 +1,98 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3000/api/v1'; // replace with your API
+const API_BASE_URL = 'http://localhost:3000/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-    // Add any authorization headers if needed
   }
 });
 
-export const getUsers = () => api.get('/user');
+// Attach JWT to requests when available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Handle 401 - clear token and redirect to login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token');
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Auth API
+export interface LoginResponse {
+  token: string;
+  user: UserDTO;
+}
+
+export interface UserDTO {
+  id: number;
+  createdAt: string;
+  minecraftId?: string;
+  minecraftName?: string;
+  displayName: string;
+  email: string;
+  roles: { id: number; name: string; displayName?: string }[];
+  avatar?: string;
+}
+
+export const login = (email: string, password: string) =>
+  api.post<LoginResponse>('/auth/login', { email, password });
+
+export const verifyToken = () => api.get<UserDTO>('/auth/verify');
+
+// User API
+export const getUsers = () => api.get<UserDTO[]>('/user');
+export const getUser = (id: string) => api.get<UserDTO>(`/user/${id}`);
+export const createUser = (data: {
+  email: string;
+  password: string;
+  displayName: string;
+  minecraftName?: string;
+  roleIds?: number[];
+}) => api.post<UserDTO>('/user', data);
+export const updateUser = (id: string, data: {
+  email?: string;
+  displayName?: string;
+  minecraftName?: string;
+  roleIds?: number[];
+}) => api.put<UserDTO>(`/user/${id}`, data);
+export const deleteUser = (id: string) => api.delete(`/user/${id}`);
+export const updateProfile = (data: {
+  email?: string;
+  password?: string;
+  displayName?: string;
+  minecraftName?: string;
+}) => api.put<UserDTO>('/user/profile', data);
+
+// Role API
+export interface RoleDTO {
+  id: number;
+  name: string;
+  displayName: string;
+  slug: string;
+  userCount?: number;
+}
+
+export const getRoles = () => api.get<RoleDTO[]>('/role');
+export const createRole = (displayName: string) =>
+  api.post<RoleDTO>('/role', { displayName });
+export const updateRole = (id: string, displayName: string) =>
+  api.put<RoleDTO>(`/role/${id}`, { displayName });
+export const deleteRole = (id: string) => api.delete(`/role/${id}`);
 
 // Players API
 export interface PlayerDTO {
@@ -42,8 +124,13 @@ export const banPlayer = (name: string, reason: string) => api.post(`/player/${e
 export const unbanPlayer = (name: string) => api.post(`/player/${encodeURIComponent(name)}/unban`);
 
 // Setup API functions
-export const completeSetup = (setupData: { dataPath: string; acceptEula: boolean }) =>
-  api.post('/setup/complete', setupData);
+export const completeSetup = (setupData: {
+  dataPath: string;
+  acceptEula: boolean;
+  adminEmail?: string;
+  adminPassword?: string;
+  adminDisplayName?: string;
+}) => api.post('/setup/complete', setupData);
 
 // Server API functions
 export const getServers = () => api.get('/server');

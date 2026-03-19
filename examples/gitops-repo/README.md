@@ -10,8 +10,8 @@ servers/
 ├── lobby.yaml               # Lobby server (SpoutServer manifest)
 └── skyblock.yaml            # Game server (SpoutServer manifest)
 
-infrastructure/
-└── database.yaml            # InfrastructureContainer manifest
+infrastructure/              # SpoutMC uses SQLite; no database containers
+└── README.md
 ```
 
 ## Manifest Format
@@ -42,21 +42,7 @@ spec:
 
 ### InfrastructureContainer Example
 
-```yaml
-apiVersion: spoutmc.io/v1alpha1
-kind: InfrastructureContainer
-metadata:
-  name: database
-spec:
-  name: database
-  image: mariadb:latest
-  restart: always
-  ports:
-    - host: "3306"
-      container: "3306"
-  env:
-    MARIADB_ROOT_PASSWORD: changeme
-```
+SpoutMC uses SQLite for its database. MySQL/MariaDB infrastructure containers are no longer supported.
 
 ## Notes
 

@@ -69,13 +69,20 @@ func Start() (*echo.Echo, error) {
 	}))
 	e.Use(middleware.Secure())
 	//e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))
-	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
+	// Rate limit: 100 req/sec, burst 100. Default 20 was too low for SPA with multiple API calls on navigation.
+	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+			Rate:      100,
+			Burst:     100,
+			ExpiresIn: 3 * time.Minute,
+		}),
+	}))
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogMethod: true,
 		LogURI:    true,
 		LogStatus: true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			//logger.Info("request", zap.String("URI", v.URI), zap.Int("status", v.Status), zap.String("method", v.Method), zap.Duration("latency", v.Latency))
+			logger.Info("request", zap.String("URI", v.URI), zap.Int("status", v.Status), zap.String("method", v.Method), zap.Duration("latency", v.Latency))
 			return nil
 		},
 	}))

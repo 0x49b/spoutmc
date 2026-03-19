@@ -1,262 +1,241 @@
 import { create } from 'zustand';
 import { UserProfile, Role, Permission } from '../types';
-import { mockLogin, mockVerifyToken } from '../lib/mockAuth';
+import * as api from '../service/apiService';
 
 interface AuthState {
   user: UserProfile | null;
   users: UserProfile[];
+  roles: api.RoleDTO[];
   loading: boolean;
   error: string | null;
-  
+
   // Actions
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   fetchUsers: () => Promise<void>;
-  addUser: (userData: { email: string; password: string; displayName: string; roles: Role[] }) => Promise<void>;
-  updateUser: (userId: string, userData: { email: string; displayName: string; roles: Role[] }) => Promise<void>;
+  fetchRoles: () => Promise<void>;
+  addUser: (userData: {
+    email: string;
+    password: string;
+    displayName: string;
+    minecraftName?: string;
+    roleIds?: number[];
+  }) => Promise<void>;
+  updateUser: (
+    userId: string,
+    userData: {
+      email?: string;
+      displayName?: string;
+      minecraftName?: string;
+      roleIds?: number[];
+    }
+  ) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
-  
+  updateProfile: (data: {
+    email?: string;
+    password?: string;
+    displayName?: string;
+    minecraftName?: string;
+  }) => Promise<void>;
+
   // Permissions
   hasPermission: (action: string, subject: string) => boolean;
 }
 
-const roleHierarchy: Record<Role, number> = {
-  admin: 3,
-  moderator: 2,
-  viewer: 1
+const roleHierarchy: Record<string, number> = {
+  admin: 5,
+  manager: 4,
+  editor: 3,
+  mod: 2,
+  support: 1
 };
 
-const permissions: Record<Role, Permission[]> = {
-  admin: [
-    { action: 'manage', subject: 'all' }
-  ],
-  moderator: [
+const permissions: Record<string, Permission[]> = {
+  admin: [{ action: 'manage', subject: 'all' }],
+  manager: [
     { action: 'read', subject: 'all' },
     { action: 'manage', subject: 'servers' },
+    { action: 'manage', subject: 'players' },
+    { action: 'manage', subject: 'users' }
+  ],
+  editor: [
+    { action: 'read', subject: 'all' },
+    { action: 'manage', subject: 'servers' }
+  ],
+  mod: [
+    { action: 'read', subject: 'all' },
     { action: 'manage', subject: 'players' }
   ],
-  viewer: [
-    { action: 'read', subject: 'all' }
-  ]
+  support: [{ action: 'read', subject: 'all' }]
 };
 
-// Mock users for development
-const mockUsers: UserProfile[] = [
-  {
-    id: '1',
-    email: 'admin@example.com',
-    roles: ['admin', 'moderator', 'viewer'],
-    displayName: 'Admin User',
-    created_at: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString(),
+function userDtoToProfile(dto: api.UserDTO): UserProfile {
+  return {
+    id: String(dto.id),
+    email: dto.email,
+    roles: dto.roles.map((r) => r.name as Role),
+    displayName: dto.displayName,
+    minecraftName: dto.minecraftName,
+    created_at: dto.createdAt,
     aud: 'authenticated',
     app_metadata: {},
     user_metadata: {},
     identities: []
-  },
-  {
-    id: '2',
-    email: 'mod@example.com',
-    roles: ['moderator', 'viewer'],
-    displayName: 'Moderator User',
-    created_at: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString(),
-    aud: 'authenticated',
-    app_metadata: {},
-    user_metadata: {},
-    identities: []
-  },
-  {
-    id: '3',
-    email: 'viewer@example.com',
-    roles: ['viewer'],
-    displayName: 'Viewer User',
-    created_at: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString(),
-    aud: 'authenticated',
-    app_metadata: {},
-    user_metadata: {},
-    identities: []
-  }
-];
+  };
+}
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  users: mockUsers,
+  users: [],
+  roles: [],
   loading: false,
   error: null,
-  
+
   login: async (email: string, password: string) => {
     set({ loading: true, error: null });
-    
     try {
-      const { token } = await mockLogin(email, password);
-      localStorage.setItem('auth_token', token);
-      const user = mockVerifyToken(token);
-      const updatedUser = {
-        ...user,
-        lastLoginAt: new Date().toISOString()
-      };
-      
-      set({ user: updatedUser, loading: false });
+      const { data } = await api.login(email, password);
+      localStorage.setItem('auth_token', data.token);
+      set({ user: userDtoToProfile(data.user), loading: false });
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to login',
-        loading: false 
+        loading: false
       });
       throw error;
     }
   },
-  
+
   logout: async () => {
     set({ loading: true, error: null });
-    
     try {
       localStorage.removeItem('auth_token');
       set({ user: null, loading: false });
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to logout',
-        loading: false 
+        loading: false
       });
       throw error;
     }
   },
-  
+
   checkAuth: async () => {
     set({ loading: true, error: null });
-    
     try {
       const token = localStorage.getItem('auth_token');
-      
-      if (token) {
-        const user = mockVerifyToken(token);
-        set({ user });
+      if (!token) {
+        set({ user: null, loading: false });
+        return;
       }
-      
-      set({ loading: false });
+      const { data } = await api.verifyToken();
+      set({ user: userDtoToProfile(data), loading: false });
     } catch (error) {
       localStorage.removeItem('auth_token');
-      set({ 
-        user: null,
-        error: error instanceof Error ? error.message : 'Failed to check auth status',
-        loading: false 
-      });
+      set({ user: null, loading: false });
     }
   },
-  
+
   fetchUsers: async () => {
-    set({ loading: true, error: null });
-    
+    // Do NOT set loading: true - auth store loading is used by ProtectedRoute.
+    // Setting it would unmount the page during fetch, then remount triggers fetch again = infinite loop.
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      set({ users: mockUsers, loading: false });
+      const { data } = await api.getUsers();
+      set({ users: data.map((u) => userDtoToProfile(u)) });
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to fetch users',
-        loading: false 
+      set({
+        error: error instanceof Error ? error.message : 'Failed to fetch users'
       });
     }
   },
-  
-  addUser: async (userData) => {
-    set({ loading: true, error: null });
-    
+
+  fetchRoles: async () => {
+    // Do NOT set loading: true - same reason as fetchUsers.
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newUser: UserProfile = {
-        id: Math.random().toString(36).substr(2, 9),
-        email: userData.email,
-        roles: userData.roles,
-        displayName: userData.displayName,
-        created_at: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        aud: 'authenticated',
-        app_metadata: {},
-        user_metadata: {},
-        identities: []
-      };
-      
-      set(state => ({
-        users: [...state.users, newUser],
-        loading: false
+      const { data } = await api.getRoles();
+      set({ roles: data });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to fetch roles'
+      });
+    }
+  },
+
+  addUser: async (userData) => {
+    set({ error: null });
+    try {
+      const { data } = await api.createUser(userData);
+      const newUser = userDtoToProfile(data);
+      set((state) => ({
+        users: [...state.users, newUser]
       }));
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to add user',
-        loading: false 
+      set({
+        error: error instanceof Error ? error.message : 'Failed to add user'
       });
       throw error;
     }
   },
-  
+
   updateUser: async (userId: string, userData) => {
-    set({ loading: true, error: null });
-    
+    set({ error: null });
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      set(state => ({
-        users: state.users.map(user =>
-          user.id === userId
-            ? { ...user, ...userData }
-            : user
-        ),
-        loading: false
+      const { data } = await api.updateUser(userId, userData);
+      const updated = userDtoToProfile(data);
+      set((state) => ({
+        users: state.users.map((u) => (u.id === userId ? updated : u)),
+        user: state.user?.id === userId ? updated : state.user
       }));
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to update user',
-        loading: false 
+      set({
+        error: error instanceof Error ? error.message : 'Failed to update user'
       });
       throw error;
     }
   },
 
   deleteUser: async (userId: string) => {
-    set({ loading: true, error: null });
-    
+    set({ error: null });
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      set(state => ({
-        users: state.users.filter(user => user.id !== userId),
-        loading: false
+      await api.deleteUser(userId);
+      set((state) => ({
+        users: state.users.filter((u) => u.id !== userId)
       }));
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to delete user',
-        loading: false 
+      set({
+        error: error instanceof Error ? error.message : 'Failed to delete user'
       });
       throw error;
     }
   },
-  
+
+  updateProfile: async (data) => {
+    set({ error: null });
+    try {
+      const { data: userData } = await api.updateProfile(data);
+      set({ user: userDtoToProfile(userData) });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to update profile'
+      });
+      throw error;
+    }
+  },
+
   hasPermission: (action: string, subject: string) => {
     const { user } = get();
     if (!user || !user.roles || !Array.isArray(user.roles)) return false;
-    
-    // Check each role's permissions
-    return user.roles.some(role => {
-      // Admin role has all permissions
+
+    return user.roles.some((role) => {
       if (role === 'admin') return true;
-      
-      // Check if the role exists in permissions
       if (!permissions[role]) return false;
-      
-      // Check role-specific permissions
       const rolePermissions = permissions[role];
-      return rolePermissions.some(permission => {
-        // Check for exact match
-        if (permission.action === action && permission.subject === subject) return true;
-        
-        // Check for wildcard permissions
-        if (permission.action === action && permission.subject === 'all') return true;
-        if (permission.action === 'manage' && permission.subject === subject) return true;
-        if (permission.action === 'manage' && permission.subject === 'all') return true;
-        
+      return rolePermissions.some((p) => {
+        if (p.action === action && p.subject === subject) return true;
+        if (p.action === action && p.subject === 'all') return true;
+        if (p.action === 'manage' && p.subject === subject) return true;
+        if (p.action === 'manage' && p.subject === 'all') return true;
         return false;
       });
     });

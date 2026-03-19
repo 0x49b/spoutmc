@@ -9,6 +9,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// InfrastructureContainer represents an infrastructure container configuration
+type InfrastructureContainer struct {
+	Name    string            `yaml:"name"`
+	Image   string            `yaml:"image"`
+	Restart string            `yaml:"restart"`
+	Volumes []string          `yaml:"volumes"`
+	Ports   []PortMapping     `yaml:"ports"`
+	Env     map[string]string `yaml:"env"`
+}
+
+// PortMapping represents a port mapping configuration
+type PortMapping struct {
+	Host          string `yaml:"host"`
+	Container     string `yaml:"container"`
+	HostPort      string `yaml:"hostPort"`
+	ContainerPort string `yaml:"containerPort"`
+}
+
 // InfrastructureConfig represents the infrastructure configuration file structure
 type InfrastructureConfig struct {
 	Infrastructure []InfrastructureContainer `yaml:"infrastructure"`

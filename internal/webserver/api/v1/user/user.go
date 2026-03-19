@@ -3,7 +3,6 @@ package user
 import (
 	"encoding/json"
 	"fmt"
-	"image"
 	"io"
 	"net/http"
 	"spoutmc/internal/log"
@@ -11,9 +10,11 @@ import (
 	"spoutmc/internal/models"
 	"spoutmc/internal/security"
 	"spoutmc/internal/storage"
+	"spoutmc/internal/webserver/middleware"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 var logger = log.GetLogger(log.ModuleUser)
@@ -22,35 +23,47 @@ var defaultAvatar = "/9j/4AAQSkZJRgABAQIAJQAlAAD//gA1eHI6ZDpEQUY2X0lpMlhvYzoyMSx
 
 // RegisterUserRoutes registers user-related API routes.
 func RegisterUserRoutes(g *echo.Group) {
-	// REST
 	g.GET("/user", getUsers)
 	g.GET("/user/:id", getUser)
-
 	g.POST("/user", createUser)
+	g.PUT("/user/:id", updateUser)
+	g.DELETE("/user/:id", deleteUser)
+	g.PUT("/user/profile", updateProfile)
+}
 
+type createUserRequest struct {
+	Email         string `json:"email"`
+	Password      string `json:"password"`
+	DisplayName   string `json:"displayName"`
+	MinecraftName string `json:"minecraftName"`
+	RoleIDs       []uint `json:"roleIds"`
 }
 
 func createUser(c echo.Context) error {
-	var user models.User
-	var err error
-	var avatarUrl string
-	var avatarImageProcessed image.Image
-
-	// Bind request body to user struct
-	if err := c.Bind(&user); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
-		})
+	var req createUserRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
 	}
 
-	// Optional: Add basic validation
-	if user.DisplayName == "" || user.Email == "" || user.Password == "" {
+	if req.DisplayName == "" || req.Email == "" || req.Password == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "displayName, email, and password are required",
 		})
 	}
 
-	user.Password, err = security.Hash(user.Password)
+	hashedPassword, err := security.Hash(req.Password)
+	if err != nil {
+		logger.Error("Failed to hash password", zap.Error(err))
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Failed to create user"})
+	}
+
+	user := models.User{
+		Email:         req.Email,
+		Password:      hashedPassword,
+		DisplayName:   req.DisplayName,
+		MinecraftName: req.MinecraftName,
+	}
+	var avatarUrl string
 	if err != nil {
 		logger.Error(err.Error())
 		return c.JSON(http.StatusBadRequest, map[string]string{
@@ -58,21 +71,22 @@ func createUser(c echo.Context) error {
 		})
 	}
 
-	user.MinecraftID, avatarUrl, err = getMojangData(user.DisplayName)
-
+	// Use MinecraftName for Mojang lookup if set, else DisplayName
+	mojangName := user.MinecraftName
+	if mojangName == "" {
+		mojangName = user.DisplayName
+	}
+	user.MinecraftID, avatarUrl, err = getMojangData(mojangName)
 	if err != nil {
 		user.Avatar = defaultAvatar
 		user.MinecraftID = uuid.Nil
-	}
-
-	avatarImageProcessed, err = processor.ProcessSkin(avatarUrl, true, true, 256)
-	user.Avatar, err = processor.EncodeToBase64(avatarImageProcessed)
-
-	if err != nil {
-		logger.Error(err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Problems arised in creating useravatar",
-		})
+	} else {
+		avatarImageProcessed, procErr := processor.ProcessSkin(avatarUrl, true, true, 256)
+		if procErr == nil {
+			user.Avatar, _ = processor.EncodeToBase64(avatarImageProcessed)
+		} else {
+			user.Avatar = defaultAvatar
+		}
 	}
 
 	// Save user to DB
@@ -83,17 +97,167 @@ func createUser(c echo.Context) error {
 		})
 	}
 
+	// Assign roles if provided
+	if len(req.RoleIDs) > 0 {
+		var roles []models.Role
+		if err := db.Find(&roles, req.RoleIDs).Error; err == nil {
+			db.Model(&user).Association("Roles").Replace(roles)
+		}
+	}
+	if err := db.Preload("Roles").First(&user, user.ID).Error; err != nil {
+		// User created but roles might not have loaded
+	}
+
 	userResponse := &models.UserResponse{
-		ID:          user.ID,
-		CreatedAt:   user.CreatedAt,
-		MinecraftID: user.MinecraftID,
-		DisplayName: user.DisplayName,
-		Email:       user.Email,
-		Roles:       convertRolesToResponse(user.Roles),
-		Avatar:      user.Avatar,
+		ID:            user.ID,
+		CreatedAt:     user.CreatedAt,
+		MinecraftID:   user.MinecraftID,
+		MinecraftName: user.MinecraftName,
+		DisplayName:   user.DisplayName,
+		Email:         user.Email,
+		Roles:         convertRolesToResponse(user.Roles),
+		Avatar:        user.Avatar,
 	}
 
 	return c.JSON(http.StatusCreated, userResponse)
+}
+
+func updateUser(c echo.Context) error {
+	id := c.Param("id")
+	db := storage.GetDB()
+	if db == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Database not available"})
+	}
+
+	var user models.User
+	if err := db.Preload("Roles").First(&user, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	var req struct {
+		Email         *string `json:"email"`
+		DisplayName   *string `json:"displayName"`
+		MinecraftName *string `json:"minecraftName"`
+		RoleIDs       []uint  `json:"roleIds"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	updates := make(map[string]interface{})
+	if req.Email != nil {
+		updates["email"] = *req.Email
+	}
+	if req.DisplayName != nil {
+		updates["display_name"] = *req.DisplayName
+	}
+	if req.MinecraftName != nil {
+		updates["minecraft_name"] = *req.MinecraftName
+	}
+	if len(updates) > 0 {
+		if err := db.Model(&user).Updates(updates).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update user"})
+		}
+	}
+
+	if req.RoleIDs != nil {
+		var roles []models.Role
+		if err := db.Find(&roles, req.RoleIDs).Error; err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid role IDs"})
+		}
+		if err := db.Model(&user).Association("Roles").Replace(roles); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update roles"})
+		}
+	}
+
+	if err := db.Preload("Roles").First(&user, id).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to reload user"})
+	}
+
+	return c.JSON(http.StatusOK, models.UserResponse{
+		ID:            user.ID,
+		CreatedAt:     user.CreatedAt,
+		MinecraftID:   user.MinecraftID,
+		MinecraftName: user.MinecraftName,
+		DisplayName:   user.DisplayName,
+		Email:         user.Email,
+		Roles:         convertRolesToResponse(user.Roles),
+		Avatar:        user.Avatar,
+	})
+}
+
+func deleteUser(c echo.Context) error {
+	id := c.Param("id")
+	db := storage.GetDB()
+	if db == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Database not available"})
+	}
+
+	if err := db.Delete(&models.User{}, id).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete user"})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+func updateProfile(c echo.Context) error {
+	claims := middleware.GetClaims(c)
+	if claims == nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
+	}
+
+	db := storage.GetDB()
+	if db == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Database not available"})
+	}
+
+	var user models.User
+	if err := db.Preload("Roles").First(&user, claims.UserID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	var req struct {
+		Email         *string `json:"email"`
+		Password      *string `json:"password"`
+		DisplayName   *string `json:"displayName"`
+		MinecraftName *string `json:"minecraftName"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	if req.Email != nil {
+		user.Email = *req.Email
+	}
+	if req.DisplayName != nil {
+		user.DisplayName = *req.DisplayName
+	}
+	if req.MinecraftName != nil {
+		user.MinecraftName = *req.MinecraftName
+	}
+	if req.Password != nil && *req.Password != "" {
+		hashed, err := security.Hash(*req.Password)
+		if err != nil {
+			logger.Error("Failed to hash password", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update password"})
+		}
+		user.Password = hashed
+	}
+
+	if err := db.Save(&user).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update profile"})
+	}
+
+	return c.JSON(http.StatusOK, models.UserResponse{
+		ID:            user.ID,
+		CreatedAt:     user.CreatedAt,
+		MinecraftID:   user.MinecraftID,
+		MinecraftName: user.MinecraftName,
+		DisplayName:   user.DisplayName,
+		Email:         user.Email,
+		Roles:         convertRolesToResponse(user.Roles),
+		Avatar:        user.Avatar,
+	})
 }
 
 func getUser(c echo.Context) error {
@@ -108,13 +272,14 @@ func getUser(c echo.Context) error {
 	}
 
 	response := models.UserResponse{
-		ID:          user.ID,
-		CreatedAt:   user.CreatedAt,
-		MinecraftID: user.MinecraftID,
-		DisplayName: user.DisplayName,
-		Email:       user.Email,
-		Roles:       convertRolesToResponse(user.Roles),
-		Avatar:      user.Avatar,
+		ID:            user.ID,
+		CreatedAt:     user.CreatedAt,
+		MinecraftID:   user.MinecraftID,
+		MinecraftName: user.MinecraftName,
+		DisplayName:   user.DisplayName,
+		Email:         user.Email,
+		Roles:         convertRolesToResponse(user.Roles),
+		Avatar:        user.Avatar,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -133,13 +298,14 @@ func getUsers(c echo.Context) error {
 	var userResponses []models.UserResponse
 	for _, user := range users {
 		userResponses = append(userResponses, models.UserResponse{
-			ID:          user.ID,
-			CreatedAt:   user.CreatedAt,
-			MinecraftID: user.MinecraftID,
-			DisplayName: user.DisplayName,
-			Email:       user.Email,
-			Roles:       convertRolesToResponse(user.Roles),
-			Avatar:      user.Avatar,
+			ID:            user.ID,
+			CreatedAt:     user.CreatedAt,
+			MinecraftID:   user.MinecraftID,
+			MinecraftName: user.MinecraftName,
+			DisplayName:   user.DisplayName,
+			Email:         user.Email,
+			Roles:         convertRolesToResponse(user.Roles),
+			Avatar:        user.Avatar,
 		})
 	}
 
@@ -185,7 +351,10 @@ func convertRolesToResponse(roles []models.Role) []models.RoleResponse {
 	roleResponses := make([]models.RoleResponse, len(roles))
 	for i, role := range roles {
 		roleResponses[i] = models.RoleResponse{
-			Rolename: role.Rolename,
+			ID:          role.ID,
+			Name:        role.Name,
+			DisplayName: role.DisplayName,
+			Slug:        role.Slug,
 		}
 	}
 	return roleResponses

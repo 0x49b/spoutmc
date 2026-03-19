@@ -1,44 +1,76 @@
 package storage
 
 import (
-	"fmt"
+	"context"
 	"os"
+	"spoutmc/internal/database"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 
-	"github.com/glebarez/sqlite"
-	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 var db *gorm.DB
 var logger = log.GetLogger(log.ModuleStorage)
 
-func InitDB() error {
-	var err error
-	if err = godotenv.Load(); err != nil {
-		return fmt.Errorf("failed to load .env file: %w", err)
+// InitDB connects to the SQLite database and runs GORM migrations. Call this during startup before the webserver.
+func InitDB(ctx context.Context) error {
+	sqlitePath := os.Getenv("SQLITE_DB_PATH")
+	if sqlitePath == "" {
+		sqlitePath = "data/spoutmc.db"
 	}
 
-	dbPath := os.Getenv("SQLITE_DB_PATH")
-	if dbPath == "" {
-		return fmt.Errorf("SQLITE_DB_PATH not set in .env file")
-	}
-
-	db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	conn, err := database.Connect(ctx, sqlitePath)
 	if err != nil {
-		return fmt.Errorf("failed to connect to SQLite database: %w", err)
+		return err
 	}
 
-	logger.Info("💾 Successfully connected to SQLite database")
+	db = conn
 
-	err = db.AutoMigrate(&models.User{}, &models.SpoutServer{})
-	if err != nil {
-		return fmt.Errorf("💾 failed to migrate database schema: %w", err)
+	// Run migrations for User, Role, and join table
+	if err := db.AutoMigrate(&models.User{}, &models.Role{}); err != nil {
+		return err
 	}
 
-	logger.Info("💾 Successfully migrated database schema")
+	// Backfill DisplayName and Slug for existing roles (migration from name-only schema)
+	var allRoles []models.Role
+	if db.Find(&allRoles).Error == nil {
+		for _, r := range allRoles {
+			updates := make(map[string]interface{})
+			if r.DisplayName == "" {
+				updates["display_name"] = r.Name
+			}
+			if r.Slug == "" {
+				updates["slug"] = r.Name
+			}
+			if len(updates) > 0 {
+				db.Model(&models.Role{}).Where("id = ?", r.ID).Updates(updates)
+			}
+		}
+	}
 
+	// Seed default roles if they don't exist
+	defaultRoles := []struct {
+		Name        string
+		DisplayName string
+		Slug        string
+	}{
+		{"admin", "Admin", "admin"},
+		{"manager", "Manager", "manager"},
+		{"editor", "Editor", "editor"},
+		{"mod", "Mod", "mod"},
+		{"support", "Support", "support"},
+	}
+	for _, r := range defaultRoles {
+		var count int64
+		if db.Model(&models.Role{}).Where("name = ?", r.Name).Count(&count); count == 0 {
+			db.Create(&models.Role{Name: r.Name, DisplayName: r.DisplayName, Slug: r.Slug})
+			logger.Info("Seeded default role", zap.String("role", r.Name))
+		}
+	}
+
+	logger.Info("Successfully migrated database schema")
 	return nil
 }
 

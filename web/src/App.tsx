@@ -18,6 +18,7 @@ import InfrastructureDetail from './components/Infrastructure/InfrastructureDeta
 import LoginPage from './components/Auth/LoginPage';
 import UserProfile from './components/Configuration/Users/UserProfile';
 import UsersList from './components/Configuration/Users/UsersList';
+import RolesList from './components/Configuration/Roles/RolesList';
 import Configuration from './components/Configuration/Configuration';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import SetupWizard from './components/Setup/SetupWizard';
@@ -184,7 +185,17 @@ const PageLayout = () => {
                                             variant="plain"
                                             aria-label="User menu"
                                         >
-                                            <UserIcon/>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <UserIcon/>
+                                                <span>
+                                                    {user?.displayName?.trim() || user?.email || 'User'}
+                                                    {user?.minecraftName?.trim() && (
+                                                        <span style={{ color: 'var(--pf-v6-global--Color--200)' }}>
+                                                            {' '}({user.minecraftName})
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </span>
                                         </MenuToggle>
                                     )}
                                     shouldFocusToggleOnSelect
@@ -328,6 +339,15 @@ function App() {
                             <ProtectedRoute
                                 requiredPermissions={[{action: 'manage', subject: 'users'}]}>
                                 <UsersList/>
+                            </ProtectedRoute>
+                        )
+                    },
+                    {
+                        path: 'configuration/roles',
+                        element: (
+                            <ProtectedRoute
+                                requiredPermissions={[{action: 'manage', subject: 'users'}]}>
+                                <RolesList/>
                             </ProtectedRoute>
                         )
                     },
