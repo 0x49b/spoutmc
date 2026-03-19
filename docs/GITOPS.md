@@ -397,7 +397,7 @@ SpoutMC will:
 
 ## Examples
 
-See the `examples/gitops-repo/` directory for:
+See the `../examples/gitops-repo/` directory for:
 - Example server configurations
 - Repository structure
 - README template

@@ -69,10 +69,15 @@ spoutmc/
 │   └── vite.config.ts
 ├── config/
 │   └── spoutmc.yaml             # Main configuration
-├── build.sh                     # Production build script
-├── BUILD.md                     # Build instructions
-├── DEVELOPMENT.md               # This file
-└── CLAUDE.md                    # Architecture guidelines
+├── build.sh                     # Unix wrapper for production build
+├── build.mjs                    # Cross-platform production build logic
+├── build.ps1                    # PowerShell build wrapper
+├── build.cmd                    # Windows CMD build wrapper
+└── docs/                        # Project documentation
+    ├── BUILD.md                 # Build instructions
+    ├── DEVELOPMENT.md           # This file
+    ├── GITOPS.md                # GitOps reference
+    └── AGENTS.md                # Architecture guidelines
 ```
 
 ## Development Workflow
@@ -389,7 +394,7 @@ export const ExampleComponent: React.FC = () => {
 
 ## Architecture Guidelines
 
-**IMPORTANT:** Follow the architecture guidelines in `CLAUDE.md`.
+**IMPORTANT:** Follow the architecture guidelines in `AGENTS.md`.
 
 ### Key Principles
 
@@ -754,8 +759,9 @@ air init
 ## Additional Resources
 
 - **Build Instructions**: `BUILD.md`
-- **Architecture Guidelines**: `CLAUDE.md`
+- **Architecture Guidelines**: `AGENTS.md`
 - **GitOps Documentation**: `GITOPS.md`
+- **Release Pipeline**: `RELEASE.md`
 - **Go Documentation**: https://go.dev/doc/
 - **Echo Framework**: https://echo.labstack.com/
 - **React Documentation**: https://react.dev/
@@ -772,7 +778,7 @@ air init
 
 1. Fork the repository
 2. Create a feature branch
-3. Follow the architecture guidelines in `CLAUDE.md`
+3. Follow the architecture guidelines in `AGENTS.md`
 4. Write tests for new functionality
 5. Ensure all tests pass
 6. Submit a pull request with a clear description

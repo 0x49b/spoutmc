@@ -1,79 +1,90 @@
-# SpoutMC GitOps Server Configurations
+# SpoutMC GitOps Example Repository
 
-This repository contains server configurations for SpoutMC in a GitOps style.
+This directory is an example GitOps repository layout for SpoutMC.
 
 ## Structure
 
-```
+```text
 servers/
-├── proxy.yaml      # Velocity proxy server
-├── lobby.yaml      # Lobby server
-├── skyblock.yaml   # Skyblock game server
-└── ...             # Add more servers as needed
+├── proxy.yaml               # Velocity proxy server (SpoutServer manifest)
+├── lobby.yaml               # Lobby server (SpoutServer manifest)
+└── skyblock.yaml            # Game server (SpoutServer manifest)
+
+infrastructure/
+└── database.yaml            # InfrastructureContainer manifest
 ```
 
-## Server Configuration Format
+## Manifest Format
 
-Each YAML file in the `servers/` directory represents a single Minecraft server configuration:
+SpoutMC supports:
+
+- Manifest format (`apiVersion`, `kind`, `metadata`, `spec`) - recommended.
+- Legacy flat YAML objects (still supported for compatibility).
+
+### SpoutServer Example
 
 ```yaml
-name: servername           # Unique server name (required)
-image: itzg/minecraft-server  # Docker image (required)
-proxy: false               # Is this a proxy server? (optional)
-lobby: false               # Is this a lobby server? (optional)
-
-# Port mappings (optional)
-ports:
-  - hostPort: '25565'
-    containerPort: '25565'
-
-# Environment variables (optional)
-env:
-  EULA: "TRUE"
-  TYPE: PAPER
-  VERSION: 1.21.10
-  MAX_MEMORY: 4G
-
-# Volume mappings (optional)
-volumes:
-  - hostpath:
-      - path
-      - to
-      - host
-    containerpath: "/data"
+apiVersion: spoutmc.io/v1alpha1
+kind: SpoutServer
+metadata:
+  name: lobby
+spec:
+  name: lobby
+  image: itzg/minecraft-server
+  lobby: true
+  env:
+    EULA: "TRUE"
+    TYPE: PAPER
+    VERSION: "1.21.10"
+  volumes:
+    - containerpath: "/data"
 ```
 
-## Making Changes
+### InfrastructureContainer Example
 
-1. Add a new YAML file to `servers/` directory
-2. Commit and push to the repository
-3. SpoutMC will automatically:
-   - Pull the changes (via polling or webhook)
-   - Create new containers for added servers
-   - Update existing containers if configuration changed
-   - Remove containers for deleted server files
+```yaml
+apiVersion: spoutmc.io/v1alpha1
+kind: InfrastructureContainer
+metadata:
+  name: database
+spec:
+  name: database
+  image: mariadb:latest
+  restart: always
+  ports:
+    - host: "3306"
+      container: "3306"
+  env:
+    MARIADB_ROOT_PASSWORD: changeme
+```
 
-## Webhook Configuration
+## Notes
 
-To enable real-time updates, configure a webhook in your Git provider:
+- In server volumes, use `containerpath` only.
+- Host paths are generated automatically from SpoutMC `storage.data_path`.
+- `metadata.name` should match `spec.name`.
 
-### GitHub
-1. Go to repository Settings → Webhooks → Add webhook
-2. Payload URL: `http://your-spoutmc-host:3000/api/v1/git/webhook`
-3. Content type: `application/json`
-4. Secret: Same as `SPOUTMC_WEBHOOK_SECRET` environment variable
-5. Events: Just the push event
+## Applying Changes
 
-### GitLab
-1. Go to repository Settings → Webhooks → Add webhook
-2. URL: `http://your-spoutmc-host:3000/api/v1/git/webhook`
-3. Secret Token: Same as `SPOUTMC_WEBHOOK_SECRET` environment variable
-4. Trigger: Push events
+1. Add or edit YAML files in `servers/` or `infrastructure/`.
+2. Commit and push to your GitOps repository.
+3. SpoutMC will detect changes via polling and/or webhook:
+   - create containers for added manifests
+   - recreate containers for modified manifests
+   - remove containers for deleted manifests
 
-## Manual Sync
-
-You can manually trigger a sync using the API:
+## Useful API Endpoints
 
 ```bash
+# Trigger manual Git sync
 curl -X POST http://your-spoutmc-host:3000/api/v1/git/sync
+
+# Check GitOps sync status
+curl http://your-spoutmc-host:3000/api/v1/git/status
 ```
+
+## Related Docs
+
+- `../../docs/GITOPS.md`
+- `../../docs/GITOPS_QUICKSTART.md`
+- `../../docs/WEBHOOK_TEST.md`

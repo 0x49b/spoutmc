@@ -181,14 +181,14 @@ The build script supports the following architectures by default:
 
 Edit the `TARGETS` array in `build.mjs`:
 
-```bash
-TARGETS=(
-    "linux/amd64"
-    "linux/arm64"     # Add ARM64 Linux
-    "darwin/amd64"
-    "darwin/arm64"
-    "windows/amd64"
-)
+```js
+const TARGETS = [
+  "linux/amd64",
+  "linux/arm64", // Add ARM64 Linux
+  "darwin/amd64",
+  "darwin/arm64",
+  "windows/amd64",
+];
 ```
 
 ## Troubleshooting
@@ -407,8 +407,9 @@ sudo systemctl start spoutmc
 ## Additional Resources
 
 - **Development Workflow**: See `DEVELOPMENT.md`
-- **Project Architecture**: See `CLAUDE.md`
+- **Project Architecture**: See `AGENTS.md`
 - **GitOps Configuration**: See `GITOPS.md`
+- **Release Workflow**: See `RELEASE.md`
 
 ## Support
 

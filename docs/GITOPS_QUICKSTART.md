@@ -38,41 +38,45 @@ mkdir servers
 
 Create `servers/proxy.yaml`:
 ```yaml
-name: spoutproxy
-image: itzg/mc-proxy
-proxy: true
-ports:
-  - hostPort: '25565'
-    containerPort: '25565'
-env:
-  TYPE: VELOCITY
-  MAX_MEMORY: 1G
-volumes:
-  - hostpath:
-      - testservers
-      - data
-      - spoutproxy
-    containerpath: "/server"
+apiVersion: spoutmc.io/v1alpha1
+kind: SpoutServer
+metadata:
+  name: spoutproxy
+spec:
+  name: spoutproxy
+  image: itzg/mc-proxy
+  proxy: true
+  ports:
+    - hostPort: "25565"
+      containerPort: "25565"
+  env:
+    TYPE: VELOCITY
+    MAX_MEMORY: 1G
+  volumes:
+    - containerpath: "/server"
 ```
 
 Create `servers/lobby.yaml`:
 ```yaml
-name: lobby
-image: itzg/minecraft-server
-lobby: true
-env:
-  EULA: "TRUE"
-  TYPE: PAPER
-  VERSION: 1.21.10
-  MAX_MEMORY: 4G
-  ONLINE_MODE: 'FALSE'
-volumes:
-  - hostpath:
-      - testservers
-      - data
-      - lobby
-    containerpath: "/data"
+apiVersion: spoutmc.io/v1alpha1
+kind: SpoutServer
+metadata:
+  name: lobby
+spec:
+  name: lobby
+  image: itzg/minecraft-server
+  lobby: true
+  env:
+    EULA: "TRUE"
+    TYPE: PAPER
+    VERSION: "1.21.10"
+    MAX_MEMORY: 4G
+    ONLINE_MODE: "FALSE"
+  volumes:
+    - containerpath: "/data"
 ```
+
+Note: only `containerpath` is needed in volume entries. SpoutMC generates host paths automatically using `storage.data_path`, server name, and container path.
 
 ## Step 3: Push to Git
 
@@ -146,19 +150,20 @@ Git poller started interval=30s
 
 1. Create `servers/skyblock.yaml` in your Git repo:
    ```yaml
-   name: skyblock
-   image: itzg/minecraft-server
-   env:
-     EULA: "TRUE"
-     TYPE: PAPER
-     VERSION: 1.21.10
-     MAX_MEMORY: 8G
-   volumes:
-     - hostpath:
-         - testservers
-         - data
-         - skyblock
-       containerpath: "/data"
+   apiVersion: spoutmc.io/v1alpha1
+   kind: SpoutServer
+   metadata:
+     name: skyblock
+   spec:
+     name: skyblock
+     image: itzg/minecraft-server
+     env:
+       EULA: "TRUE"
+       TYPE: PAPER
+       VERSION: "1.21.10"
+       MAX_MEMORY: 8G
+     volumes:
+       - containerpath: "/data"
    ```
 
 2. Commit and push:
@@ -305,4 +310,4 @@ curl -X POST http://localhost:3000/api/v1/git/sync
 
 ## Example Repository
 
-See `examples/gitops-repo/` in the SpoutMC repository for a complete example.
+See `../examples/gitops-repo/` in the SpoutMC repository for a complete example.

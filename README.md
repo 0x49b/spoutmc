@@ -12,6 +12,15 @@
 
 Docker based Minecraft Server Networks
 
+## Documentation
+
+Project documentation lives in `docs/`.
+
+- `docs/README.md` - Documentation index
+- `docs/BUILD.md` - Build instructions
+- `docs/DEVELOPMENT.md` - Development workflow
+- `docs/RELEASE.md` - Release pipeline
+
 ### Check
 https://pkg.go.dev/github.com/docker/docker/client#pkg-overview  
 https://docker-minecraft-server.readthedocs.io/en/latest/  
