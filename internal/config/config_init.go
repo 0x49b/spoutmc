@@ -108,7 +108,7 @@ func writeConfigWithComments(path string, cfg models.SpoutConfiguration) error {
 	// Write Storage section
 	builder.WriteString("# Storage configuration\n")
 	builder.WriteString("storage:\n")
-	builder.WriteString(fmt.Sprintf("  data_path: %s\n", cfg.Storage.DataPath))
+	builder.WriteString("  data_path: /path/where/server/data/is/stored\n")
 	builder.WriteString("\n")
 
 	// Write Files section
@@ -121,7 +121,7 @@ func writeConfigWithComments(path string, cfg models.SpoutConfiguration) error {
 	builder.WriteString("\n")
 
 	// Write Servers section
-	builder.WriteString("# Server configurations\n")
+	builder.WriteString("# Server configurations, only needed if you do not use GitOps\n")
 	builder.WriteString("servers: []\n")
 
 	// Write to file
