@@ -7,6 +7,8 @@ import {
   DockerContainer,
   ContainerWithStats
 } from '../utils/serverMapper';
+import { withAccessToken } from '../utils/sseUrl';
+import { hasTokenSync } from '../security/tokenVault';
 
 interface ServerState {
   servers: Server[];
@@ -37,6 +39,9 @@ interface ServerState {
 const API_BASE_URL = 'http://localhost:3000/api/v1';
 
 // Sort servers: Proxy first, Lobby second, then game servers by port
+/** Bumped on explicit disconnect so scheduled onerror reconnects do not run after unmount/logout. */
+let serverSseEpoch = 0;
+
 const sortServers = (servers: Server[]): Server[] => {
   return [...servers].sort((a, b) => {
     // Proxy always first
@@ -78,14 +83,19 @@ export const useServerStore = create<ServerState>((set, get) => ({
   },
 
   connectSSE: () => {
-    // Clean up existing connection if any
+    if (!hasTokenSync()) {
+      return;
+    }
+
     const currentEventSource = get().eventSource;
     if (currentEventSource) {
       currentEventSource.close();
     }
 
+    const epoch = serverSseEpoch;
+
     try {
-      const eventSource = new EventSource(`${API_BASE_URL}/server/stream`);
+      const eventSource = new EventSource(withAccessToken(`${API_BASE_URL}/server/stream`));
 
       eventSource.onopen = () => {
         console.log('SSE connection established for server list');
@@ -127,14 +137,19 @@ export const useServerStore = create<ServerState>((set, get) => ({
       eventSource.onerror = (error) => {
         console.error('SSE connection error:', error);
         eventSource.close();
+        if (get().eventSource === eventSource) {
+          set({ eventSource: null });
+        }
 
-        // Try to reconnect after 5 seconds
-        setTimeout(() => {
-          const currentState = get();
-          if (!currentState.eventSource || currentState.eventSource.readyState === EventSource.CLOSED) {
-            console.log('Attempting to reconnect SSE...');
-            get().connectSSE();
+        window.setTimeout(() => {
+          if (epoch !== serverSseEpoch) {
+            return;
           }
+          if (!hasTokenSync()) {
+            return;
+          }
+          console.log('Attempting to reconnect SSE...');
+          get().connectSSE();
         }, 5000);
       };
 
@@ -146,6 +161,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   },
 
   disconnectSSE: () => {
+    serverSseEpoch += 1;
     const eventSource = get().eventSource;
     if (eventSource) {
       eventSource.close();

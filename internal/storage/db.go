@@ -29,7 +29,7 @@ func InitDB(ctx context.Context) error {
 	db = conn
 
 	// Run migrations for User, Role, and join table
-	if err := db.AutoMigrate(&models.User{}, &models.Role{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Role{}, &models.PlayerSupportChatMessage{}); err != nil {
 		return err
 	}
 

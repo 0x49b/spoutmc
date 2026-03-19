@@ -164,7 +164,12 @@ public final class BridgeApiHandler implements HttpHandler {
         JsonObject body = readJsonBody(exchange);
 
         if ("chat".equals(action)) {
-            sendJson(exchange, 200, gson.toJson(chatService.getChat(playerName)));
+            long staffUserId = parseStaffUserId(exchange.getRequestURI().getRawQuery());
+            if (staffUserId <= 0) {
+                sendJson(exchange, 400, "{\"error\":\"staffUserId query parameter is required\"}");
+                return;
+            }
+            sendJson(exchange, 200, gson.toJson(chatService.getChat(playerName, staffUserId)));
             return;
         }
 
@@ -172,6 +177,13 @@ public final class BridgeApiHandler implements HttpHandler {
             String message = getJsonString(body, "message");
             if (message == null || message.isBlank()) {
                 sendJson(exchange, 400, "{\"error\":\"message is required\"}");
+                return;
+            }
+            long staffUserId = body.has("staffUserId") && !body.get("staffUserId").isJsonNull()
+                    ? body.get("staffUserId").getAsLong()
+                    : 0L;
+            if (staffUserId <= 0) {
+                sendJson(exchange, 400, "{\"error\":\"staffUserId is required\"}");
                 return;
             }
             String sender = getJsonString(body, "sender");
@@ -183,7 +195,7 @@ public final class BridgeApiHandler implements HttpHandler {
                 return;
             }
 
-            chatService.sendStaffMessage(player.get(), sender, role, message);
+            chatService.sendStaffMessage(player.get(), staffUserId, sender, role, message);
             sendJson(exchange, 202, "{\"status\":\"message sent\"}");
             return;
         }
@@ -269,6 +281,29 @@ public final class BridgeApiHandler implements HttpHandler {
             return null;
         }
         return json.get(key).getAsString();
+    }
+
+    private static long parseStaffUserId(String rawQuery) {
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return -1;
+        }
+        for (String part : rawQuery.split("&")) {
+            int eq = part.indexOf('=');
+            if (eq <= 0) {
+                continue;
+            }
+            String key = URLDecoder.decode(part.substring(0, eq), StandardCharsets.UTF_8).trim();
+            if (!"staffUserId".equalsIgnoreCase(key)) {
+                continue;
+            }
+            String value = URLDecoder.decode(part.substring(eq + 1), StandardCharsets.UTF_8).trim();
+            try {
+                return Long.parseLong(value);
+            } catch (NumberFormatException ignored) {
+                return -1;
+            }
+        }
+        return -1;
     }
 
     private boolean isAuthorized(HttpExchange exchange) {

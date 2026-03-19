@@ -49,6 +49,7 @@ import FileBrowser from './FileBrowser.tsx';
 import FileEditorModal from './Modals/FileEditorModal.tsx';
 import * as api from '../../service/apiService.ts';
 import RestartServerModal from "./Modals/RestartServerModal.tsx";
+import { withAccessToken } from '../../utils/sseUrl';
 
 const ServerDetail: React.FC = () => {
     const {id} = useParams<{ id: string }>();
@@ -90,7 +91,9 @@ const ServerDetail: React.FC = () => {
     useEffect(() => {
         connectSSE();
         if (server?.id) {
-            statsEventSourceRef.current = new EventSource(`http://localhost:3000/api/v1/server/${server.id}/stats`);
+            statsEventSourceRef.current = new EventSource(
+                withAccessToken(`http://localhost:3000/api/v1/server/${server.id}/stats`)
+            );
             statsEventSourceRef.current.onmessage = (event: MessageEvent) => {
                 const parsed = JSON.parse(event.data);
                 setStats(parsed);

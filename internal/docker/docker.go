@@ -152,6 +152,15 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 		exposedPorts, containerPortBinding := nat.PortSet{}, nat.PortMap{}
 		if s.Proxy {
 			exposedPorts, containerPortBinding = MapExposedPorts(s.Ports)
+			// Expose the Velocity players-bridge API on localhost for the SpoutMC host process.
+			bridgePort := nat.Port(DefaultPlayersBridgePort + "/tcp")
+			exposedPorts[bridgePort] = struct{}{}
+			if _, exists := containerPortBinding[bridgePort]; !exists {
+				containerPortBinding[bridgePort] = []nat.PortBinding{{
+					HostIP:   "127.0.0.1",
+					HostPort: DefaultPlayersBridgePort,
+				}}
+			}
 		}
 
 		spoutNetwork := GetSpoutNetwork(ctx)

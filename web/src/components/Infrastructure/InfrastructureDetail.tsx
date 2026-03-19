@@ -36,6 +36,7 @@ import StatusBadge from '../UI/StatusBadge';
 import { ConsoleTab } from '../Servers/ServerDetailTabs/ConsoleTab';
 import { InfrastructureOverviewTab } from './InfrastructureOverviewTab';
 import { ServerStats } from '../../model/ServerStats';
+import { withAccessToken } from '../../utils/sseUrl';
 
 const API_BASE_URL = 'http://localhost:3000/api/v1'; // TODO: use env/config
 
@@ -119,7 +120,7 @@ const InfrastructureDetail: React.FC = () => {
     connectSSE();
     if (containerId) {
       statsEventSourceRef.current = new EventSource(
-        `${API_BASE_URL}/infrastructure/${containerId}/stats`
+        withAccessToken(`${API_BASE_URL}/infrastructure/${containerId}/stats`)
       );
       statsEventSourceRef.current.onmessage = (event: MessageEvent) => {
         try {

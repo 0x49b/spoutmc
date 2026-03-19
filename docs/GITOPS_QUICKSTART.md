@@ -99,6 +99,7 @@ git:
   branch: "main"
   poll_interval: 30s
   local_path: "/tmp/spoutmc-git"
+  token: <GITHUB_ACCESS_TOKEN>
 
 servers: []  # Empty when using GitOps
 ```

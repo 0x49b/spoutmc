@@ -10,7 +10,10 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
+
+	"spoutmc/internal/docker"
 )
 
 type PlayerState struct {
@@ -25,19 +28,21 @@ type PlayerState struct {
 }
 
 type PlayerCommand struct {
-	Message string `json:"message,omitempty"`
-	Reason  string `json:"reason,omitempty"`
-	Sender  string `json:"sender,omitempty"`
-	Role    string `json:"role,omitempty"`
+	Message     string `json:"message,omitempty"`
+	Reason      string `json:"reason,omitempty"`
+	Sender      string `json:"sender,omitempty"`
+	Role        string `json:"role,omitempty"`
+	StaffUserID uint   `json:"staffUserId"` // must be present for velocity bridge (do not omitempty)
 }
 
 type PlayerChatMessage struct {
-	Direction string `json:"direction"`
-	Player    string `json:"player"`
-	Sender    string `json:"sender,omitempty"`
-	Role      string `json:"role,omitempty"`
-	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"`
+	Direction   string `json:"direction"`
+	Player      string `json:"player"`
+	StaffUserID uint   `json:"staffUserId"`
+	Sender      string `json:"sender,omitempty"`
+	Role        string `json:"role,omitempty"`
+	Message     string `json:"message"`
+	Timestamp   string `json:"timestamp"`
 }
 
 type bridgePlayer struct {
@@ -52,31 +57,66 @@ type bridgePlayer struct {
 	Status          string  `json:"status"`
 }
 
+// BridgeClient talks to the velocity-players-bridge HTTP API inside the proxy container.
 type BridgeClient struct {
-	baseURL    string
-	token      string
-	httpClient *http.Client
+	envURL      string // SPOUT_PLAYERS_BRIDGE_URL when set; otherwise we resolve via Docker
+	resolvedURL string // cached http://<container-ip>:29132
+	mu          sync.Mutex
+	token       string
+	httpClient  *http.Client
 }
 
 func NewBridgeClientFromEnv() *BridgeClient {
-	baseURL := strings.TrimSpace(os.Getenv("SPOUT_PLAYERS_BRIDGE_URL"))
-	if baseURL == "" {
-		baseURL = "http://127.0.0.1:29132"
-	}
-
-	token := strings.TrimSpace(os.Getenv("SPOUT_PLAYERS_BRIDGE_TOKEN"))
-
 	return &BridgeClient{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		token:   token,
+		envURL: strings.TrimSpace(os.Getenv("SPOUT_PLAYERS_BRIDGE_URL")),
+		token:  strings.TrimSpace(os.Getenv("SPOUT_PLAYERS_BRIDGE_TOKEN")),
 		httpClient: &http.Client{
 			Timeout: 8 * time.Second,
 		},
 	}
 }
 
+func (c *BridgeClient) baseURL(ctx context.Context) string {
+	if v := strings.TrimSpace(c.envURL); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	c.mu.Lock()
+	cached := c.resolvedURL
+	c.mu.Unlock()
+	if cached != "" {
+		return cached
+	}
+	u := docker.ResolvePlayersBridgeBaseURL(ctx)
+	if u != "" {
+		u = strings.TrimRight(u, "/")
+		c.mu.Lock()
+		c.resolvedURL = u
+		c.mu.Unlock()
+		return u
+	}
+	return "http://127.0.0.1:" + docker.DefaultPlayersBridgePort
+}
+
+func (c *BridgeClient) clearResolvedURL() {
+	c.mu.Lock()
+	c.resolvedURL = ""
+	c.mu.Unlock()
+}
+
+func (c *BridgeClient) invalidateResolvedIfConnErr(err error) {
+	if err == nil || strings.TrimSpace(c.envURL) != "" {
+		return
+	}
+	s := err.Error()
+	if strings.Contains(s, "refused") || strings.Contains(s, "timeout") ||
+		strings.Contains(s, "no such host") || strings.Contains(s, "network is unreachable") {
+		c.clearResolvedURL()
+	}
+}
+
 func (c *BridgeClient) ListPlayers(ctx context.Context) ([]PlayerState, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/players", nil)
+	base := c.baseURL(ctx)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/players", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +124,7 @@ func (c *BridgeClient) ListPlayers(ctx context.Context) ([]PlayerState, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.invalidateResolvedIfConnErr(err)
 		return nil, fmt.Errorf("failed to call players bridge: %w", err)
 	}
 	defer resp.Body.Close()
@@ -151,11 +192,12 @@ func (c *BridgeClient) MessagePlayer(ctx context.Context, playerName string, mes
 	return c.postPlayerAction(ctx, playerName, "message", body)
 }
 
-func (c *BridgeClient) MessagePlayerWithMeta(ctx context.Context, playerName, message, sender, role string) error {
+func (c *BridgeClient) MessagePlayerWithMeta(ctx context.Context, playerName, message, sender, role string, staffUserID uint) error {
 	body, err := json.Marshal(PlayerCommand{
-		Message: message,
-		Sender:  sender,
-		Role:    role,
+		Message:     message,
+		Sender:      sender,
+		Role:        role,
+		StaffUserID: staffUserID,
 	})
 	if err != nil {
 		return err
@@ -184,8 +226,9 @@ func (c *BridgeClient) UnbanPlayer(ctx context.Context, playerName string) error
 }
 
 func (c *BridgeClient) postPlayerAction(ctx context.Context, playerName string, action string, body []byte) error {
+	base := c.baseURL(ctx)
 	encodedName := url.PathEscape(playerName)
-	endpoint := fmt.Sprintf("%s/players/%s/%s", c.baseURL, encodedName, action)
+	endpoint := fmt.Sprintf("%s/players/%s/%s", base, encodedName, action)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
@@ -196,6 +239,7 @@ func (c *BridgeClient) postPlayerAction(ctx context.Context, playerName string, 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.invalidateResolvedIfConnErr(err)
 		return fmt.Errorf("failed to call players bridge action: %w", err)
 	}
 	defer resp.Body.Close()
@@ -207,9 +251,10 @@ func (c *BridgeClient) postPlayerAction(ctx context.Context, playerName string, 
 	return nil
 }
 
-func (c *BridgeClient) GetPlayerChat(ctx context.Context, playerName string) ([]PlayerChatMessage, error) {
+func (c *BridgeClient) GetPlayerChat(ctx context.Context, playerName string, staffUserID uint) ([]PlayerChatMessage, error) {
+	base := c.baseURL(ctx)
 	encodedName := url.PathEscape(playerName)
-	endpoint := fmt.Sprintf("%s/players/%s/chat", c.baseURL, encodedName)
+	endpoint := fmt.Sprintf("%s/players/%s/chat?staffUserId=%d", base, encodedName, staffUserID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -219,6 +264,7 @@ func (c *BridgeClient) GetPlayerChat(ctx context.Context, playerName string) ([]
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.invalidateResolvedIfConnErr(err)
 		return nil, fmt.Errorf("failed to call players bridge chat endpoint: %w", err)
 	}
 	defer resp.Body.Close()

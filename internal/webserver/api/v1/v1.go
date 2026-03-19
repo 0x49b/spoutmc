@@ -25,6 +25,7 @@ func RegisterV1(g *echo.Group) {
 	// Public routes (no JWT required)
 	auth.RegisterAuthRoutes(v1)
 	setup.RegisterSetupRoutes(v1)
+	player.RegisterPlayerChatIngestRoute(v1)
 
 	// Protected routes (JWT required)
 	protected := v1.Group("", middleware.JWT)

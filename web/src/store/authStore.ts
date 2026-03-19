@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { UserProfile, Role, Permission } from '../types';
 import * as api from '../service/apiService';
+import { clearToken, getToken, setToken } from '../security/tokenVault';
 
 interface AuthState {
   user: UserProfile | null;
@@ -96,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const { data } = await api.login(email, password);
-      localStorage.setItem('auth_token', data.token);
+      await setToken(data.token);
       set({ user: userDtoToProfile(data.user), loading: false });
     } catch (error) {
       set({
@@ -110,7 +111,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     set({ loading: true, error: null });
     try {
-      localStorage.removeItem('auth_token');
+      await clearToken();
       set({ user: null, loading: false });
     } catch (error) {
       set({
@@ -124,7 +125,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   checkAuth: async () => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = await getToken();
       if (!token) {
         set({ user: null, loading: false });
         return;
@@ -132,7 +133,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data } = await api.verifyToken();
       set({ user: userDtoToProfile(data), loading: false });
     } catch (error) {
-      localStorage.removeItem('auth_token');
+      await clearToken();
       set({ user: null, loading: false });
     }
   },

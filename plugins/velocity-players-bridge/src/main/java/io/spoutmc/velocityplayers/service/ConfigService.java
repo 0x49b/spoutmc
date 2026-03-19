@@ -26,6 +26,8 @@ public final class ConfigService {
             properties.setProperty("bindHost", "0.0.0.0");
             properties.setProperty("port", "29132");
             properties.setProperty("token", "");
+            properties.setProperty("spoutmcChatIngestUrl", "");
+            properties.setProperty("spoutmcChatIngestSecret", "");
             try (OutputStream out = Files.newOutputStream(configPath)) {
                 properties.store(out, "SpoutMC Players Bridge config");
             }
@@ -37,8 +39,10 @@ public final class ConfigService {
 
         PluginConfig loaded = new PluginConfig();
         loaded.bindHost = properties.getProperty("bindHost", "127.0.0.1");
-        loaded.port = Integer.parseInt(properties.getProperty("port", "19132"));
+        loaded.port = Integer.parseInt(properties.getProperty("port", "29132"));
         loaded.token = properties.getProperty("token", "").trim();
+        loaded.spoutmcChatIngestUrl = properties.getProperty("spoutmcChatIngestUrl", "").trim();
+        loaded.spoutmcChatIngestSecret = properties.getProperty("spoutmcChatIngestSecret", "").trim();
         return loaded;
     }
 }

@@ -37,7 +37,7 @@ import java.util.concurrent.Executors;
 @Plugin(
         id = "spoutmc-players",
         name = "SpoutMC Players Bridge",
-        version = "0.1.0",
+        version = "0.1.1",
         description = "Tracks players and exposes HTTP/SSE API for SpoutMC",
         authors = {"SpoutMC"}
 )
@@ -46,7 +46,7 @@ public final class SpoutPlayersPlugin {
     private final Logger logger;
     private final Path dataDirectory;
     private final Gson gson;
-    private final ChatService chatService;
+    private ChatService chatService;
     private final ConfigService configService;
     private final PlayerStateService playerStateService;
 
@@ -61,7 +61,6 @@ public final class SpoutPlayersPlugin {
         this.logger = logger;
         this.dataDirectory = dataDirectory;
         this.gson = new GsonBuilder().setPrettyPrinting().create();
-        this.chatService = new ChatService();
         this.configService = new ConfigService(dataDirectory);
         this.playerStateService = new PlayerStateService(proxy, logger, gson, dataDirectory);
     }
@@ -71,6 +70,7 @@ public final class SpoutPlayersPlugin {
         try {
             Files.createDirectories(dataDirectory);
             this.config = configService.loadConfig();
+            this.chatService = new ChatService(logger, config);
             playerStateService.loadState();
             playerStateService.seedOnlinePlayers();
             this.apiHandler = new BridgeApiHandler(logger, gson, config, playerStateService, chatService);

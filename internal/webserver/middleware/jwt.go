@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net/http"
 	"strings"
 
 	"spoutmc/internal/auth"
@@ -10,10 +11,16 @@ import (
 
 const claimsKey = "jwt_claims"
 
-// JWT validates the Bearer token and sets claims in context
+// JWT validates the Bearer token and sets claims in context.
+// For GET requests, if Authorization is missing, access_token query is accepted so EventSource/SSE clients can authenticate (they cannot set headers).
 func JWT(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authHeader := c.Request().Header.Get("Authorization")
+		if authHeader == "" && c.Request().Method == http.MethodGet {
+			if q := strings.TrimSpace(c.QueryParam("access_token")); q != "" {
+				authHeader = "Bearer " + q
+			}
+		}
 		if authHeader == "" {
 			return echo.NewHTTPError(401, "Missing authorization header")
 		}

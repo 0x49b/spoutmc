@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearToken, getToken } from '../security/tokenVault';
 
 const API_BASE_URL = 'http://localhost:3000/api/v1';
 
@@ -10,8 +11,8 @@ const api = axios.create({
 });
 
 // Attach JWT to requests when available
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
+api.interceptors.request.use(async (config) => {
+  const token = await getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -21,9 +22,9 @@ api.interceptors.request.use((config) => {
 // Handle 401 - clear token and redirect to login
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
+      await clearToken();
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
@@ -109,6 +110,7 @@ export interface PlayerDTO {
 export interface PlayerChatMessageDTO {
   direction: 'incoming' | 'outgoing' | string;
   player: string;
+  staffUserId?: number;
   sender?: string;
   role?: string;
   message: string;
@@ -116,9 +118,12 @@ export interface PlayerChatMessageDTO {
 }
 
 export const getPlayers = () => api.get<PlayerDTO[]>('/player');
-export const sendPlayerMessage = (name: string, message: string, sender?: string, role?: string) =>
-  api.post(`/player/${encodeURIComponent(name)}/message`, { message, sender, role });
-export const getPlayerChat = (name: string) => api.get<PlayerChatMessageDTO[]>(`/player/${encodeURIComponent(name)}/chat`);
+export const sendPlayerMessage = (name: string, message: string) =>
+  api.post(`/player/${encodeURIComponent(name)}/message`, { message });
+export const getPlayerChat = (name: string, scope?: 'all') =>
+  api.get<PlayerChatMessageDTO[]>(`/player/${encodeURIComponent(name)}/chat`, {
+    params: scope ? { scope } : undefined
+  });
 export const kickPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/kick`, { reason });
 export const banPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/ban`, { reason });
 export const unbanPlayer = (name: string) => api.post(`/player/${encodeURIComponent(name)}/unban`);

@@ -1,11 +1,19 @@
 package io.spoutmc.velocityplayers.service;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.velocitypowered.api.proxy.Player;
 import io.spoutmc.velocityplayers.model.ChatMessageRecord;
+import io.spoutmc.velocityplayers.model.PluginConfig;
 import io.spoutmc.velocityplayers.util.PluginUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.slf4j.Logger;
 
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +25,23 @@ import java.util.regex.Pattern;
 public final class ChatService {
     private static final Pattern PRIVATE_MESSAGE_COMMAND_PATTERN = Pattern.compile("^(msg|tell|w|whisper|m)\\s+(\\S+)\\s+(.+)$", Pattern.CASE_INSENSITIVE);
 
-    private final Map<String, List<ChatMessageRecord>> chatHistoryByPlayer = new ConcurrentHashMap<>();
+    private final Logger logger;
+    private final PluginConfig config;
+    private final Gson gson = new Gson();
+
+    private final Map<String, List<ChatMessageRecord>> chatByThread = new ConcurrentHashMap<>();
+    /** Last staff user id that messaged this MC player (normalized name) — /r routes here */
+    private final Map<String, Long> lastStaffByPlayer = new ConcurrentHashMap<>();
     private final Set<String> webReplyHandles = Set.of("admin", "mod", "moderator", "editor", "staff");
+
+    public ChatService(Logger logger, PluginConfig config) {
+        this.logger = logger;
+        this.config = config;
+    }
+
+    private static String threadKey(String normalizedPlayer, long staffUserId) {
+        return normalizedPlayer + ":" + staffUserId;
+    }
 
     public boolean handlePrivateMessageReplyAlias(Player player, String command) {
         if (command == null || command.isBlank()) {
@@ -46,25 +69,27 @@ public final class ChatService {
         return false;
     }
 
-    public List<ChatMessageRecord> getChat(String playerName) {
-        String normalized = PluginUtils.normalizeName(playerName);
-        List<ChatMessageRecord> messages = chatHistoryByPlayer.getOrDefault(normalized, new ArrayList<>());
+    public List<ChatMessageRecord> getChat(String playerName, long staffUserId) {
+        String normalized = PluginUtils.normalizeName(playerName).trim();
+        String key = threadKey(normalized, staffUserId);
+        List<ChatMessageRecord> messages = chatByThread.getOrDefault(key, new ArrayList<>());
         synchronized (messages) {
             return new ArrayList<>(messages);
         }
     }
 
-    public void sendStaffMessage(Player player, String sender, String role, String message) {
+    public void sendStaffMessage(Player player, long staffUserId, String sender, String role, String message) {
         String senderLabel = sender == null || sender.isBlank() ? "SpoutMC" : sender.trim();
-        String roleLabel = role == null || role.isBlank() ? "staff" : role.trim();
-        String normalized = PluginUtils.normalizeName(player.getUsername());
-        List<ChatMessageRecord> chatMessages = chatHistoryByPlayer.computeIfAbsent(normalized, ignored -> new ArrayList<>());
-        boolean firstStaffContact;
+        String roleLabel = role == null || role.isBlank() ? "Staff" : role.trim();
+        String normalized = PluginUtils.normalizeName(player.getUsername()).trim();
+        String tKey = threadKey(normalized, staffUserId);
+        List<ChatMessageRecord> chatMessages = chatByThread.computeIfAbsent(tKey, ignored -> new ArrayList<>());
+        boolean firstInThread;
         synchronized (chatMessages) {
-            firstStaffContact = chatMessages.stream().noneMatch(m -> "outgoing".equals(m.direction));
+            firstInThread = chatMessages.stream().noneMatch(m -> "outgoing".equals(m.direction));
         }
 
-        if (firstStaffContact) {
+        if (firstInThread) {
             player.sendMessage(Component.text(
                     "A staff member is contacting you privately through SpoutMC support chat.",
                     NamedTextColor.RED
@@ -78,6 +103,7 @@ public final class ChatService {
         ChatMessageRecord entry = new ChatMessageRecord();
         entry.direction = "outgoing";
         entry.player = player.getUsername();
+        entry.staffUserId = staffUserId;
         entry.sender = senderLabel;
         entry.role = roleLabel;
         entry.message = message.trim();
@@ -87,7 +113,9 @@ public final class ChatService {
             trimChatHistory(chatMessages);
         }
 
-        String formattedMessage = "[" + roleLabel.toUpperCase() + "] " + senderLabel + ": " + message;
+        lastStaffByPlayer.put(normalized, staffUserId);
+
+        String formattedMessage = "[" + roleLabel + "] " + senderLabel + ": " + message.trim();
         player.sendMessage(Component.text(formattedMessage, NamedTextColor.RED));
     }
 
@@ -97,31 +125,80 @@ public final class ChatService {
             return false;
         }
 
-        String normalizedPlayerName = PluginUtils.normalizeName(player.getUsername());
-        List<ChatMessageRecord> chatMessages = chatHistoryByPlayer.get(normalizedPlayerName);
+        String normalizedPlayerName = PluginUtils.normalizeName(player.getUsername()).trim();
+        Long staffId = lastStaffByPlayer.get(normalizedPlayerName);
+        if (staffId == null || staffId <= 0) {
+            return false;
+        }
+
+        String tKey = threadKey(normalizedPlayerName, staffId);
+        List<ChatMessageRecord> chatMessages = chatByThread.get(tKey);
         if (chatMessages == null) {
             return false;
         }
 
-        boolean hasOutgoingStaffMessage;
+        String timestampIso = PluginUtils.nowIso();
         synchronized (chatMessages) {
-            hasOutgoingStaffMessage = chatMessages.stream().anyMatch(m -> "outgoing".equals(m.direction));
-            if (!hasOutgoingStaffMessage) {
+            if (chatMessages.stream().noneMatch(m -> "outgoing".equals(m.direction))) {
                 return false;
             }
 
             ChatMessageRecord entry = new ChatMessageRecord();
             entry.direction = "incoming";
             entry.player = player.getUsername();
+            entry.staffUserId = staffId;
             entry.sender = player.getUsername();
             entry.role = "";
             entry.message = message;
-            entry.timestamp = PluginUtils.nowIso();
+            entry.timestamp = timestampIso;
             chatMessages.add(entry);
             trimChatHistory(chatMessages);
         }
 
+        ingestIncomingReply(player.getUsername(), staffId, message, timestampIso);
         return true;
+    }
+
+    private void ingestIncomingReply(String mcPlayerName, long staffUserId, String message, String timestampIso) {
+        String urlStr = config.spoutmcChatIngestUrl;
+        String secret = config.spoutmcChatIngestSecret;
+        if (urlStr == null || urlStr.isBlank() || secret == null || secret.isBlank()) {
+            return;
+        }
+
+        Thread thread = new Thread(() -> postIngest(urlStr, secret, mcPlayerName, staffUserId, message, timestampIso), "spoutmc-chat-ingest");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void postIngest(String urlStr, String secret, String mcPlayerName, long staffUserId, String message, String timestampIso) {
+        try {
+            JsonObject body = new JsonObject();
+            body.addProperty("playerName", mcPlayerName);
+            body.addProperty("staffUserId", staffUserId);
+            body.addProperty("message", message);
+            body.addProperty("timestamp", timestampIso);
+
+            byte[] bytes = gson.toJson(body).getBytes(StandardCharsets.UTF_8);
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(8000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            conn.setRequestProperty("X-Spout-Chat-Ingest", secret);
+            try (OutputStream out = conn.getOutputStream()) {
+                out.write(bytes);
+            }
+            int code = conn.getResponseCode();
+            if (code < 200 || code >= 300) {
+                logger.warn("[SpoutPlayers] Chat ingest failed HTTP {}", code);
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            logger.warn("[SpoutPlayers] Chat ingest error: {}", e.toString());
+        }
     }
 
     public void sendPlayerReplyFeedback(Player player, String message) {

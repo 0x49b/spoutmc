@@ -4,6 +4,7 @@ import { PaperPlaneIcon } from '@patternfly/react-icons';
 import { LogViewer, LogViewerSearch } from '@patternfly/react-log-viewer';
 import AnsiToHtml from 'ansi-to-html';
 import ConsoleTabSkeleton from './ConsoleTabSkeleton';
+import { withAccessToken } from '../../../utils/sseUrl';
 
 interface ConsoleTabProps {
     /** Container/server ID */
@@ -75,7 +76,7 @@ export const ConsoleTab = ({
             eventSourceRef.current = null;
         }
 
-        const eventSource = new EventSource(logsUrl);
+        const eventSource = new EventSource(withAccessToken(logsUrl));
 
         eventSource.onopen = () => {
             console.log('SSE connection opened');
