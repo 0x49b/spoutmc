@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"spoutmc/internal/log"
 	"spoutmc/internal/webserver/api"
 	"spoutmc/internal/webserver/static"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +23,11 @@ import (
 )
 
 var logger = log.GetLogger(log.ModuleWebserver)
+
+// WriteRoutesOnStart controls whether docs/routes.json is written at startup.
+// Default is true for local development and can be overridden at build-time.
+// Example: -X spoutmc/internal/webserver.WriteRoutesOnStart=false
+var WriteRoutesOnStart = "true"
 
 // serveEmbeddedFiles serves embedded frontend files with SPA fallback
 func serveEmbeddedFiles(fsys fs.FS) echo.HandlerFunc {
@@ -103,9 +110,11 @@ func Start() (*echo.Echo, error) {
 		}
 	}()
 
-	err = writeRoutes(e)
-	if err != nil {
-		return nil, err
+	if shouldWriteRoutes() {
+		err = writeRoutes(e)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
@@ -138,9 +147,39 @@ func writeRoutes(e *echo.Echo) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile("routes.json", data, 0644)
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(path.Join(cwd, "docs", "routes.json"), data, 0644)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func shouldWriteRoutes() bool {
+	// Runtime override for local debugging:
+	// SPOUTMC_WRITE_ROUTES=true|false
+	if envValue := os.Getenv("SPOUTMC_WRITE_ROUTES"); envValue != "" {
+		parsed, err := strconv.ParseBool(strings.TrimSpace(envValue))
+		if err == nil {
+			return parsed
+		}
+		logger.Warn("Invalid SPOUTMC_WRITE_ROUTES value, using build default",
+			zap.String("value", envValue),
+			zap.Error(err))
+	}
+
+	parsed, err := strconv.ParseBool(strings.TrimSpace(WriteRoutesOnStart))
+	if err != nil {
+		logger.Warn("Invalid WriteRoutesOnStart build value, defaulting to true",
+			zap.String("value", WriteRoutesOnStart),
+			zap.Error(err))
+		return true
+	}
+
+	return parsed
 }
