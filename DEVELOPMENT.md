@@ -31,11 +31,6 @@ This separation allows you to:
   go install github.com/air-verse/air@latest
   ```
 
-- **swag** - API documentation generator
-  ```bash
-  go install github.com/swaggo/swag/cmd/swag@latest
-  ```
-
 ### IDE Recommendations
 
 - **GoLand** / **IntelliJ IDEA Ultimate** - Full Go and React support
@@ -219,7 +214,6 @@ cd web/src
 | Run server | `go run ./cmd/spoutmc` | Project root |
 | Run with live reload | `air` | Project root |
 | Run tests | `go test ./...` | Project root |
-| Generate Swagger docs | `swag init -g cmd/spoutmc/main.go` | Project root |
 | Format code | `go fmt ./...` | Project root |
 | Run linter | `golangci-lint run` | Project root |
 
@@ -270,23 +264,6 @@ cd web/src
    example.RegisterRoutes(v1.Group("/example"))
    ```
 
-4. **Add Swagger annotations** (optional):
-   ```go
-   // @Summary Get example
-   // @Tags example
-   // @Produce json
-   // @Success 200 {object} map[string]string
-   // @Router /api/v1/example [get]
-   func GetExample(c echo.Context) error {
-       // ...
-   }
-   ```
-
-5. **Regenerate Swagger docs**:
-   ```bash
-   swag init -g cmd/spoutmc/main.go --parseDependency --parseInternal
-   ```
-
 ### Testing API Endpoints
 
 **Using curl:**
@@ -299,10 +276,6 @@ curl -X POST http://localhost:3000/api/v1/server \
   -H "Content-Type: application/json" \
   -d '{"name":"server1","image":"itzg/minecraft-server:latest"}'
 ```
-
-**Using browser:**
-- Navigate to http://localhost:3000/swagger/index.html
-- Test endpoints interactively with Swagger UI
 
 ## Frontend Development
 
@@ -593,14 +566,6 @@ console.error("Error:", error);
 - Firefox: [React Developer Tools](https://addons.mozilla.org/en-US/firefox/addon/react-devtools/)
 
 ## Common Development Tasks
-
-### Regenerate Swagger Documentation
-
-```bash
-swag init -g cmd/spoutmc/main.go --parseDependency --parseInternal
-```
-
-View at: http://localhost:3000/swagger/index.html
 
 ### Format Code
 

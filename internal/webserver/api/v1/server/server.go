@@ -58,14 +58,6 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server/:id/logs", getServerLogs)
 }
 
-// @Summary Get real-time container stats
-// @Description Server-Sent Events (SSE) for real-time container statistics
-// @Tags server
-// @Produce text/event-stream
-// @Param id path string true "Container ID"
-// @Success 200 {string} string "Stream of container stats"
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/stats [get]
 func getServerStats(c echo.Context) error {
 	w := c.Response()
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -105,14 +97,6 @@ func getServerStats(c echo.Context) error {
 	}
 }
 
-// @Summary Stream container logs
-// @Description Server-Sent Events (SSE) for container logs
-// @Tags server
-// @Produce text/event-stream
-// @Param id path string true "Container ID"
-// @Success 200 {string} string "Stream of container logs"
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/logs [get]
 func getServerLogs(c echo.Context) error {
 	logger.Info("SSE Client connected", zap.String("ip", c.RealIP()))
 
@@ -158,14 +142,6 @@ func getServerLogs(c echo.Context) error {
 	}
 }
 
-// @Summary Get server details
-// @Description Retrieve information about a specific Docker container
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Success 200 {object} interface{}
-// @Failure 500 {object} map[string]string
-// @Router /server/{id} [get]
 func getServer(c echo.Context) error {
 	// Get detailed container info for StartedAt
 	inspectData, err := docker.GetContainerById(c.Request().Context(), c.Param("id"))
@@ -209,13 +185,6 @@ func getServer(c echo.Context) error {
 	return c.JSON(http.StatusOK, enriched)
 }
 
-// @Summary Get list of servers
-// @Description Returns a list of servers in the network
-// @Tags server
-// @Produce json
-// @Success 200 {array} interface{}
-// @Failure 500 {object} map[string]string
-// @Router /server [get]
 func getServers(c echo.Context) error {
 	containers, err := docker.GetNetworkContainers(c.Request().Context())
 	if err != nil {
@@ -265,16 +234,6 @@ type AddServerRequest struct {
 	Env   map[string]string `json:"env"`
 }
 
-// @Summary Add a new server
-// @Description Creates a new server configuration and deploys it (via GitOps or local config)
-// @Tags server
-// @Accept json
-// @Produce json
-// @Param server body AddServerRequest true "Server configuration"
-// @Success 201 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server [post]
 func addServerHandler(c echo.Context) error {
 	if config.IsGitOpsEnabled() {
 		return c.JSON(http.StatusForbidden, map[string]string{
@@ -420,15 +379,6 @@ func addServerHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Start a server
-// @Description Starts a stopped container and includes it in watchdog monitoring
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/start [post]
 func startServerHandler(c echo.Context) error {
 	containerID := c.Param("id")
 
@@ -452,15 +402,6 @@ func startServerHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Stop a server
-// @Description Stops a running container and excludes it from watchdog monitoring
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/stop [post]
 func stopServerHandler(c echo.Context) error {
 	containerID := c.Param("id")
 
@@ -484,15 +425,6 @@ func stopServerHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Restart a server
-// @Description Restarts a container (remains in watchdog monitoring)
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/restart [post]
 func restartServerHandler(c echo.Context) error {
 	containerID := c.Param("id")
 
@@ -521,17 +453,6 @@ type ExecuteCommandRequest struct {
 	Command string `json:"command" binding:"required"`
 }
 
-// @Summary Execute a command in a server container
-// @Description Executes a Minecraft console command in the server container
-// @Tags server
-// @Accept json
-// @Produce json
-// @Param id path string true "Container ID"
-// @Param command body ExecuteCommandRequest true "Command to execute"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/command [post]
 func executeCommandHandler(c echo.Context) error {
 	containerID := c.Param("id")
 	if containerID == "" {
@@ -580,15 +501,6 @@ type UpdateServerRequest struct {
 	Env  map[string]string `json:"env,omitempty"`
 }
 
-// @Summary Get server environment variables
-// @Description Returns environment variables for a server (excluding system-managed ones)
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /server/{id}/env [get]
 func getServerEnvHandler(c echo.Context) error {
 	containerID := c.Param("id")
 	if containerID == "" {
@@ -636,18 +548,6 @@ func getServerEnvHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, envVars)
 }
 
-// @Summary Update a server
-// @Description Updates server configuration (name, environment variables)
-// @Tags server
-// @Accept json
-// @Produce json
-// @Param id path string true "Container ID"
-// @Param server body UpdateServerRequest true "Server update data"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id} [put]
 func updateServerHandler(c echo.Context) error {
 	containerID := c.Param("id")
 	if containerID == "" {
@@ -783,16 +683,6 @@ func updateServerHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Delete a server
-// @Description Stops, removes container, deletes data (optional), and removes from config
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Param removeData query boolean false "Remove server data directory" default(true)
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id} [delete]
 func deleteServerHandler(c echo.Context) error {
 	if config.IsGitOpsEnabled() {
 		return c.JSON(http.StatusForbidden, map[string]string{
@@ -916,13 +806,6 @@ func deleteServerHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Stream server list updates
-// @Description Server-Sent Events (SSE) for real-time server list updates with stats
-// @Tags server
-// @Produce text/event-stream
-// @Success 200 {string} string "Stream of server list updates"
-// @Failure 500 {object} map[string]string
-// @Router /server/stream [get]
 func streamServers(c echo.Context) error {
 	logger.Info("SSE Client connected to server stream", zap.String("ip", c.RealIP()))
 
@@ -1000,16 +883,6 @@ func streamServers(c echo.Context) error {
 	}
 }
 
-// @Summary List available config files
-// @Description Returns list of editable config files for a server (server.properties, spigot.yml)
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/config/files [get]
 func listConfigFilesHandler(c echo.Context) error {
 	containerID := c.Param("id")
 
@@ -1095,17 +968,6 @@ func listConfigFilesHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Get config file content
-// @Description Returns the content of a server config file
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Param filename path string true "Config filename (server.properties or spigot.yml)"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/config/{filename} [get]
 func getConfigFileHandler(c echo.Context) error {
 	containerID := c.Param("id")
 	filename := c.Param("filename")
@@ -1192,19 +1054,6 @@ func getConfigFileHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Update config file content
-// @Description Updates the content of a server config file
-// @Tags server
-// @Accept json
-// @Produce json
-// @Param id path string true "Container ID"
-// @Param filename path string true "Config filename (server.properties or spigot.yml)"
-// @Param body body map[string]string true "File content"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/config/{filename} [put]
 func updateConfigFileHandler(c echo.Context) error {
 	containerID := c.Param("id")
 	filename := c.Param("filename")
@@ -1333,16 +1182,6 @@ func updateConfigFileHandler(c echo.Context) error {
 	})
 }
 
-// @Summary List server files
-// @Description Returns a tree of files and directories in server volumes
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/files [get]
 func listServerFilesHandler(c echo.Context) error {
 	containerID := c.Param("id")
 	if containerID == "" {
@@ -1420,18 +1259,6 @@ func listServerFilesHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Get server file content
-// @Description Returns the content of a file in server volumes
-// @Tags server
-// @Produce json
-// @Param id path string true "Container ID"
-// @Param path query string true "Relative file path within volume"
-// @Param volume query string false "Container volume path (default: first volume)"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/file [get]
 func getServerFileHandler(c echo.Context) error {
 	containerID := c.Param("id")
 	filePath := c.QueryParam("path")
@@ -1531,20 +1358,6 @@ func getServerFileHandler(c echo.Context) error {
 	})
 }
 
-// @Summary Update server file content
-// @Description Updates the content of a file in server volumes
-// @Tags server
-// @Accept json
-// @Produce json
-// @Param id path string true "Container ID"
-// @Param path query string true "Relative file path within volume"
-// @Param volume query string false "Container volume path (default: first volume)"
-// @Param body body map[string]string true "File content"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /server/{id}/file [put]
 func updateServerFileHandler(c echo.Context) error {
 	containerID := c.Param("id")
 	filePath := c.QueryParam("path")

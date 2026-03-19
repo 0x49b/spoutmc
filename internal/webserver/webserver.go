@@ -17,7 +17,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	echoSwagger "github.com/swaggo/echo-swagger"
 	"go.uber.org/zap"
 )
 
@@ -73,9 +72,6 @@ func Start() (*echo.Echo, error) {
 			return nil
 		},
 	}))
-
-	//swagger
-	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	// Serve embedded frontend
 	if distFS, err := static.GetDistFS(); err == nil {

@@ -52,19 +52,6 @@ function runCommand(command, args, options = {}) {
   }
 }
 
-function commandExists(command) {
-  const result = spawnSync(command, ["--version"], {
-    stdio: "ignore",
-    shell: false,
-  });
-
-  if (result.error) {
-    return false;
-  }
-
-  return result.status === 0;
-}
-
 async function pathExists(filePath) {
   try {
     await fs.access(filePath, fsConstants.F_OK);
@@ -102,12 +89,12 @@ async function main() {
   console.log("=======================================");
   console.log("");
 
-  console.log(colorize("yellow", "[1/6] Cleaning previous builds..."));
+  console.log(colorize("yellow", "[1/5] Cleaning previous builds..."));
   await fs.rm(outputDir, { recursive: true, force: true });
   await fs.mkdir(outputDir, { recursive: true });
   await fs.rm(embedDir, { recursive: true, force: true });
 
-  console.log(colorize("yellow", "[2/6] Installing frontend dependencies..."));
+  console.log(colorize("yellow", "[2/5] Installing frontend dependencies..."));
   const nodeModulesDir = path.join(webDir, "node_modules");
   if (!(await pathExists(nodeModulesDir))) {
     runCommand("npm", ["install"], { cwd: webDir });
@@ -115,7 +102,7 @@ async function main() {
     console.log("  -> Dependencies already installed");
   }
 
-  console.log(colorize("yellow", "[3/6] Building frontend (Vite)..."));
+  console.log(colorize("yellow", "[3/5] Building frontend (Vite)..."));
   runCommand("npm", ["run", "build"], { cwd: webDir });
 
   if (!(await pathExists(frontendDistDir))) {
@@ -124,21 +111,11 @@ async function main() {
   }
   console.log(colorize("green", "v Frontend build complete"));
 
-  console.log(colorize("yellow", "[4/6] Copying frontend to embed directory..."));
+  console.log(colorize("yellow", "[4/5] Copying frontend to embed directory..."));
   await ensureFrontendCopied();
   console.log(colorize("green", `v Frontend copied to ${embedDir}`));
 
-  console.log(colorize("yellow", "[5/6] Generating Swagger documentation..."));
-  if (commandExists("swag")) {
-    runCommand("swag", ["init", "-g", "cmd/spoutmc/main.go", "--parseDependency", "--parseInternal"], {
-      cwd: projectRoot,
-    });
-    console.log(colorize("green", "v Swagger docs generated"));
-  } else {
-    console.log(colorize("yellow", "! swag not found, skipping Swagger generation"));
-  }
-
-  console.log(colorize("yellow", "[6/6] Building Go binaries for multiple architectures..."));
+  console.log(colorize("yellow", "[5/5] Building Go binaries for multiple architectures..."));
   for (const target of TARGETS) {
     const [goos, goarch] = target.split("/");
     let outputName = `spoutmc-${goos}-${goarch}`;

@@ -30,16 +30,6 @@ func RegisterUserRoutes(g *echo.Group) {
 
 }
 
-// @Summary Create a new user
-// @Description Register a new user account
-// @Tags user
-// @Accept json
-// @Produce json
-// @Param user body models.User true "User object"
-// @Success 201 {object} models.UserResponse
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /user [post]
 func createUser(c echo.Context) error {
 	var user models.User
 	var err error
@@ -106,14 +96,6 @@ func createUser(c echo.Context) error {
 	return c.JSON(http.StatusCreated, userResponse)
 }
 
-// @Summary Get user container info
-// @Description Retrieves Docker container info for a given user ID
-// @Tags user
-// @Produce json
-// @Param id path string true "User ID"
-// @Success 200 {object} models.UserResponse
-// @Failure 500 {object} map[string]string
-// @Router /user/{id} [get]
 func getUser(c echo.Context) error {
 	db := storage.GetDB()
 	var user models.User
@@ -138,13 +120,6 @@ func getUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-// @Summary Get all users
-// @Description Returns a list of all registered users
-// @Tags user
-// @Produce json
-// @Success 200 {array} models.UserResponse
-// @Failure 500 {object} map[string]string
-// @Router /user [get]
 func getUsers(c echo.Context) error {
 	db := storage.GetDB()
 	var users []models.User

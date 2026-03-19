@@ -30,16 +30,6 @@ type SetupRequest struct {
 	AcceptEula bool   `json:"acceptEula" binding:"required"`
 }
 
-// @Summary Complete setup wizard
-// @Description Saves setup configuration to config file
-// @Tags setup
-// @Accept json
-// @Produce json
-// @Param setup body SetupRequest true "Setup configuration"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /setup/complete [post]
 func completeSetup(c echo.Context) error {
 	lock.Lock()
 	defer lock.Unlock()

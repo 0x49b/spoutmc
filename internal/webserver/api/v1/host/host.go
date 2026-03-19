@@ -118,13 +118,6 @@ func RegisterHostRoutes(g *echo.Group) {
 	g.GET("/host/stats", getHostStats)
 }
 
-// @Summary Get host system statistics
-// @Description Returns comprehensive host system statistics including CPU, memory, disk usage, load averages, and Docker info
-// @Tags host
-// @Produce json
-// @Success 200 {object} Stats
-// @Failure 500 {object} map[string]string
-// @Router /host/stats [get]
 func getHostStats(c echo.Context) error {
 	s := collectOnce(c.Request().Context())
 	return c.JSON(http.StatusOK, s)

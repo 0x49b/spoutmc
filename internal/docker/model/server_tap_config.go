@@ -14,6 +14,5 @@ type ServerTapConfig struct {
 	} `yaml:"tls"`
 	CorsOrigins            []string    `yaml:"corsOrigins"`
 	WebsocketConsoleBuffer int         `yaml:"websocketConsoleBuffer"`
-	DisableSwagger         bool        `yaml:"disable-swagger"`
 	BlockedPaths           interface{} `yaml:"blocked-paths"`
 }

@@ -25,13 +25,6 @@ The result is a **single, standalone binary** for each platform that contains bo
 - **npm** - Comes with Node.js
 - **No Bash required on Windows** - Native wrappers are provided for PowerShell/CMD
 
-### Optional
-
-- **swag** - For generating Swagger API documentation
-  ```bash
-  go install github.com/swaggo/swag/cmd/swag@latest
-  ```
-
 ## Quick Start
 
 ### 1. Make the Unix build wrapper executable (first time only)
@@ -80,11 +73,7 @@ The build script performs the following steps:
 - Copies `web/dist/*` to `internal/webserver/static/dist/`
 - This directory is embedded into the Go binary via `//go:embed` directive
 
-### Step 5: Generate Swagger Documentation (Optional)
-- Runs `swag init` if `swag` command is available
-- Skips if `swag` is not installed (optional)
-
-### Step 6: Build Go Binaries
+### Step 5: Build Go Binaries
 - Compiles Go binary for each target architecture:
   - `linux/amd64` - Linux servers
   - `darwin/amd64` - macOS Intel
@@ -145,7 +134,6 @@ After starting the binary, you should see:
 Then open your browser to:
 - **Frontend**: http://localhost:3000/
 - **API**: http://localhost:3000/api/v1/
-- **Swagger**: http://localhost:3000/swagger/index.html
 
 ## Configuration
 
@@ -254,17 +242,6 @@ lsof -i :3000
 2. Ensure API calls go to `/api/v1/*` paths
 3. Check server logs for route registration
 
-### Swagger Documentation Not Generated
-
-**Cause:** `swag` command not installed
-
-**Solution (Optional):**
-```bash
-go install github.com/swaggo/swag/cmd/swag@latest
-```
-
-This is optional - the build will succeed without Swagger docs.
-
 ## Advanced Build Options
 
 ### Building for a Single Architecture
@@ -338,9 +315,6 @@ jobs:
       with:
         node-version: '20'
 
-    - name: Install swag
-      run: go install github.com/swaggo/swag/cmd/swag@latest
-
     - name: Build binaries
       run: |
         chmod +x build.sh
@@ -360,7 +334,6 @@ build:
   image: golang:1.24
   before_script:
     - apt-get update && apt-get install -y nodejs npm
-    - go install github.com/swaggo/swag/cmd/swag@latest
   script:
     - chmod +x build.sh
     - ./build.sh
@@ -436,7 +409,6 @@ sudo systemctl start spoutmc
 - **Development Workflow**: See `DEVELOPMENT.md`
 - **Project Architecture**: See `CLAUDE.md`
 - **GitOps Configuration**: See `GITOPS.md`
-- **API Documentation**: http://localhost:3000/swagger/ (when running)
 
 ## Support
 

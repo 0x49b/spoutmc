@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to any AI working in this Project
 
 ## Overview
 
@@ -8,9 +8,9 @@ SpoutMC is a Docker-based Minecraft Server Network manager written in Go with a 
 
 ## Important Notes
 
-**DO NOT run `go build` automatically.** The developer will build the Go backend manually. Only suggest build commands when explicitly asked, but do not execute them.
-
-**DO NOT run the frontend (`npm run dev`) automatically.** The developer will run the frontend manually when needed. Only suggest frontend commands when explicitly asked, but do not execute them.
+**DO NOT run `go build` automatically.** The developer will build the Go backend manually. Only suggest build commands when explicitly asked, but do not execute them.  
+**DO NOT run the frontend (`npm run dev`) automatically.** The developer will run the frontend manually when needed. Only suggest frontend commands when explicitly asked, but do not execute them.  
+**DO NOT build the velocity-players-bridge plugin `./gradlew shadowJar`** The developer will build the plugin manually when needed. Only suggest plugin build command when needed.  
 
 ## Development Commands
 
@@ -25,9 +25,6 @@ go build -o spoutmc ./cmd/spoutmc
 
 # Run with live reload (requires Air)
 air
-
-# Generate Swagger documentation
-swag init -g cmd/spoutmc/main.go
 
 # Run Go tests (if any exist)
 go test ./...
@@ -96,7 +93,6 @@ The application starts components in this order (see cmd/spoutmc/main.go:71-77):
 **Web Server (internal/webserver/)**
 - Echo framework on port 3000
 - API routes under `/api/v1/` (server, user, host endpoints)
-- Swagger docs at `/swagger/*`
 - CORS enabled for localhost:3000 and localhost:5173
 - Rate limiting: 20 requests per store window
 
