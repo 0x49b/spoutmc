@@ -131,3 +131,10 @@ export interface GitOpsStatus {
 
 export const getGitOpsStatus = () => api.get<GitOpsStatus>('/git/status');
 export const triggerGitOpsSync = () => api.post('/git/sync');
+
+// Infrastructure API
+export const getInfrastructureContainer = (id: string) =>
+  api.get<{
+    container: { summary: any; type: string };
+    inspectData: { Config?: { Env?: string[] }; State?: { StartedAt?: string } };
+  }>(`/infrastructure/${id}`);

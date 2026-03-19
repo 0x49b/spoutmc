@@ -67,7 +67,10 @@ export interface UserProfile {
 
 export interface InfrastructureContainer {
   summary: {
-    ID: string;
+    /** Docker API returns "Id" (capital I, lowercase d) */
+    Id?: string;
+    /** Fallback for alternate serialization */
+    ID?: string;
     Names: string[];
     Image: string;
     State: string;
@@ -76,4 +79,12 @@ export interface InfrastructureContainer {
     Labels: Record<string, string>;
   };
   type: string;
+  stats?: any; // Docker stats from SSE stream
+  cpu?: number; // Computed from stats in store
+  memory?: number; // Computed from stats in store
+}
+
+/** Get container ID from summary (handles both Id and ID from Docker API) */
+export function getContainerId(summary: InfrastructureContainer['summary']): string {
+  return summary.Id ?? summary.ID ?? '';
 }

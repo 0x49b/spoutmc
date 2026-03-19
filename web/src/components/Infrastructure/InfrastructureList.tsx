@@ -2,21 +2,21 @@ import React, {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {
     Button,
+    Card,
+    CardBody,
     EmptyState,
     EmptyStateBody,
     EmptyStateVariant,
+    Gallery,
     PageSection,
-    Toolbar,
-    ToolbarContent,
-    ToolbarItem
+    SearchInput
 } from '@patternfly/react-core';
-import {ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
-import {DatabaseIcon} from '@patternfly/react-icons';
+import {SyncAltIcon} from '@patternfly/react-icons';
 import PageHeader from '../UI/PageHeader';
-import StatusBadge from '../UI/StatusBadge';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import {useInfrastructureStore} from '../../store/infrastructureStore';
-import {InfrastructureContainer} from '../../types';
+import {getContainerId} from '../../types';
+import InfrastructureCard from './InfrastructureCard';
 
 const InfrastructureList: React.FC = () => {
     const navigate = useNavigate();
@@ -26,98 +26,32 @@ const InfrastructureList: React.FC = () => {
         error,
         fetchInfrastructure,
         connectSSE,
-        disconnectSSE,
-        restartContainer,
-        stopContainer
+        disconnectSSE
     } = useInfrastructureStore();
-    const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setLoading] = useState(false);
 
     useEffect(() => {
-        // Initial fetch
         fetchInfrastructure();
-
-        // Connect to SSE for real-time updates
         connectSSE();
-
-        // Cleanup on unmount
-        return () => {
-            disconnectSSE();
-        };
+        return () => disconnectSSE();
     }, [fetchInfrastructure, connectSSE, disconnectSSE]);
 
-    /*const getStatusColor = (state: string): 'success' | 'danger' | 'warning' | 'info' => {
-        switch (state) {
-            case 'running':
-                return 'success';
-            case 'exited':
-            case 'dead':
-                return 'danger';
-            case 'paused':
-                return 'warning';
-            default:
-                return 'info';
-        }
-    };*/
-
-    const getTypeLabel = (type: string) => {
-        switch (type) {
-            case 'database':
-                return 'Database';
-            default:
-                return 'Unknown';
-        }
+    const loadInfrastructure = () => {
+        setLoading(true);
+        fetchInfrastructure().then(() => setLoading(false));
     };
 
-    const handleRestart = async (containerId: string) => {
-        setActionInProgress(containerId);
-        try {
-            await restartContainer(containerId);
-        } catch (error) {
-            console.error('Failed to restart container:', error);
-        } finally {
-            setActionInProgress(null);
-        }
-    };
+    const filteredContainers = containers.filter((container) => {
+        const containerName = container.summary.Names?.[0]?.replace(/^\//, '') || 'Unnamed';
+        return (
+            containerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            container.summary.Image.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    });
 
-    const handleStop = async (containerId: string) => {
-        setActionInProgress(containerId);
-        try {
-            await stopContainer(containerId);
-        } catch (error) {
-            console.error('Failed to stop container:', error);
-        } finally {
-            setActionInProgress(null);
-        }
-    };
-
-    const getActions = (container: InfrastructureContainer): IAction[] => {
-        const isRunning = container.summary.State === 'running';
-        const isActionInProgress = actionInProgress === container.summary.ID;
-
-        return [
-            {
-                title: 'View Details',
-                onClick: () => navigate(`/infrastructure/${container.summary.ID}`)
-            },
-            {
-                title: 'Restart',
-                onClick: () => handleRestart(container.summary.ID),
-                isDisabled: isActionInProgress
-            },
-            {
-                title: 'Stop',
-                onClick: () => handleStop(container.summary.ID),
-                isDisabled: !isRunning || isActionInProgress
-            }
-        ];
-    };
-
-    const columnNames = {
-        name: 'Name',
-        type: 'Type',
-        status: 'Status',
-        image: 'Image',
-        ports: 'Ports'
+    const handleContainerClick = (containerId: string) => {
+        navigate(`/infrastructure/${containerId}`);
     };
 
     if (loading) {
@@ -166,73 +100,56 @@ const InfrastructureList: React.FC = () => {
 
     return (
         <>
-            <PageHeader title="Infrastructure" description="Manage infrastructure containers"/>
+            <PageHeader
+                title="Infrastructure"
+                description="Manage infrastructure containers"
+                actions={
+                    <Button
+                        variant="secondary"
+                        icon={<SyncAltIcon className={loading ? 'pf-v6-u-animation-spin' : ''} />}
+                        onClick={loadInfrastructure}
+                        isDisabled={loading}
+                    >
+                        {isLoading ? 'Refreshing...' : 'Refresh'}
+                    </Button>
+                }
+            />
             <PageSection>
-                <Toolbar>
-                    <ToolbarContent>
-                        <ToolbarItem>
-                            <Button variant="primary" onClick={fetchInfrastructure}>
-                                Refresh
-                            </Button>
-                        </ToolbarItem>
-                    </ToolbarContent>
-                </Toolbar>
+                <div className="pf-v6-u-mb-md mb-2">
+                    <SearchInput
+                        placeholder="Search infrastructure by name or image..."
+                        value={searchTerm}
+                        onChange={(_event, value) => setSearchTerm(value)}
+                        onClear={() => setSearchTerm('')}
+                    />
+                </div>
 
-                <Table aria-label="Infrastructure containers table" variant="compact">
-                    <Thead>
-                        <Tr>
-                            <Th>{columnNames.name}</Th>
-                            <Th>{columnNames.type}</Th>
-                            <Th>{columnNames.status}</Th>
-                            <Th>{columnNames.image}</Th>
-                            <Th>{columnNames.ports}</Th>
-                            <Th></Th>
-                        </Tr>
-                    </Thead>
-                    <Tbody>
-                        {containers.map((container) => {
-                            const containerName = container.summary.Names?.[0]?.replace(/^\//, '') || 'Unnamed';
-                            const ports = container.summary.Ports && container.summary.Ports.length > 0
-                                ? container.summary.Ports.map((port: any) =>
-                                    port.PublicPort ? `${port.PublicPort}:${port.PrivatePort}` : port.PrivatePort
-                                ).join(', ')
-                                : '-';
-
-                            return (
-                                <Tr key={container.summary.ID}>
-                                    <Td dataLabel={columnNames.name}>
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem'
-                                        }}>
-                                            <DatabaseIcon/>
-                                            <span>{containerName}</span>
-                                        </div>
-                                    </Td>
-                                    <Td dataLabel={columnNames.type}>
-                                        {getTypeLabel(container.type)}
-                                    </Td>
-                                    <Td dataLabel={columnNames.status}>
-                                        <StatusBadge
-                                            status={container.summary.State}
-                                            /*color={getStatusColor(container.summary.State)}*/
-                                        />
-                                    </Td>
-                                    <Td dataLabel={columnNames.image}>
-                                        {container.summary.Image}
-                                    </Td>
-                                    <Td dataLabel={columnNames.ports}>
-                                        {ports}
-                                    </Td>
-                                    <Td isActionCell>
-                                        <ActionsColumn items={getActions(container)}/>
-                                    </Td>
-                                </Tr>
-                            );
-                        })}
-                    </Tbody>
-                </Table>
+                {filteredContainers.length === 0 ? (
+                    <Card>
+                        <CardBody>
+                            <EmptyState variant={EmptyStateVariant.lg}>
+                                <EmptyStateBody>
+                                    <strong>No infrastructure containers found</strong>
+                                    <p>
+                                        {searchTerm
+                                            ? 'No infrastructure containers match your search criteria.'
+                                            : 'There are no infrastructure containers to display.'}
+                                    </p>
+                                </EmptyStateBody>
+                            </EmptyState>
+                        </CardBody>
+                    </Card>
+                ) : (
+                    <Gallery hasGutter minWidths={{default: '25%'}}>
+                        {filteredContainers.map((container) => (
+                            <InfrastructureCard
+                                key={getContainerId(container.summary)}
+                                container={container}
+                                onClick={handleContainerClick}
+                            />
+                        ))}
+                    </Gallery>
+                )}
             </PageSection>
         </>
     );

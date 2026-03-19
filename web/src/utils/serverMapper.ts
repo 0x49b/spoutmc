@@ -208,6 +208,14 @@ export function mapContainersWithStatsToServers(containersWithStats: ContainerWi
 }
 
 /**
+ * Safely extracts a number, defaulting to 0 for undefined/NaN.
+ */
+function toNum(val: unknown): number {
+  const n = Number(val);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
  * Updates server stats from Docker stats API response
  * This merges real-time stats into an existing server object
  */
@@ -217,7 +225,6 @@ export function updateServerWithStats(server: Server, stats: any): Server {
   // Extract CPU percentage
   let cpuPercent = 0;
 
-  // Try both uppercase and lowercase field names (Docker API can vary)
   const cpuStats = stats.cpu_stats || stats.CPUStats;
   const preCpuStats = stats.precpu_stats || stats.PreCPUStats;
 
@@ -226,11 +233,12 @@ export function updateServerWithStats(server: Server, stats: any): Server {
     const preCpuUsage = preCpuStats.cpu_usage || preCpuStats.CPUUsage;
 
     if (cpuUsage && preCpuUsage) {
-      const cpuDelta = cpuUsage.total_usage - preCpuUsage.total_usage;
-      const systemDelta = cpuStats.system_cpu_usage - preCpuStats.system_cpu_usage;
-      const numberCpus = cpuStats.online_cpus || 1;
+      const cpuDelta = toNum(cpuUsage.total_usage) - toNum(preCpuUsage.total_usage);
+      const systemDelta =
+        toNum(cpuStats.system_cpu_usage) - toNum(preCpuStats.system_cpu_usage);
+      const numberCpus = toNum(cpuStats.online_cpus) || 1;
 
-      if (systemDelta > 0 && cpuDelta > 0) {
+      if (systemDelta > 0 && cpuDelta >= 0) {
         cpuPercent = (cpuDelta / systemDelta) * numberCpus * 100;
       }
     }
@@ -241,8 +249,8 @@ export function updateServerWithStats(server: Server, stats: any): Server {
   const memoryStats = stats.memory_stats || stats.MemoryStats;
 
   if (memoryStats) {
-    const used = memoryStats.usage || 0;
-    const limit = memoryStats.limit || 1;
+    const used = toNum(memoryStats.usage);
+    const limit = toNum(memoryStats.limit) || 1;
     if (limit > 0) {
       memoryPercent = (used / limit) * 100;
     }
@@ -250,7 +258,7 @@ export function updateServerWithStats(server: Server, stats: any): Server {
 
   return {
     ...server,
-    cpu: Math.round(cpuPercent * 10) / 10, // Round to 1 decimal
-    memory: Math.round(memoryPercent * 10) / 10, // Round to 1 decimal
+    cpu: Math.round(cpuPercent * 10) / 10,
+    memory: Math.round(memoryPercent * 10) / 10,
   };
 }

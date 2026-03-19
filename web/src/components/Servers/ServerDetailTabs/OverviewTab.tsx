@@ -16,6 +16,7 @@ import OverviewTabSkeleton from './OverviewTabSkeleton';
 import RestartConfirmationModal from '../RestartConfirmationModal';
 import * as api from '../../../service/apiService';
 import {useServerStore} from '../../../store/serverStore';
+import {redactEnvValue} from '../../../utils/redactSensitiveEnv';
 
 interface MemoryUsage {
     usedMemory: string,
@@ -87,16 +88,19 @@ export const OverviewTab = ({
 
     function calculateCPUPercentage(previous: any, current: any): number {
         if (!previous || !current) return 0;
+        const cpuUsage = current.cpu_usage || current.CPUUsage;
+        const preCpuUsage = previous.cpu_usage || previous.CPUUsage;
+        if (!cpuUsage || !preCpuUsage) return 0;
 
-        const cpuDelta = current.cpu_usage.total_usage - previous.cpu_usage.total_usage;
-        const systemDelta = current.system_cpu_usage - previous.system_cpu_usage;
+        const cpuDelta = Number(cpuUsage.total_usage ?? 0) - Number(preCpuUsage.total_usage ?? 0);
+        const systemDelta =
+            Number(current.system_cpu_usage ?? 0) - Number(previous.system_cpu_usage ?? 0);
+        const numberCpus = Number(current.online_cpus ?? 1) || 1;
 
-        if (systemDelta <= 0 || cpuDelta <= 0) {
-            return 0;
-        }
-
-        const cpuPercent = (cpuDelta / systemDelta) * current.online_cpus * 100;
-        return Math.min(Number(cpuPercent.toFixed(2)), 100);
+        if (systemDelta <= 0 || cpuDelta < 0) return 0;
+        const cpuPercent = (cpuDelta / systemDelta) * numberCpus * 100;
+        const result = Math.min(Number(cpuPercent.toFixed(2)), 100);
+        return Number.isFinite(result) ? result : 0;
     }
 
     const getServerTypeLabel = (type: 'proxy' | 'lobby' | 'game') => {
@@ -268,7 +272,7 @@ export const OverviewTab = ({
                                             {key}:
                                         </FlexItem>
                                         <FlexItem style={{wordBreak: 'break-all', textAlign: 'right'}}>
-                                            {value}
+                                            {redactEnvValue(key, value)}
                                         </FlexItem>
                                     </Flex>
                                 ))

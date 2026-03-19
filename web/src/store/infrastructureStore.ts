@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { InfrastructureContainer } from '../types';
+import { InfrastructureContainer, getContainerId } from '../types';
 import axios from 'axios';
+import { updateContainerWithStats } from '../utils/infrastructureStats';
 
 interface InfrastructureState {
   containers: InfrastructureContainer[];
@@ -14,6 +15,7 @@ interface InfrastructureState {
   disconnectSSE: () => void;
   restartContainer: (containerId: string) => Promise<void>;
   stopContainer: (containerId: string) => Promise<void>;
+  startContainer: (containerId: string) => Promise<void>;
 
   // Selectors
   getContainerById: (id: string) => InfrastructureContainer | undefined;
@@ -76,8 +78,9 @@ export const useInfrastructureStore = create<InfrastructureState>((set, get) => 
             containersData = data;
           }
 
-          // Ensure it's an array
-          const containers = Array.isArray(containersData) ? containersData : [];
+          // Ensure it's an array and merge stats into container
+          const raw = Array.isArray(containersData) ? containersData : [];
+          const containers = raw.map((c: InfrastructureContainer) => updateContainerWithStats(c));
 
           set({ containers, loading: false });
         } catch (err) {
@@ -122,7 +125,7 @@ export const useInfrastructureStore = create<InfrastructureState>((set, get) => 
       // Optimistically update status
       set(state => ({
         containers: state.containers.map(container =>
-          container.summary.ID === containerId
+          getContainerId(container.summary) === containerId
             ? { ...container, summary: { ...container.summary, State: 'restarting' } }
             : container
         )
@@ -140,7 +143,7 @@ export const useInfrastructureStore = create<InfrastructureState>((set, get) => 
       // Optimistically update status
       set(state => ({
         containers: state.containers.map(container =>
-          container.summary.ID === containerId
+          getContainerId(container.summary) === containerId
             ? { ...container, summary: { ...container.summary, State: 'exited' } }
             : container
         )
@@ -151,8 +154,26 @@ export const useInfrastructureStore = create<InfrastructureState>((set, get) => 
     }
   },
 
+  startContainer: async (containerId: string) => {
+    try {
+      await axios.post(`${API_BASE_URL}/infrastructure/${containerId}/start`);
+
+      // Optimistically update status
+      set(state => ({
+        containers: state.containers.map(container =>
+          getContainerId(container.summary) === containerId
+            ? { ...container, summary: { ...container.summary, State: 'running' } }
+            : container
+        )
+      }));
+    } catch (error) {
+      console.error('Failed to start infrastructure container:', error);
+      throw error;
+    }
+  },
+
   // Selectors
   getContainerById: (id: string) => {
-    return get().containers.find(container => container.summary.ID === id);
+    return get().containers.find(container => getContainerId(container.summary) === id);
   }
 }));

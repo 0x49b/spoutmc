@@ -15,7 +15,6 @@ import {
     ArrowRightIcon,
     CubeIcon,
     CubesIcon,
-    ExclamationTriangleIcon,
     ServerIcon,
     UsersIcon
 } from '@patternfly/react-icons';
@@ -65,7 +64,7 @@ const Dashboard: React.FC = () => {
 
 
                     {/* Stats Cards */}
-                    <Gallery hasGutter minWidths={{default: '100%', sm: '50%', lg: '25%'}}
+                    <Gallery hasGutter minWidths={{default: '50%', sm: '50%', lg: '25%'}}
                              className="pf-v6-u-mb-lg">
                         <Card isCompact>
                             <CardTitle>
@@ -116,35 +115,16 @@ const Dashboard: React.FC = () => {
                                 </Flex>
                             </CardTitle>
                             <CardBody>
+                                <div className="pf-v6-u-mb-sm">
+                                    <span className="pf-v6-u-font-size-sm pf-v6-u-color-200">
+                                        Banned players: {bannedPlayers}
+                                    </span>
+                                </div>
                                 <Button variant="link" isInline component="a"
                                         onClick={() => navigate('/players')}>
                                     View all players <ArrowRightIcon/>
                                 </Button>
-                            </CardBody>
-                        </Card>
-
-                        <Card isCompact>
-                            <CardTitle>
-                                <Flex alignItems={{default: 'alignItemsCenter'}}>
-                                    <FlexItem>
-                                        <ExclamationTriangleIcon style={{
-                                            fontSize: '24px',
-                                            color: 'var(--pf-v6-global--warning-color--100)'
-                                        }}/>
-                                    </FlexItem>
-                                    <FlexItem>
-                                        <div>
-                                            <div
-                                                className="pf-v6-u-font-size-sm pf-v6-u-color-200">Banned
-                                                Players
-                                            </div>
-                                            <div
-                                                className="pf-v6-u-font-size-2xl pf-v6-u-font-weight-bold">{bannedPlayers}</div>
-                                        </div>
-                                    </FlexItem>
-                                </Flex>
-                            </CardTitle>
-                            <CardBody>
+                                <br />
                                 <Button variant="link" isInline component="a"
                                         onClick={() => navigate('/players/banned')}>
                                     View banned players <ArrowRightIcon/>

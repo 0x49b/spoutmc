@@ -3,12 +3,18 @@ import { TextInput, Button, Flex, FlexItem, Alert, Menu, MenuContent, MenuList, 
 import { PaperPlaneIcon } from '@patternfly/react-icons';
 import { LogViewer, LogViewerSearch } from '@patternfly/react-log-viewer';
 import AnsiToHtml from 'ansi-to-html';
-import { Server } from '../../../types';
 import ConsoleTabSkeleton from './ConsoleTabSkeleton';
 
 interface ConsoleTabProps {
-    server: Server;
+    /** Container/server ID */
+    containerId: string;
+    /** URL for SSE logs stream */
+    logsUrl: string;
+    /** URL for sending commands (omit or set enableSendCommand=false to hide command input) */
+    commandUrl?: string;
     isActive: boolean;
+    /** When false, hides the send command input (e.g. for infrastructure containers) */
+    enableSendCommand?: boolean;
 }
 
 // Java Edition commands (without leading slash) for command-name completion.
@@ -38,7 +44,13 @@ const getCommandToken = (rawInput: string) => {
     return { base, remainder, hasRemainder: remainder.trim().length > 0 || remainder.startsWith(' ') };
 };
 
-export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
+export const ConsoleTab = ({
+    containerId,
+    logsUrl,
+    commandUrl,
+    isActive,
+    enableSendCommand = true
+}: ConsoleTabProps) => {
     const [command, setCommand] = useState('');
     const [logs, setLogs] = useState<string>('');
     const [hasEverLoaded, setHasEverLoaded] = useState(false);
@@ -55,7 +67,7 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
     const baseReconnectDelay = 1000; // Start with 1 second
 
     const connectToLogs = useCallback(() => {
-        if (!isActive || !server.id) return;
+        if (!isActive || !containerId) return;
 
         // Close existing connection if any
         if (eventSourceRef.current) {
@@ -63,9 +75,7 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
             eventSourceRef.current = null;
         }
 
-        const eventSource = new EventSource(
-            `http://localhost:3000/api/v1/server/${server.id}/logs`
-        );
+        const eventSource = new EventSource(logsUrl);
 
         eventSource.onopen = () => {
             console.log('SSE connection opened');
@@ -124,10 +134,10 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
         };
 
         eventSourceRef.current = eventSource;
-    }, [isActive, server.id, reconnectAttempts]);
+    }, [isActive, containerId, logsUrl, reconnectAttempts]);
 
     useEffect(() => {
-        if (isActive && server.id) {
+        if (isActive && containerId) {
             connectToLogs();
         }
 
@@ -141,7 +151,7 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
                 reconnectTimeoutRef.current = null;
             }
         };
-    }, [isActive, server.id, connectToLogs]);
+    }, [isActive, containerId, connectToLogs]);
 
     // Command-name completion for Java Edition commands.
     useEffect(() => {
@@ -219,19 +229,16 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
             }
         }
 
-        if (!command.trim()) return;
+        if (!command.trim() || !commandUrl) return;
 
         try {
-            const response = await fetch(
-                `http://localhost:3000/api/v1/server/${server.id}/command`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ command: command.trim() }),
-                }
-            );
+            const response = await fetch(commandUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ command: command.trim() }),
+            });
 
             if (!response.ok) {
                 throw new Error('Failed to send command');
@@ -275,6 +282,7 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
                 toolbar={<LogViewerSearch placeholder="Search logs..." minSearchChars={3} />}
             />
 
+            {enableSendCommand && commandUrl && (
             <form onSubmit={handleCommand} style={{ position: 'relative' }}>
                 <Flex>
                     <FlexItem flex={{ default: 'flex_1' }}>
@@ -337,6 +345,7 @@ export const ConsoleTab = ({ server, isActive }: ConsoleTabProps) => {
                     </FlexItem>
                 </Flex>
             </form>
+            )}
         </div>
     );
 };

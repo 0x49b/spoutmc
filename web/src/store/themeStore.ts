@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'system';
+
+const PF_DARK_THEME_CLASS = 'pf-v6-theme-dark';
+const SYSTEM_DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
 
 interface ThemeState {
   theme: Theme;
@@ -20,22 +23,38 @@ export const useThemeStore = create<ThemeState>()(
   )
 );
 
-// Apply theme on store initialization and system theme changes
 if (typeof window !== 'undefined') {
-  const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-  
+  const darkModeMediaQuery = window.matchMedia(SYSTEM_DARK_MEDIA_QUERY);
+
+  const applyThemeClasses = (isDark: boolean) => {
+    const root = document.documentElement;
+    root.classList.toggle(PF_DARK_THEME_CLASS, isDark);
+    root.classList.toggle('dark', isDark);
+    root.style.colorScheme = isDark ? 'dark' : 'light';
+  };
+
   const applyTheme = () => {
     const theme = useThemeStore.getState().theme;
     const isDark = theme === 'dark' || (theme === 'system' && darkModeMediaQuery.matches);
-    document.documentElement.classList.toggle('dark', isDark);
+    applyThemeClasses(isDark);
   };
-  
-  // Apply theme initially
+
+  // Apply immediately and after persisted state rehydrates
   applyTheme();
-  
-  // Subscribe to theme changes
+
+  // React to explicit user theme changes
   useThemeStore.subscribe(() => applyTheme());
-  
-  // Listen for system theme changes
-  darkModeMediaQuery.addEventListener('change', applyTheme);
+
+  // React to OS theme changes while in system mode
+  const handleSystemThemeChange = () => {
+    if (useThemeStore.getState().theme === 'system') {
+      applyTheme();
+    }
+  };
+
+  if (typeof darkModeMediaQuery.addEventListener === 'function') {
+    darkModeMediaQuery.addEventListener('change', handleSystemThemeChange);
+  } else {
+    darkModeMediaQuery.addListener(handleSystemThemeChange);
+  }
 }

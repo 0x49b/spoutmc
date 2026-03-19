@@ -551,7 +551,13 @@ const ServerDetail: React.FC = () => {
                                 </>
                             }
                         >
-                            <ConsoleTab server={server} isActive={activeTab === 'console'}/>
+                            <ConsoleTab
+                                containerId={server.id}
+                                logsUrl={`http://localhost:3000/api/v1/server/${server.id}/logs`}
+                                commandUrl={`http://localhost:3000/api/v1/server/${server.id}/command`}
+                                isActive={activeTab === 'console'}
+                                enableSendCommand={true}
+                            />
                         </Tab>
 
                         <Tab

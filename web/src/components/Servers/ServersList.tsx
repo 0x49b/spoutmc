@@ -179,7 +179,7 @@ const ServersList: React.FC = () => {
     return (
         <>
             <PageHeader
-                title="Servers"
+                title="Game Server"
                 description="Manage and monitor your game servers"
                 actions={
                     <>

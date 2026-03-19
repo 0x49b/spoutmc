@@ -1,36 +1,89 @@
 import React from 'react';
-import { Button } from '@patternfly/react-core';
-import { MoonIcon, SunIcon } from '@patternfly/react-icons';
-import { useThemeStore } from '../../store/themeStore';
+import {
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
+  MenuToggleElement
+} from '@patternfly/react-core';
+import { DesktopIcon, MoonIcon, SunIcon } from '@patternfly/react-icons';
+import { Theme, useThemeStore } from '../../store/themeStore';
 
 const ThemeToggle: React.FC = () => {
   const { theme, setTheme } = useThemeStore();
+  const [isOpen, setIsOpen] = React.useState(false);
 
-  const cycleTheme = () => {
-    switch (theme) {
+  const getThemeIcon = (value: Theme) => {
+    switch (value) {
       case 'light':
-        setTheme('dark');
-        break;
+        return <SunIcon />;
       case 'dark':
-        setTheme('system');
-        break;
+        return <MoonIcon />;
       case 'system':
-        setTheme('light');
-        break;
+      default:
+        return <DesktopIcon />;
     }
   };
 
-  const Icon = theme === 'light' ? SunIcon : MoonIcon;
+  const getThemeLabel = (value: Theme) => {
+    switch (value) {
+      case 'light':
+        return 'Light';
+      case 'dark':
+        return 'Dark';
+      case 'system':
+      default:
+        return 'System';
+    }
+  };
 
   return (
-    <Button
-      variant="plain"
-      onClick={cycleTheme}
-      aria-label={`Current theme: ${theme}`}
-      icon={<Icon />}
+    <Dropdown
+      isOpen={isOpen}
+      onSelect={() => setIsOpen(false)}
+      onOpenChange={(open: boolean) => setIsOpen(open)}
+      popperProps={{
+        placement: 'bottom-end'
+      }}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsOpen(!isOpen)}
+          isExpanded={isOpen}
+          variant="plain"
+          icon={getThemeIcon(theme)}
+          aria-label={`Theme menu. Current theme: ${getThemeLabel(theme)}`}
+        />
+      )}
+      shouldFocusToggleOnSelect
     >
-      <Icon />
-    </Button>
+      <DropdownList>
+        <DropdownItem
+          key="theme-light"
+          isActive={theme === 'light'}
+          icon={<SunIcon />}
+          onClick={() => setTheme('light')}
+        >
+          Light
+        </DropdownItem>
+        <DropdownItem
+          key="theme-dark"
+          isActive={theme === 'dark'}
+          icon={<MoonIcon />}
+          onClick={() => setTheme('dark')}
+        >
+          Dark
+        </DropdownItem>
+        <DropdownItem
+          key="theme-system"
+          isActive={theme === 'system'}
+          icon={<DesktopIcon />}
+          onClick={() => setTheme('system')}
+        >
+          System
+        </DropdownItem>
+      </DropdownList>
+    </Dropdown>
   );
 };
 
