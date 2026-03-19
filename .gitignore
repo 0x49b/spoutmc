@@ -44,3 +44,4 @@ routes.json
 !/testservers/
 /.db-passwords
 /docs/routes.json
+/config/spoutmc.yaml
