@@ -8,7 +8,7 @@ import {
   TextArea,
   TextInput,
   Checkbox,
-  FormHelperText
+  FormHelperText, ModalHeader, ModalBody, ModalFooter
 } from '@patternfly/react-core';
 import { useServerStore } from '../../store/serverStore';
 import type { RegistryPluginEntry } from '../../types';
@@ -97,15 +97,11 @@ const PluginFormModal: React.FC<PluginFormModalProps> = ({ isOpen, onClose, plug
       title={title}
       isOpen={isOpen}
       onClose={onClose}
-      actions={[
-        <Button key="cancel" variant="link" onClick={onClose}>
-          Cancel
-        </Button>,
-        <Button key="submit" variant="primary" isLoading={submitting} onClick={runSubmit}>
-          {plugin ? 'Save' : 'Create'}
-        </Button>
-      ]}
     >
+      <ModalHeader>
+        {title}
+      </ModalHeader>
+      <ModalBody>
       <Form
         onSubmit={(e) => {
           e.preventDefault();
@@ -158,6 +154,15 @@ const PluginFormModal: React.FC<PluginFormModalProps> = ({ isOpen, onClose, plug
           )}
         </FormGroup>
       </Form>
+      </ModalBody>
+      <ModalFooter>
+        <Button key="cancel" variant="link" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button key="submit" variant="primary" isLoading={submitting} onClick={runSubmit}>
+          {plugin ? 'Save' : 'Create'}
+        </Button>
+      </ModalFooter>
     </Modal>
   );
 };
