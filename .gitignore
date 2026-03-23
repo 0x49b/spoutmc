@@ -4,6 +4,7 @@ dist
 .idea
 /tmp/
 *.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 logs/
 world/
 world_nether/
