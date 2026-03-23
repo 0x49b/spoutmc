@@ -4,6 +4,7 @@ This directory contains project documentation that was previously stored at the 
 
 ## Core Guides
 
+- `BARE_METAL_SETUP.md` - End-to-end guide for deploying SpoutMC on a bare metal Linux server.
 - `BUILD.md` - Local and CI build instructions.
 - `DEVELOPMENT.md` - Development workflow and coding conventions.
 - `RELEASE.md` - GitHub release pipeline and published artifacts.
