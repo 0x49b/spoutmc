@@ -26,8 +26,6 @@ interface ServerState {
   addServer: (serverData: Omit<Server, 'id' | 'status' | 'uptime' | 'cpu' | 'memory' | 'players'>) => Promise<void>;
   updateServer: (serverId: string, data: { name?: string; env?: Record<string, string> }) => Promise<void>;
   deleteServer: (serverId: string, removeData?: boolean) => Promise<void>;
-  addPluginToServer: (serverId: string, pluginId: string) => Promise<void>;
-  removePluginFromServer: (serverId: string, pluginId: string) => Promise<void>;
 
   // Selectors
   getServerById: (id: string) => Server | undefined;
@@ -283,44 +281,6 @@ export const useServerStore = create<ServerState>((set, get) => ({
       console.error('Failed to delete server:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to delete server'
-      });
-      throw error;
-    }
-  },
-
-  addPluginToServer: async (serverId: string, pluginId: string) => {
-    set({ loading: true, error: null });
-
-    try {
-      // Note: This would need a backend endpoint for plugin management
-      // For now, this is a placeholder
-      console.warn('addPluginToServer: Backend endpoint not yet implemented');
-
-      set({ loading: false });
-    } catch (error) {
-      console.error('Failed to add plugin to server:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to add plugin to server',
-        loading: false
-      });
-      throw error;
-    }
-  },
-
-  removePluginFromServer: async (serverId: string, pluginId: string) => {
-    set({ loading: true, error: null });
-
-    try {
-      // Note: This would need a backend endpoint for plugin management
-      // For now, this is a placeholder
-      console.warn('removePluginFromServer: Backend endpoint not yet implemented');
-
-      set({ loading: false });
-    } catch (error) {
-      console.error('Failed to remove plugin from server:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to remove plugin from server',
-        loading: false
       });
       throw error;
     }

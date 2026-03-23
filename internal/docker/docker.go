@@ -12,6 +12,8 @@ import (
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"spoutmc/internal/pathutil"
+	"spoutmc/internal/plugins"
+	"spoutmc/internal/storage"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
@@ -68,6 +70,11 @@ func GetNetworkContainers(ctx context.Context) ([]container.Summary, error) {
 func containerExists(ctx context.Context, containerName string) bool {
 	_, err := GetContainer(ctx, containerName)
 	return err == nil
+}
+
+// ContainerExists reports whether a container with this name exists (Spout server name).
+func ContainerExists(ctx context.Context, containerName string) bool {
+	return containerExists(ctx, containerName)
 }
 
 func GetContainer(ctx context.Context, containerName string) (container.Summary, error) {
@@ -177,7 +184,8 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 			containerLabels["io.spout.lobby"] = "true"
 		}
 
-		envVars := MapEnvironmentVariables(s.Env)
+		envWithPlugins := plugins.MergePluginsEnv(storage.GetDB(), s)
+		envVars := MapEnvironmentVariables(envWithPlugins)
 
 		// Prepare volume bindings
 		mounts := MapVolumeBindings(s.Volumes, normalizedDataPath, s.Name)

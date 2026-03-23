@@ -69,6 +69,16 @@ func GetServerConfigForContainerName(name string) (models.SpoutServer, error) {
 	return models.SpoutServer{}, errors.New("No matching config found")
 }
 
+// IsValidServerName reports whether name matches a server in the loaded Spout configuration.
+func IsValidServerName(name string) bool {
+	for _, s := range spoutConfiguration.Servers {
+		if s.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // UpdateConfiguration updates the package-scoped configuration.
 // This is used by GitOps to update configuration from Git repository.
 func UpdateConfiguration(newConfig models.SpoutConfiguration) {

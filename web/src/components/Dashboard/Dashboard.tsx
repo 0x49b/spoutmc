@@ -28,7 +28,7 @@ const Dashboard: React.FC = () => {
     const navigate = useNavigate();
     const {servers, fetchServers} = useServerStore();
     const {players, getBannedPlayers, fetchPlayers, loading: playersLoading} = usePlayerStore();
-    const {plugins, getEnabledPlugins, fetchPlugins, loading: pluginsLoading} = usePluginStore();
+    const {plugins, fetchPlugins, loading: pluginsLoading, getUserPluginCount} = usePluginStore();
 
     useEffect(() => {
         fetchServers();
@@ -39,7 +39,7 @@ const Dashboard: React.FC = () => {
     const onlineServers = servers.filter(server => server.status === 'online').length;
     const totalPlayers = players.length;
     const bannedPlayers = getBannedPlayers().length;
-    const enabledPlugins = getEnabledPlugins().length;
+    const userPluginCount = getUserPluginCount();
 
     // Find servers with high resource usage (CPU or Memory > 80%)
     const highResourceServers = servers.filter(
@@ -144,10 +144,10 @@ const Dashboard: React.FC = () => {
                                     <FlexItem>
                                         <div>
                                             <div
-                                                className="pf-v6-u-font-size-sm pf-v6-u-color-200">Plugins
+                                                className="pf-v6-u-font-size-sm pf-v6-u-color-200">Plugins (user / total)
                                             </div>
                                             <div
-                                                className="pf-v6-u-font-size-2xl pf-v6-u-font-weight-bold">{enabledPlugins}/{plugins.length}</div>
+                                                className="pf-v6-u-font-size-2xl pf-v6-u-font-weight-bold">{userPluginCount}/{plugins.length}</div>
                                         </div>
                                     </FlexItem>
                                 </Flex>

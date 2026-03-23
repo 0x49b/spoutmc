@@ -28,16 +28,15 @@ export interface Server {
   description?: string;
 }
 
-export interface Plugin {
+/** Plugin registry entry from GET /api/v1/plugin (user-defined + system-managed). */
+export interface RegistryPluginEntry {
   id: string;
   name: string;
-  version: string;
-  author: string;
-  status: 'enabled' | 'disabled';
-  description: string;
-  dependencies: string[];
-  downloadUrl?: string;
-  installedAt?: string;
+  url: string;
+  description?: string;
+  systemManaged: boolean;
+  serverNames: string[];
+  kinds?: string[];
 }
 
 export interface BreadcrumbItem {

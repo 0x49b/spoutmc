@@ -8,6 +8,7 @@ import (
 	"spoutmc/internal/webserver/api/v1/infrastructure"
 	"spoutmc/internal/webserver/api/v1/minime"
 	"spoutmc/internal/webserver/api/v1/permission"
+	"spoutmc/internal/webserver/api/v1/plugin"
 	"spoutmc/internal/webserver/api/v1/player"
 	"spoutmc/internal/webserver/api/v1/role"
 	"spoutmc/internal/webserver/api/v1/server"
@@ -40,4 +41,5 @@ func RegisterV1(g *echo.Group) {
 	host.RegisterHostRoutes(protected)
 	git.RegisterGitRoutes(protected)
 	infrastructure.RegisterInfrastructureRoutes(protected)
+	plugin.RegisterPluginRoutes(protected)
 }

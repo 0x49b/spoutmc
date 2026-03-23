@@ -16,4 +16,5 @@ var Definitions = []Definition{
 	{Key: "server.manage", Description: "Create, edit, and control server instances"},
 	{Key: "player.list.read", Description: "View online and banned players"},
 	{Key: "player.manage", Description: "Kick, ban, and message players"},
+	{Key: "plugins.manage", Description: "Manage plugin registry and server assignments"},
 }

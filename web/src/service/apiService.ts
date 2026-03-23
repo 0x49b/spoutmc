@@ -215,6 +215,33 @@ export const getServerFile = (serverId: string, path: string, volume?: string) =
 export const updateServerFile = (serverId: string, path: string, content: string, volume?: string) =>
   api.put(`/server/${serverId}/file`, { content }, { params: { path, volume } });
 
+// Plugin registry API
+export interface PluginRegistryEntryDTO {
+  id: string;
+  name: string;
+  url: string;
+  description?: string;
+  systemManaged: boolean;
+  serverNames: string[];
+  kinds?: string[];
+}
+
+export const getPlugins = () => api.get<PluginRegistryEntryDTO[]>('/plugin');
+
+export const createRegistryPlugin = (body: {
+  name: string;
+  url: string;
+  description?: string;
+  serverNames: string[];
+}) => api.post<PluginRegistryEntryDTO>('/plugin', body);
+
+export const updateRegistryPlugin = (
+  id: string,
+  body: { name: string; url: string; description?: string; serverNames: string[] }
+) => api.put<PluginRegistryEntryDTO>(`/plugin/${id}`, body);
+
+export const deleteRegistryPlugin = (id: string) => api.delete(`/plugin/${id}`);
+
 // GitOps API
 export interface GitOpsSyncSummary {
   added: number;

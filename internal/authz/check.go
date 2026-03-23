@@ -77,3 +77,19 @@ func ClaimsHasPermission(claims *auth.Claims, key string) bool {
 	}
 	return false
 }
+
+const ManagerRoleName = "manager"
+
+const PluginManagePermission = "plugins.manage"
+
+// ClaimsCanManagePlugins returns true if the user may create, update, or delete user-defined plugins
+// (admin, manager, or explicit plugins.manage permission).
+func ClaimsCanManagePlugins(claims *auth.Claims) bool {
+	if claims == nil {
+		return false
+	}
+	if ClaimsHasRole(claims, AdminRoleName) || ClaimsHasRole(claims, ManagerRoleName) {
+		return true
+	}
+	return ClaimsHasPermission(claims, PluginManagePermission)
+}

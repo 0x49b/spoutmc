@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"os"
 	"spoutmc/internal/database"
 	"spoutmc/internal/log"
@@ -30,7 +31,13 @@ func InitDB(ctx context.Context) error {
 	db = conn
 
 	// Run migrations for User, Role, Permission, and join tables
-	if err := db.AutoMigrate(&models.User{}, &models.Role{}, &models.Permission{}); err != nil {
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.Role{},
+		&models.Permission{},
+		&models.UserPlugin{},
+		&models.UserPluginServer{},
+	); err != nil {
 		return err
 	}
 
@@ -90,6 +97,50 @@ func InitDB(ctx context.Context) error {
 		if err := db.Find(&all).Error; err == nil {
 			for _, p := range all {
 				keyToID[p.Key] = p.ID
+			}
+		}
+	}
+
+	// Insert missing permission definitions (new keys added in a Spout release).
+	for _, def := range permissions.Definitions {
+		var existing models.Permission
+		err := db.Where("key = ?", def.Key).First(&existing).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			p := models.Permission{Key: def.Key, Description: def.Description}
+			if err := db.Create(&p).Error; err != nil {
+				logger.Error("Failed to insert permission definition", zap.String("key", def.Key), zap.Error(err))
+				continue
+			}
+			keyToID[def.Key] = p.ID
+			logger.Info("Inserted new permission definition", zap.String("key", def.Key))
+			// Grant new keys to admin role
+			var adminRole models.Role
+			if err := db.Where("name = ?", "admin").First(&adminRole).Error; err == nil {
+				_ = db.Model(&adminRole).Association("Permissions").Append(&p)
+			}
+		}
+	}
+	// Refresh key map after inserts
+	var allPerms []models.Permission
+	if err := db.Find(&allPerms).Error; err == nil {
+		for _, p := range allPerms {
+			keyToID[p.Key] = p.ID
+		}
+	}
+
+	// Ensure manager role has plugins.manage when that permission exists
+	if pid, ok := keyToID["plugins.manage"]; ok {
+		var manager models.Role
+		if err := db.Where("name = ?", "manager").First(&manager).Error; err == nil {
+			var count int64
+			db.Table("role_permissions").Where("role_id = ? AND permission_id = ?", manager.ID, pid).Count(&count)
+			if count == 0 {
+				perm := models.Permission{Model: gorm.Model{ID: pid}}
+				if err := db.Model(&manager).Association("Permissions").Append(&perm); err != nil {
+					logger.Error("Failed to grant plugins.manage to manager", zap.Error(err))
+				} else {
+					logger.Info("Granted plugins.manage to manager role")
+				}
 			}
 		}
 	}

@@ -11,6 +11,7 @@ import {
     FlexItem,
     Grid,
     GridItem,
+    Label,
     PageSection,
     Spinner,
     Tab,
@@ -37,6 +38,7 @@ import {
 } from '@patternfly/react-icons';
 import {useServerStore} from '../../store/serverStore.ts';
 import {usePluginStore} from '../../store/pluginStore.ts';
+import {Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
 import PageHeader from '../UI/PageHeader.tsx';
 import StatusBadge from '../UI/StatusBadge.tsx';
 import {ConsoleTab} from './ServerDetailTabs/ConsoleTab.tsx';
@@ -63,7 +65,7 @@ const ServerDetail: React.FC = () => {
         connectSSE,
         disconnectSSE
     } = useServerStore();
-    const {plugins} = usePluginStore();
+    const {fetchPlugins, getPluginsForServer} = usePluginStore();
     const [isRestarting, setIsRestarting] = useState(false);
     const [isPowerActionLoading, setIsPowerActionLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<string | number>('overview');
@@ -85,6 +87,12 @@ const ServerDetail: React.FC = () => {
     const statsEventSourceRef = useRef<EventSource | null>(null);
 
     const server = getServerById(id || '');
+
+    const registryPluginsForServer = server ? getPluginsForServer(server.name) : [];
+
+    useEffect(() => {
+        fetchPlugins();
+    }, [fetchPlugins]);
 
     // Set up SSE connection for server stats
     useEffect(() => {
@@ -465,7 +473,7 @@ const ServerDetail: React.FC = () => {
                                                 <div className="pf-v6-u-font-size-sm">Plugins</div>
                                                 <div
                                                     className="pf-v6-u-font-size-xl pf-v6-u-font-weight-bold pf-v6-u-mt-xs">
-                                                    {server.plugins.length}
+                                                    {registryPluginsForServer.length}
                                                 </div>
                                             </div>
                                         </FlexItem>
@@ -534,10 +542,47 @@ const ServerDetail: React.FC = () => {
                             <Card>
                                 <CardBody>
                                     <Title headingLevel="h3" size="lg">
-                                        Server Plugins ({plugins.length})
+                                        Plugins for this server ({registryPluginsForServer.length})
                                     </Title>
-                                    <p className="pf-v6-u-mt-md">Plugin list would go here (using
-                                        PatternFly Table)</p>
+                                    {registryPluginsForServer.length === 0 ? (
+                                        <EmptyState titleText="No registry plugins apply to this server"
+                                                    variant={EmptyStateVariant.sm}
+                                                    className="pf-v6-u-mt-md">
+                                            <EmptyStateBody>
+                                                Assign plugins in the Plugins page or rely on system-managed
+                                                plugins for this server type.
+                                            </EmptyStateBody>
+                                        </EmptyState>
+                                    ) : (
+                                        <Table aria-label="Plugins for server" variant="compact" className="pf-v6-u-mt-md">
+                                            <Thead>
+                                                <Tr>
+                                                    <Th>Name</Th>
+                                                    <Th>URL</Th>
+                                                    <Th>Source</Th>
+                                                </Tr>
+                                            </Thead>
+                                            <Tbody>
+                                                {registryPluginsForServer.map((p) => (
+                                                    <Tr key={p.id}>
+                                                        <Td dataLabel="Name">{p.name}</Td>
+                                                        <Td dataLabel="URL">
+                                                            <span className="pf-v6-u-font-size-sm" title={p.url}>
+                                                                {p.url.length > 80 ? `${p.url.slice(0, 80)}…` : p.url}
+                                                            </span>
+                                                        </Td>
+                                                        <Td dataLabel="Source">
+                                                            {p.systemManaged ? (
+                                                                <Label color="purple">System-managed</Label>
+                                                            ) : (
+                                                                <Label color="green">User</Label>
+                                                            )}
+                                                        </Td>
+                                                    </Tr>
+                                                ))}
+                                            </Tbody>
+                                        </Table>
+                                    )}
                                 </CardBody>
                             </Card>
                         </Tab>
