@@ -51,12 +51,15 @@ publishing {
                     ?: (findProperty("gpr.repositoryUrl") as String? ?: "https://maven.pkg.github.com/OWNER/REPO"),
             )
             credentials {
-                username = (findProperty("gpr.user") as String?)
-                    ?: System.getenv("GITHUB_ACTOR")
-                    ?: ""
-                password = (findProperty("gpr.key") as String?)
-                    ?: System.getenv("GITHUB_TOKEN")
-                    ?: ""
+                // Prefer non-blank gpr.*; empty properties must not win over env (would cause HTTP 401 on publish).
+                username = sequenceOf(
+                    findProperty("gpr.user") as String?,
+                    System.getenv("GITHUB_ACTOR"),
+                ).firstOrNull { !it.isNullOrBlank() } ?: ""
+                password = sequenceOf(
+                    findProperty("gpr.key") as String?,
+                    System.getenv("GITHUB_TOKEN"),
+                ).firstOrNull { !it.isNullOrBlank() } ?: ""
             }
         }
     }

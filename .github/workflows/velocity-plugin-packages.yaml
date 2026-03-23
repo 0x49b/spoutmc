@@ -50,6 +50,10 @@ jobs:
 
       - name: Publish to GitHub Packages
         working-directory: plugins/velocity-players-bridge
+        env:
+          # Explicit: Gradle's JVM does not always inherit Actions' default token env; without this, publish gets HTTP 401.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
           chmod +x gradlew
           ./gradlew publish --no-daemon -PreleaseVersion="${{ steps.ver.outputs.version }}"
