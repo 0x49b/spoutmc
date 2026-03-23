@@ -81,6 +81,8 @@ export const ConsoleTab = ({
             console.log('SSE connection opened');
             setIsConnected(true);
             setReconnectAttempts(0);
+            // Show the console even when no log lines arrived yet (idle or quiet container).
+            setHasEverLoaded(true);
         };
 
         eventSource.onmessage = (event) => {
