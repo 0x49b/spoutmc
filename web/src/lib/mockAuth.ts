@@ -63,6 +63,7 @@ export function mockVerifyToken(token: string): UserProfile {
       id: decoded.sub,
       email: decoded.email,
       roles: decoded.roles,
+      permissions: [],
       displayName: decoded.displayName,
       created_at: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),

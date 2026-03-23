@@ -19,14 +19,20 @@ import LoginPage from './components/Auth/LoginPage';
 import UserProfile from './components/Configuration/Users/UserProfile';
 import UsersList from './components/Configuration/Users/UsersList';
 import RolesList from './components/Configuration/Roles/RolesList';
-import Configuration from './components/Configuration/Configuration';
+import PermissionsAdmin from './components/Configuration/Permissions/PermissionsAdmin';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import SetupWizard from './components/Setup/SetupWizard';
-import {useAuthStore} from './store/authStore';
+import {getUserAvatarDataUrl, useAuthStore} from './store/authStore';
 import ThemeToggle from './components/UI/ThemeToggle';
+import ToastHost from './components/UI/ToastHost';
+import NotificationsDrawerPanel from './components/UI/NotificationsDrawerPanel';
+import {useNotificationStore} from './store/notificationStore';
 
 import {
+    Avatar,
     Brand,
+    Drawer,
+    DrawerContent,
     Dropdown,
     DropdownItem,
     DropdownList,
@@ -49,10 +55,13 @@ import {
     Toolbar,
     ToolbarContent,
     ToolbarGroup,
-    ToolbarItem
+    ToolbarItem,
+    NotificationBadge,
+    NotificationBadgeVariant
 } from '@patternfly/react-core';
 import {
     BarsIcon,
+    BellIcon,
     ChartLineIcon,
     CogIcon,
     CubeIcon,
@@ -62,34 +71,118 @@ import {
 } from '@patternfly/react-icons';
 import smlogo from "./assets/logo.svg";
 
-type NavChildItem = {
+/** Optional gates aligned with {@link ProtectedRoute}: all permission keys, and/or at least one role. */
+export type NavAccess = {
+    /** User must have every key (same semantics as `ProtectedRoute` `requiredPermissionKeys`). */
+    requiredPermissionKeys?: string[];
+    /** User must have at least one of these role names (OR). */
+    requiredRoles?: string[];
+};
+
+export type NavChildItem = {
     to: string;
     label: string;
     exact?: boolean;
-};
+} & NavAccess;
 
-type NavEntry =
-    | {
-    type: 'item';
-    to: string;
-    label: string;
-    icon?: React.ReactNode;
+export type NavEntry =
+    | ({
+          type: 'item';
+          to: string;
+          label: string;
+          icon?: React.ReactNode;
+      } & NavAccess)
+    | ({
+          type: 'group';
+          id: string;
+          label: string;
+          icon?: React.ReactNode;
+          children: NavChildItem[];
+      } & NavAccess);
+
+function canSeeNavAccess(
+    access: NavAccess,
+    hasPermission: (key: string) => boolean,
+    hasRole: (roleName: string) => boolean
+): boolean {
+    const keys = access.requiredPermissionKeys;
+    const roles = access.requiredRoles;
+    const permOk = !keys?.length || keys.every((k) => hasPermission(k));
+    const roleOk = !roles?.length || roles.some((r) => hasRole(r));
+    return permOk && roleOk;
 }
-    | {
-    type: 'group';
-    id: string;
-    label: string;
-    icon?: React.ReactNode;
-    children: NavChildItem[];
-};
+
+/** Drop entries the user may not see; trim groups with no visible children. */
+function filterNavEntry(
+    entry: NavEntry,
+    hasPermission: (key: string) => boolean,
+    hasRole: (roleName: string) => boolean
+): NavEntry | null {
+    if (entry.type === 'item') {
+        return canSeeNavAccess(entry, hasPermission, hasRole) ? entry : null;
+    }
+    const visibleChildren = entry.children.filter((c) => canSeeNavAccess(c, hasPermission, hasRole));
+    if (visibleChildren.length === 0) {
+        return null;
+    }
+    if (!canSeeNavAccess(entry, hasPermission, hasRole)) {
+        return null;
+    }
+    return {...entry, children: visibleChildren};
+}
+
+/** Declarative nav; visibility is derived via {@link filterNavEntry} (same rules as route `ProtectedRoute`). */
+const NAV_ITEMS_RAW: NavEntry[] = [
+    {type: 'item', to: '/', label: 'Dashboard', icon: <ChartLineIcon/>},
+    {
+        type: 'group',
+        id: 'server-group',
+        label: 'Servers',
+        icon: <ServerIcon/>,
+        children: [
+            {to: '/servers', label: 'Game Server', requiredPermissionKeys: ['server.list.read']},
+            {to: '/infrastructure', label: 'Infrastructure Server', requiredPermissionKeys: ['server.list.read']}
+        ]
+    },
+    {
+        type: 'group',
+        id: 'players',
+        label: 'Players',
+        icon: <UsersIcon/>,
+        children: [
+            {to: '/players', label: 'Overview', exact: true, requiredPermissionKeys: ['player.list.read']},
+            {to: '/players/banned', label: 'Banned Players', requiredPermissionKeys: ['player.list.read']}
+        ]
+    },
+    {type: 'item', to: '/plugins', label: 'Plugins', icon: <CubeIcon/>, requiredPermissionKeys: ['server.list.read']},
+    {
+        type: 'group',
+        id: 'configuration',
+        label: 'Configuration',
+        icon: <CogIcon/>,
+        requiredRoles: ['admin'],
+        children: [
+            {to: '/users', label: 'User Management', requiredRoles: ['admin']},
+            {to: '/configuration/roles', label: 'Role Management', requiredRoles: ['admin']},
+            {
+                to: '/configuration/permissions',
+                label: 'Permissions Management',
+                requiredRoles: ['admin']
+            }
+        ]
+    }
+];
 
 // Layout wrapper component that includes Page structure for authenticated routes
 const PageLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const {user, logout} = useAuthStore();
+    const {user, logout, hasPermission, hasRole} = useAuthStore();
+    const toolbarAvatarSrc = getUserAvatarDataUrl(user);
+    const drawerNotificationCount = useNotificationStore((s) => s.drawerItems.length);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState(false);
 
     const isActive = (path: string) => {
         if (path === '/') {
@@ -107,37 +200,13 @@ const PageLayout = () => {
         }
     };
 
-    const isAdmin = user?.roles.includes('admin');
-
-    const navItems: NavEntry[] = [
-        {type: 'item', to: '/', label: 'Dashboard', icon: <ChartLineIcon/>},
-        {
-            type: 'group',
-            id: 'server-group',
-            label: 'Servers',
-            icon: <ServerIcon/>,
-            children: [
-                {to: '/servers', label: 'Game Server'},
-                {to: '/infrastructure', label: 'Infrastructure Server'}
-            ]
-        },
-        {
-            type: 'group',
-            id: 'players',
-            label: 'Players',
-            icon: <UsersIcon/>,
-            children: [
-                {to: '/players', label: 'Overview', exact: true},
-                {to: '/players/banned', label: 'Banned Players'}
-            ]
-        },
-        {type: 'item', to: '/plugins', label: 'Plugins', icon: <CubeIcon/>}
-    ];
-
-    // Add configuration to nav if user is admin
-    if (isAdmin) {
-        navItems.push({type: 'item', to: '/configuration', label: 'Configuration', icon: <CogIcon/>});
-    }
+    const visibleNavItems = useMemo(
+        () =>
+            NAV_ITEMS_RAW.map((entry) => filterNavEntry(entry, hasPermission, hasRole)).filter(
+                (e): e is NavEntry => e !== null
+            ),
+        [hasPermission, hasRole]
+    );
 
     const masthead = (
         <Masthead>
@@ -170,6 +239,20 @@ const PageLayout = () => {
                                 <ThemeToggle/>
                             </ToolbarItem>
                             <ToolbarItem>
+                                <NotificationBadge
+                                    variant={
+                                        drawerNotificationCount > 0
+                                            ? NotificationBadgeVariant.unread
+                                            : NotificationBadgeVariant.read
+                                    }
+                                    count={drawerNotificationCount}
+                                    icon={<BellIcon/>}
+                                    isExpanded={isNotificationsDrawerOpen}
+                                    aria-label="Notifications"
+                                    onClick={() => setIsNotificationsDrawerOpen((open) => !open)}
+                                />
+                            </ToolbarItem>
+                            <ToolbarItem>
                                 <Dropdown
                                     isOpen={isUserMenuOpen}
                                     onSelect={() => setIsUserMenuOpen(false)}
@@ -186,7 +269,11 @@ const PageLayout = () => {
                                             aria-label="User menu"
                                         >
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                <UserIcon/>
+                                                {toolbarAvatarSrc ? (
+                                                    <Avatar src={toolbarAvatarSrc} alt="" size="sm"/>
+                                                ) : (
+                                                    <UserIcon/>
+                                                )}
                                                 <span>
                                                     {user?.displayName?.trim() || user?.email || 'User'}
                                                     {user?.minecraftName?.trim() && (
@@ -221,7 +308,7 @@ const PageLayout = () => {
     const pageNav = (
         <Nav>
             <NavList>
-                {navItems.map((item) => (
+                {visibleNavItems.map((item) => (
                     item.type === 'item' ? (
                         <NavItem
                             key={item.to}
@@ -276,9 +363,22 @@ const PageLayout = () => {
     );
 
     return (
-        <Page masthead={masthead} sidebar={sidebar} isManagedSidebar>
-            <Outlet/>
-        </Page>
+        <>
+            <Drawer isExpanded={isNotificationsDrawerOpen} position="end">
+                <DrawerContent
+                    panelContent={
+                        <NotificationsDrawerPanel
+                            onClose={() => setIsNotificationsDrawerOpen(false)}
+                        />
+                    }
+                >
+                    <Page masthead={masthead} sidebar={sidebar} isManagedSidebar>
+                        <Outlet/>
+                    </Page>
+                </DrawerContent>
+            </Drawer>
+            <ToastHost/>
+        </>
     );
 };
 
@@ -327,17 +427,15 @@ function App() {
                     {
                         path: 'configuration',
                         element: (
-                            <ProtectedRoute
-                                requiredPermissions={[{action: 'manage', subject: 'users'}]}>
-                                <Configuration/>
+                            <ProtectedRoute requireAdmin>
+                                <Navigate to="/users" replace/>
                             </ProtectedRoute>
                         )
                     },
                     {
                         path: 'users',
                         element: (
-                            <ProtectedRoute
-                                requiredPermissions={[{action: 'manage', subject: 'users'}]}>
+                            <ProtectedRoute requireAdmin>
                                 <UsersList/>
                             </ProtectedRoute>
                         )
@@ -345,9 +443,16 @@ function App() {
                     {
                         path: 'configuration/roles',
                         element: (
-                            <ProtectedRoute
-                                requiredPermissions={[{action: 'manage', subject: 'users'}]}>
+                            <ProtectedRoute requireAdmin>
                                 <RolesList/>
+                            </ProtectedRoute>
+                        )
+                    },
+                    {
+                        path: 'configuration/permissions',
+                        element: (
+                            <ProtectedRoute requireAdmin>
+                                <PermissionsAdmin/>
                             </ProtectedRoute>
                         )
                     },
@@ -355,7 +460,7 @@ function App() {
                         path: 'servers',
                         element: (
                             <ProtectedRoute
-                                requiredPermissions={[{action: 'read', subject: 'servers'}]}>
+                                requiredPermissionKeys={['server.list.read']}>
                                 <ServersList/>
                             </ProtectedRoute>
                         )
@@ -364,7 +469,7 @@ function App() {
                         path: 'servers/:id',
                         element: (
                             <ProtectedRoute
-                                requiredPermissions={[{action: 'read', subject: 'servers'}]}>
+                                requiredPermissionKeys={['server.list.read']}>
                                 <ServerDetail/>
                             </ProtectedRoute>
                         )
@@ -373,7 +478,7 @@ function App() {
                         path: 'infrastructure',
                         element: (
                             <ProtectedRoute
-                                requiredPermissions={[{action: 'read', subject: 'servers'}]}>
+                                requiredPermissionKeys={['server.list.read']}>
                                 <InfrastructureList/>
                             </ProtectedRoute>
                         )
@@ -382,7 +487,7 @@ function App() {
                         path: 'infrastructure/:id',
                         element: (
                             <ProtectedRoute
-                                requiredPermissions={[{action: 'read', subject: 'servers'}]}>
+                                requiredPermissionKeys={['server.list.read']}>
                                 <InfrastructureDetail/>
                             </ProtectedRoute>
                         )
@@ -391,7 +496,7 @@ function App() {
                         path: 'players',
                         element: (
                             <ProtectedRoute
-                                requiredPermissions={[{action: 'read', subject: 'players'}]}>
+                                requiredPermissionKeys={['player.list.read']}>
                                 <PlayersList/>
                             </ProtectedRoute>
                         )
@@ -400,7 +505,7 @@ function App() {
                         path: 'players/banned',
                         element: (
                             <ProtectedRoute
-                                requiredPermissions={[{action: 'read', subject: 'players'}]}>
+                                requiredPermissionKeys={['player.list.read']}>
                                 <BannedPlayersList/>
                             </ProtectedRoute>
                         )
@@ -409,7 +514,7 @@ function App() {
                         path: 'plugins',
                         element: (
                             <ProtectedRoute
-                                requiredPermissions={[{action: 'read', subject: 'servers'}]}>
+                                requiredPermissionKeys={['server.list.read']}>
                                 <PluginsList/>
                             </ProtectedRoute>
                         )

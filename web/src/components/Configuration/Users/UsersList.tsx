@@ -23,7 +23,7 @@ import EditUserModal from './EditUserModal';
 import type { UserProfile } from '../../../types';
 
 const UsersList: React.FC = () => {
-  const { users, fetchUsers, fetchRoles, deleteUser, hasPermission, roles } = useAuthStore();
+  const { users, fetchUsers, fetchRoles, deleteUser, hasRole, roles } = useAuthStore();
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<{
     id: string;
@@ -41,7 +41,7 @@ const UsersList: React.FC = () => {
     if (roles.length === 0) fetchRoles();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- fetch once on mount
 
-  const canManage = hasPermission('manage', 'users') || hasPermission('manage', 'all');
+  const canManage = hasRole('admin');
 
   const handleDelete = async () => {
     if (!deleteUserTarget) return;

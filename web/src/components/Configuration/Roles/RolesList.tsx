@@ -22,14 +22,18 @@ import { TrashIcon } from '@patternfly/react-icons';
 import PageHeader from '../../UI/PageHeader';
 import { useAuthStore } from '../../../store/authStore';
 import * as api from '../../../service/apiService';
+import { RolePermissionsDualList } from './RolePermissionsDualList';
 
 const RolesList: React.FC = () => {
-  const { roles, fetchRoles, hasPermission } = useAuthStore();
+  const { roles, fetchRoles, hasRole } = useAuthStore();
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editRole, setEditRole] = useState<api.RoleDTO | null>(null);
   const [deleteRoleTarget, setDeleteRoleTarget] = useState<api.RoleDTO | null>(null);
   const [newRoleDisplayName, setNewRoleDisplayName] = useState('');
   const [editRoleDisplayName, setEditRoleDisplayName] = useState('');
+  const [editRolePermissionIds, setEditRolePermissionIds] = useState<number[]>([]);
+  const [allPermissions, setAllPermissions] = useState<api.PermissionDTO[]>([]);
+  const [permLoadError, setPermLoadError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [deleteError, setDeleteError] = useState('');
@@ -38,7 +42,27 @@ const RolesList: React.FC = () => {
     fetchRoles();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- fetchRoles is stable, fetch once on mount
 
-  const canManage = hasPermission('manage', 'users') || hasPermission('manage', 'all');
+  const canManage = hasRole('admin');
+
+  const openEditRole = async (role: api.RoleDTO) => {
+    setEditRole(role);
+    setEditRoleDisplayName(displayName(role));
+    setEditRolePermissionIds([]);
+    setAllPermissions([]);
+    setPermLoadError('');
+    setError('');
+    try {
+      const [roleRes, permRes] = await Promise.all([
+        api.getRole(String(role.id)),
+        api.getPermissions()
+      ]);
+      setAllPermissions(permRes.data);
+      setEditRolePermissionIds(roleRes.data.permissions?.map((p) => p.id) ?? []);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setPermLoadError(err?.response?.data?.error || (e as Error)?.message || 'Failed to load role permissions');
+    }
+  };
 
   const handleAddRole = async () => {
     if (!newRoleDisplayName.trim()) return;
@@ -62,7 +86,10 @@ const RolesList: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      await api.updateRole(String(editRole.id), editRoleDisplayName.trim());
+      await api.updateRole(String(editRole.id), {
+        displayName: editRoleDisplayName.trim(),
+        permissionIds: editRolePermissionIds
+      });
       await fetchRoles();
       setEditRole(null);
     } catch (e: unknown) {
@@ -95,9 +122,7 @@ const RolesList: React.FC = () => {
     {
       title: 'Edit',
       onClick: () => {
-        setEditRole(role);
-        setEditRoleDisplayName(displayName(role));
-        setError('');
+        void openEditRole(role);
       }
     },
     {
@@ -222,20 +247,24 @@ const RolesList: React.FC = () => {
         </ModalFooter>
       </Modal>
 
-      {/* Edit Role Modal - PatternFly structure */}
+      {/* Edit Role Modal - PatternFly structure + dual list */}
       {editRole && (
         <Modal
-          variant={ModalVariant.small}
+          variant={ModalVariant.large}
           isOpen={!!editRole}
           onClose={() => {
             setEditRole(null);
             setError('');
+            setPermLoadError('');
           }}
         >
           <ModalHeader title="Edit Role" />
           <ModalBody>
             {error && (
               <Alert variant="danger" title={error} className="pf-v6-u-mb-md" />
+            )}
+            {permLoadError && (
+              <Alert variant="danger" title={permLoadError} className="pf-v6-u-mb-md" />
             )}
             <Form id="edit-role-form" onSubmit={(e) => { e.preventDefault(); handleUpdateRole(); }}>
               <FormGroup label="Display Name" isRequired fieldId="editRoleDisplayName">
@@ -245,6 +274,23 @@ const RolesList: React.FC = () => {
                   onChange={(_event, value) => setEditRoleDisplayName(value)}
                 />
               </FormGroup>
+              {allPermissions.length > 0 && (
+                <FormGroup label="Permissions" fieldId="role-permissions-dual">
+                  <RolePermissionsDualList
+                    id="role-edit-permissions"
+                    allPermissions={allPermissions.map((p) => ({
+                      id: p.id,
+                      key: p.key,
+                      description: p.description
+                    }))}
+                    chosenIds={editRolePermissionIds}
+                    onChosenIdsChange={setEditRolePermissionIds}
+                    isDisabled={loading}
+                    availableTitle="Available permissions"
+                    chosenTitle="Permissions for this role"
+                  />
+                </FormGroup>
+              )}
             </Form>
           </ModalBody>
           <ModalFooter>
@@ -253,7 +299,7 @@ const RolesList: React.FC = () => {
               variant="primary"
               type="submit"
               form="edit-role-form"
-              isDisabled={loading || !editRoleDisplayName.trim()}
+              isDisabled={loading || !editRoleDisplayName.trim() || !!permLoadError}
             >
               {loading ? 'Saving...' : 'Save'}
             </Button>
@@ -263,6 +309,7 @@ const RolesList: React.FC = () => {
               onClick={() => {
                 setEditRole(null);
                 setError('');
+                setPermLoadError('');
               }}
             >
               Cancel
