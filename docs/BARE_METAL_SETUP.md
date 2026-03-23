@@ -1,6 +1,76 @@
 # Bare Metal Setup Guide
 
-This guide walks through setting up SpoutMC on a bare metal Linux server from scratch — from OS prerequisites to a production-ready, auto-starting service.
+This guide walks through setting up SpoutMC on a bare metal server from scratch — from OS prerequisites to a production-ready, auto-starting service.
+
+## Quick Install
+
+One-line installers are available for Linux and Windows. They automate all steps in this guide (Docker, binary download, service registration, firewall).
+
+### Linux (Ubuntu / Debian / RHEL / Fedora)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0x49b/spoutmc/main/scripts/install.sh | sudo bash
+```
+
+Or download and review the script first:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0x49b/spoutmc/main/scripts/install.sh -o install.sh
+# review install.sh ...
+sudo bash install.sh
+```
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--install-path PATH` | Installation directory | `/opt/spoutmc` |
+| `--data-path PATH` | Server data directory | `/opt/spoutmc/data` |
+| `--port PORT` | SpoutMC web UI port | `3000` |
+| `--mc-port PORT` | Minecraft server port | `25565` |
+| `--memory MEM` | Default Minecraft memory | `2G` |
+| `--domain DOMAIN` | Domain for nginx reverse proxy | — |
+| `--no-nginx` | Skip nginx installation | — |
+| `--no-interactive` | Use all defaults silently | — |
+
+Example with nginx:
+
+```bash
+sudo bash install.sh --domain spoutmc.example.com --no-interactive
+```
+
+### Windows (PowerShell — run as Administrator)
+
+```powershell
+irm https://raw.githubusercontent.com/0x49b/spoutmc/main/scripts/install.ps1 | iex
+```
+
+Or download and review first:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/0x49b/spoutmc/main/scripts/install.ps1 -OutFile install.ps1
+# review install.ps1 ...
+.\install.ps1
+```
+
+**Parameters:**
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `-InstallPath` | Installation directory | `C:\spoutmc` |
+| `-DataPath` | Server data directory | `C:\spoutmc\data` |
+| `-Port` | SpoutMC web UI port | `3000` |
+| `-MinecraftPort` | Minecraft server port | `25565` |
+| `-Memory` | Default Minecraft memory | `2G` |
+| `-NonInteractive` | Use all defaults silently | — |
+
+> **Note:** Docker Desktop requires WSL2. The script enables WSL2 automatically, but a **reboot may be required** on first run. Re-run the installer after rebooting.
+
+---
+
+The rest of this guide documents each step manually for those who prefer full control.
+
+---
 
 ## System Requirements
 
