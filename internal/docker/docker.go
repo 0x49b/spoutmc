@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/go-connections/nat"
 	"go.uber.org/zap"
 )
 
@@ -158,10 +157,7 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 
 	if !containerExists(ctx, s.Name) {
 		logger.Info(fmt.Sprintf("Creating container %s", s.Name))
-		exposedPorts, containerPortBinding := nat.PortSet{}, nat.PortMap{}
-		if s.Proxy {
-			exposedPorts, containerPortBinding = MapExposedPorts(s.Ports)
-		}
+		exposedPorts, containerPortBinding := MapExposedPorts(s.Ports)
 
 		spoutNetwork := GetSpoutNetwork(ctx)
 		hostNetwork, err := getHostNetworkId(ctx)

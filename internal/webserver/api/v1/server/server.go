@@ -18,6 +18,7 @@ import (
 	"spoutmc/internal/servercfg"
 	"spoutmc/internal/sse"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -842,37 +843,45 @@ func streamServers(c echo.Context) error {
 			}
 
 			// Enrich containers with stats and StartedAt
-			enrichedContainers := make([]ContainerWithStats, 0, len(containers))
-			for _, container := range containers {
-				// Create enriched container with StartedAt and Type
-				enrichedContainer := EnrichedContainer{
-					Summary: container,
-					Type:    serverpkg.DetermineServerType(container.Labels),
-				}
+			enrichedContainers := make([]ContainerWithStats, len(containers))
+			var wg sync.WaitGroup
 
-				// Get detailed container info to extract StartedAt
-				inspectData, err := docker.GetContainerById(c.Request().Context(), container.ID)
-				if err == nil && inspectData.State != nil {
-					enrichedContainer.StartedAt = inspectData.State.StartedAt
-				}
+			for i, cont := range containers {
+				wg.Add(1)
+				go func(index int, containerSummary container.Summary) {
+					defer wg.Done()
 
-				containerData := ContainerWithStats{
-					Container: enrichedContainer,
-				}
+					// Create enriched container with StartedAt and Type
+					enrichedContainer := EnrichedContainer{
+						Summary: containerSummary,
+						Type:    serverpkg.DetermineServerType(containerSummary.Labels),
+					}
 
-				// Try to fetch stats for this container (non-blocking)
-				stats, err := docker.GetContainerStats(c.Request().Context(), container.ID)
-				if err != nil {
-					// Log but don't fail the whole stream
-					logger.Debug("Could not fetch stats for container",
-						zap.String("id", container.ID[:12]),
-						zap.Error(err))
-				} else {
-					containerData.Stats = stats
-				}
+					// Get detailed container info to extract StartedAt
+					inspectData, err := docker.GetContainerById(c.Request().Context(), containerSummary.ID)
+					if err == nil && inspectData.State != nil {
+						enrichedContainer.StartedAt = inspectData.State.StartedAt
+					}
 
-				enrichedContainers = append(enrichedContainers, containerData)
+					containerData := ContainerWithStats{
+						Container: enrichedContainer,
+					}
+
+					// Try to fetch stats for this container
+					stats, err := docker.GetContainerStats(c.Request().Context(), containerSummary.ID)
+					if err != nil {
+						// Log but don't fail the whole stream
+						logger.Debug("Could not fetch stats for container",
+							zap.String("id", containerSummary.ID[:12]),
+							zap.Error(err))
+					} else {
+						containerData.Stats = stats
+					}
+
+					enrichedContainers[index] = containerData
+				}(i, cont)
 			}
+			wg.Wait()
 
 			id, _ := shortid.Generate()
 			data, err := json.Marshal(enrichedContainers)
