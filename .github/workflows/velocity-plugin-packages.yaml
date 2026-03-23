@@ -1,0 +1,67 @@
+name: Publish Velocity plugin (GitHub Packages)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version to publish (e.g. 1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  publish:
+    name: Build and publish JAR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            V="${{ github.event.inputs.version }}"
+          else
+            V="${GITHUB_REF_NAME#v}"
+          fi
+          if [ -z "$V" ]; then
+            echo "Version is empty"
+            exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Publishing version: $V"
+
+      - name: Publish to GitHub Packages
+        working-directory: plugins/velocity-players-bridge
+        run: |
+          chmod +x gradlew
+          ./gradlew publish --no-daemon -PreleaseVersion="${{ steps.ver.outputs.version }}"
+
+      - name: Summary
+        run: |
+          {
+            echo "## Velocity plugin (GitHub Packages)"
+            echo ""
+            echo "**Coordinates:** \`io.spoutmc:velocity-players-bridge:${{ steps.ver.outputs.version }}\`"
+            echo ""
+            echo "**Repository URL (Gradle):** \`https://maven.pkg.github.com/${{ github.repository }}\`"
+            echo ""
+            echo "GitHub Packages Maven often requires authentication. Use a [PAT](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-gradle-registry) with \`read:packages\` (and \`repo\` if the repo is private) as the password, and your GitHub username as the username."
+          } >> "$GITHUB_STEP_SUMMARY"
