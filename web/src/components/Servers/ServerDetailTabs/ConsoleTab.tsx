@@ -4,6 +4,8 @@ import { PaperPlaneIcon } from '@patternfly/react-icons';
 import { LogViewer, LogViewerSearch } from '@patternfly/react-log-viewer';
 import AnsiToHtml from 'ansi-to-html';
 import ConsoleTabSkeleton from './ConsoleTabSkeleton';
+import { getAuthFetchHeaders } from '../../../service/apiService';
+import { RealtimeMessage, ServerRealtimeWsClient } from '../../../service/serverRealtimeWs';
 
 interface ConsoleTabProps {
     /** Container/server ID */
@@ -15,6 +17,8 @@ interface ConsoleTabProps {
     isActive: boolean;
     /** When false, hides the send command input (e.g. for infrastructure containers) */
     enableSendCommand?: boolean;
+    /** Optional websocket client for hybrid realtime transport. */
+    wsClient?: ServerRealtimeWsClient | null;
 }
 
 // Java Edition commands (without leading slash) for command-name completion.
@@ -49,7 +53,8 @@ export const ConsoleTab = ({
     logsUrl,
     commandUrl,
     isActive,
-    enableSendCommand = true
+    enableSendCommand = true,
+    wsClient = null
 }: ConsoleTabProps) => {
     const [command, setCommand] = useState('');
     const [logs, setLogs] = useState<string>('');
@@ -67,7 +72,7 @@ export const ConsoleTab = ({
     const baseReconnectDelay = 1000; // Start with 1 second
 
     const connectToLogs = useCallback(() => {
-        if (!isActive || !containerId) return;
+        if (!isActive || !containerId || wsClient) return;
 
         // Close existing connection if any
         if (eventSourceRef.current) {
@@ -136,10 +141,10 @@ export const ConsoleTab = ({
         };
 
         eventSourceRef.current = eventSource;
-    }, [isActive, containerId, logsUrl, reconnectAttempts]);
+    }, [isActive, containerId, logsUrl, reconnectAttempts, wsClient]);
 
     useEffect(() => {
-        if (isActive && containerId) {
+        if (isActive && containerId && !wsClient) {
             connectToLogs();
         }
 
@@ -153,7 +158,77 @@ export const ConsoleTab = ({
                 reconnectTimeoutRef.current = null;
             }
         };
-    }, [isActive, containerId, connectToLogs]);
+    }, [isActive, containerId, connectToLogs, wsClient]);
+
+    useEffect(() => {
+        if (!wsClient) {
+            return;
+        }
+
+        if (isActive) {
+            wsClient.addListener({
+                id: 'console-tab',
+                onOpen: () => {
+                    setIsConnected(true);
+                    setReconnectAttempts(0);
+                    setHasEverLoaded(true);
+                    wsClient.subscribe('logs');
+                },
+                onClose: () => {
+                    setIsConnected(false);
+                },
+                onError: () => {
+                    setIsConnected(false);
+                },
+                onMessage: (message: RealtimeMessage) => {
+                    if (message.type === 'log' && typeof message.payload === 'string') {
+                        const logLine = message.payload;
+                        if (!logLine || logLine.trim() === '>' || logLine.trim() === '' || logLine.trim() === '>....') {
+                            return;
+                        }
+                        const convertedHtml = ansiConverter.current.toHtml(logLine);
+                        setLogs(prev => {
+                            const newLog = prev ? `${prev}\n${convertedHtml}` : convertedHtml;
+                            const lines = newLog.split('\n');
+                            if (lines.length > 10000) {
+                                return lines.slice(-10000).join('\n');
+                            }
+                            return newLog;
+                        });
+                        setHasEverLoaded(true);
+                    }
+
+                    if (message.type === 'command_ack') {
+                        if (message.error) {
+                            const errorLog = `Error: ${message.error}`;
+                            setLogs(prev => prev ? `${prev}\n${errorLog}` : errorLog);
+                        } else {
+                            const timestamp = new Date().toLocaleTimeString();
+                            const commandText =
+                                typeof message.payload === 'object' && message.payload !== null && 'command' in message.payload
+                                    ? String((message.payload as { command?: string }).command ?? '')
+                                    : '';
+                            if (commandText) {
+                                const commandLog = `[${timestamp}] > ${commandText}`;
+                                setLogs(prev => prev ? `${prev}\n${commandLog}` : commandLog);
+                            }
+                        }
+                    }
+                }
+            });
+            wsClient.connect();
+            if (wsClient.isConnected()) {
+                setIsConnected(true);
+                setHasEverLoaded(true);
+                wsClient.subscribe('logs');
+            }
+        }
+
+        return () => {
+            wsClient.unsubscribe('logs');
+            wsClient.removeListener('console-tab');
+        };
+    }, [isActive, wsClient]);
 
     // Command-name completion for Java Edition commands.
     useEffect(() => {
@@ -231,25 +306,27 @@ export const ConsoleTab = ({
             }
         }
 
-        if (!command.trim() || !commandUrl) return;
+        if (!command.trim()) return;
 
         try {
-            const response = await fetch(commandUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ command: command.trim() }),
-            });
+            if (wsClient) {
+                wsClient.sendCommand(command.trim());
+            } else {
+                if (!commandUrl) return;
+                const response = await fetch(commandUrl, {
+                    method: 'POST',
+                    headers: getAuthFetchHeaders(),
+                    body: JSON.stringify({ command: command.trim() }),
+                });
 
-            if (!response.ok) {
-                throw new Error('Failed to send command');
+                if (!response.ok) {
+                    throw new Error('Failed to send command');
+                }
+
+                const timestamp = new Date().toLocaleTimeString();
+                const commandLog = `[${timestamp}] > ${command}`;
+                setLogs(prev => prev ? `${prev}\n${commandLog}` : commandLog);
             }
-
-            // Add command to logs
-            const timestamp = new Date().toLocaleTimeString();
-            const commandLog = `[${timestamp}] > ${command}`;
-            setLogs(prev => prev ? `${prev}\n${commandLog}` : commandLog);
             setCommand('');
             setShowSuggestions(false);
         } catch (error) {
@@ -284,7 +361,7 @@ export const ConsoleTab = ({
                 toolbar={<LogViewerSearch placeholder="Search logs..." minSearchChars={3} />}
             />
 
-            {enableSendCommand && commandUrl && (
+            {enableSendCommand && (commandUrl || wsClient) && (
             <form onSubmit={handleCommand} style={{ position: 'relative' }}>
                 <Flex>
                     <FlexItem flex={{ default: 'flex_1' }}>

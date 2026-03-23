@@ -37,6 +37,7 @@ func InitDB(ctx context.Context) error {
 		&models.Permission{},
 		&models.UserPlugin{},
 		&models.UserPluginServer{},
+		&models.SystemNotification{},
 	); err != nil {
 		return err
 	}

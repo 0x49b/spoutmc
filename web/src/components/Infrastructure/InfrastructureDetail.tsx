@@ -119,7 +119,7 @@ const InfrastructureDetail: React.FC = () => {
     connectSSE();
     if (containerId) {
       statsEventSourceRef.current = new EventSource(
-        `${API_BASE_URL}/infrastructure/${containerId}/stats`
+        api.withSSEAuth(`${API_BASE_URL}/infrastructure/${containerId}/stats`)
       );
       statsEventSourceRef.current.onmessage = (event: MessageEvent) => {
         try {
@@ -375,7 +375,7 @@ const InfrastructureDetail: React.FC = () => {
             >
               <ConsoleTab
                 containerId={containerId}
-                logsUrl={`${API_BASE_URL}/infrastructure/${containerId}/logs`}
+                logsUrl={api.withSSEAuth(`${API_BASE_URL}/infrastructure/${containerId}/logs`)}
                 isActive={activeTab === 'console'}
                 enableSendCommand={false}
               />

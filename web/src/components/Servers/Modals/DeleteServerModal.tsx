@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {
+    Alert,
     Button,
     Checkbox,
     Grid,
@@ -43,6 +44,16 @@ const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
                 <Grid hasGutter component="ul">
                     <GridItem>Are you sure you want to
                         delete <strong>{serverName}</strong>?</GridItem>
+                    <GridItem>
+                        <Alert
+                            variant="warning"
+                            isInline
+                            title="Proxy restart notice"
+                        >
+                            Deleting a non-proxy server updates <code>velocity.toml</code> and automatically restarts
+                            the proxy. Connected players may be disconnected briefly.
+                        </Alert>
+                    </GridItem>
                     <GridItem>
                         <Checkbox
                             id="removeData"

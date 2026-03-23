@@ -7,13 +7,15 @@ import (
 	"spoutmc/internal/webserver/api/v1/host"
 	"spoutmc/internal/webserver/api/v1/infrastructure"
 	"spoutmc/internal/webserver/api/v1/minime"
+	"spoutmc/internal/webserver/api/v1/notification"
 	"spoutmc/internal/webserver/api/v1/permission"
-	"spoutmc/internal/webserver/api/v1/plugin"
 	"spoutmc/internal/webserver/api/v1/player"
+	"spoutmc/internal/webserver/api/v1/plugin"
 	"spoutmc/internal/webserver/api/v1/role"
 	"spoutmc/internal/webserver/api/v1/server"
 	"spoutmc/internal/webserver/api/v1/setup"
 	"spoutmc/internal/webserver/api/v1/user"
+	wsapi "spoutmc/internal/webserver/api/v1/ws"
 	"spoutmc/internal/webserver/middleware"
 
 	"github.com/labstack/echo/v4"
@@ -37,9 +39,11 @@ func RegisterV1(g *echo.Group) {
 	user.RegisterUserRoutes(protected)
 	role.RegisterRoleRoutes(protected)
 	permission.RegisterPermissionRoutes(protected)
+	notification.RegisterNotificationRoutes(protected)
 	player.RegisterPlayerRoutes(protected)
 	host.RegisterHostRoutes(protected)
 	git.RegisterGitRoutes(protected)
 	infrastructure.RegisterInfrastructureRoutes(protected)
 	plugin.RegisterPluginRoutes(protected)
+	wsapi.RegisterWSRoutes(protected)
 }

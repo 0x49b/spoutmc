@@ -22,13 +22,6 @@ type SystemPluginEntry struct {
 // SystemPlugins lists plugins Spout applies automatically (shown as system-managed in the UI).
 var SystemPlugins = []SystemPluginEntry{
 	{
-		ID:          "servertap",
-		Name:        "ServerTap",
-		Description: "REST API for SpoutMC integration (Paper / game / lobby).",
-		URL:         "https://github.com/servertap-io/servertap/releases/download/v0.6.1/ServerTap-0.6.1.jar",
-		Kinds:       []ServerKind{ServerKindLobby, ServerKindGame},
-	},
-	{
 		ID:          "spoutmc-bridge",
 		Name:        "SpoutMC Bridge",
 		Description: "Bridge between Velocity and SpoutMC",

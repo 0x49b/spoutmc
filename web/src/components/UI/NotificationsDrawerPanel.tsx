@@ -20,20 +20,31 @@ type Props = {
 
 const NotificationsDrawerPanel: React.FC<Props> = ({ onClose }) => {
   const drawerItems = useNotificationStore((s) => s.drawerItems);
+  const globalItems = useNotificationStore((s) => s.globalItems);
   const removeFromDrawer = useNotificationStore((s) => s.removeFromDrawer);
+  const dismissGlobalNotification = useNotificationStore((s) => s.dismissGlobalNotification);
+
+  const totalItems = globalItems.length + drawerItems.length;
+
+  const mapVariant = (severity: string): 'info' | 'warning' | 'danger' | 'success' => {
+    if (severity === 'danger') return 'danger';
+    if (severity === 'warning') return 'warning';
+    if (severity === 'success') return 'success';
+    return 'info';
+  };
 
   return (
     <DrawerPanelContent widths={{ default: 'width_33' }} focusTrap={{ enabled: true }}>
       <NotificationDrawer>
         <NotificationDrawerHeader
           title="Notifications"
-          {...(drawerItems.length === 0
+          {...(totalItems === 0
             ? { customText: 'No saved notifications' }
-            : { count: drawerItems.length, unreadText: 'notifications' })}
+            : { count: totalItems, unreadText: 'notifications' })}
           onClose={onClose}
         />
         <NotificationDrawerBody>
-          {drawerItems.length === 0 ? (
+          {totalItems === 0 ? (
             <p
               className="pf-v6-u-text-align-center pf-v6-u-p-lg"
               style={{ color: 'var(--pf-v6-global--Color--200)' }}
@@ -43,6 +54,32 @@ const NotificationsDrawerPanel: React.FC<Props> = ({ onClose }) => {
             </p>
           ) : (
             <NotificationDrawerList aria-label="Notification list">
+              {globalItems.map((item) => (
+                <NotificationDrawerListItem key={`global-${item.id}`} variant={mapVariant(item.severity)}>
+                  <NotificationDrawerListItemHeader title={item.title} variant={mapVariant(item.severity)}>
+                    <Button
+                      variant={ButtonVariant.plain}
+                      aria-label="Dismiss notification for all users"
+                      icon={<TimesIcon />}
+                      onClick={() => void dismissGlobalNotification(item.id)}
+                    />
+                  </NotificationDrawerListItemHeader>
+                  <NotificationDrawerListItemBody
+                    timestamp={new Date(item.createdAt).toLocaleString()}
+                  >
+                    {item.message ?? ''}
+                    <div className="pf-v6-u-mt-sm">
+                      <Button
+                        variant={ButtonVariant.link}
+                        isInline
+                        onClick={() => void dismissGlobalNotification(item.id)}
+                      >
+                        Acknowledge
+                      </Button>
+                    </div>
+                  </NotificationDrawerListItemBody>
+                </NotificationDrawerListItem>
+              ))}
               {drawerItems.map((item) => (
                 <NotificationDrawerListItem key={item.id} variant={item.variant}>
                   <NotificationDrawerListItemHeader title={item.title} variant={item.variant}>

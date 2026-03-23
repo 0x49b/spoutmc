@@ -14,6 +14,7 @@ interface ServerState {
   loading: boolean;
   error: string | null;
   eventSource: EventSource | null;
+  sseShouldReconnect: boolean;
 
   // Actions
   fetchServers: () => Promise<void>;
@@ -56,6 +57,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   loading: false,
   error: null,
   eventSource: null,
+  sseShouldReconnect: false,
 
   fetchServers: async () => {
     set({ loading: true, error: null });
@@ -76,6 +78,8 @@ export const useServerStore = create<ServerState>((set, get) => ({
   },
 
   connectSSE: () => {
+    set({ sseShouldReconnect: true });
+
     // Clean up existing connection if any
     const currentEventSource = get().eventSource;
     if (currentEventSource) {
@@ -83,9 +87,10 @@ export const useServerStore = create<ServerState>((set, get) => ({
     }
 
     try {
-      const eventSource = new EventSource(`${API_BASE_URL}/server/stream`);
+      const eventSource = new EventSource(api.withSSEAuth(`${API_BASE_URL}/server/stream`));
 
       eventSource.onopen = () => {
+        if (get().eventSource !== eventSource) return;
         console.log('SSE connection established for server list');
         set({ error: null });
       };
@@ -123,13 +128,21 @@ export const useServerStore = create<ServerState>((set, get) => ({
       };
 
       eventSource.onerror = (error) => {
+        if (get().eventSource !== eventSource) {
+          return;
+        }
+
         console.error('SSE connection error:', error);
         eventSource.close();
+        set({ eventSource: null });
 
         // Try to reconnect after 5 seconds
         setTimeout(() => {
           const currentState = get();
-          if (!currentState.eventSource || currentState.eventSource.readyState === EventSource.CLOSED) {
+          if (
+            currentState.sseShouldReconnect &&
+            (!currentState.eventSource || currentState.eventSource.readyState === EventSource.CLOSED)
+          ) {
             console.log('Attempting to reconnect SSE...');
             get().connectSSE();
           }
@@ -144,6 +157,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   },
 
   disconnectSSE: () => {
+    set({ sseShouldReconnect: false });
     const eventSource = get().eventSource;
     if (eventSource) {
       eventSource.close();

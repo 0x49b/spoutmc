@@ -65,7 +65,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
 
     try {
-      const eventSource = new EventSource(`${API_BASE_URL}/player/stream`);
+      const eventSource = new EventSource(api.withSSEAuth(`${API_BASE_URL}/player/stream`));
       eventSource.onopen = () => set({ error: null });
       eventSource.onmessage = event => {
         try {

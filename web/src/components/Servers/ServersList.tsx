@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {
+    Alert,
     Button,
     Card,
     CardBody,
@@ -238,6 +239,17 @@ const ServersList: React.FC = () => {
                             </Flex>
                         }
                     >
+                        {isGitOpsEnabled ? (
+                            <Alert
+                                variant="warning"
+                                isInline
+                                title="GitOps restart behavior"
+                                className="pf-v6-u-mb-md"
+                            >
+                                Server changes from GitOps sync update <code>velocity.toml</code> and automatically
+                                restart the proxy.
+                            </Alert>
+                        ) : null}
                         <div className="pf-v6-u-mt-sm pf-v6-u-color-200">
                             Mode: <strong>{isGitOpsEnabled ? 'Enabled' : 'Disabled'}</strong> | Last
                             sync: <strong>{formatTime(gitOpsStatus?.lastSyncAt)}</strong>

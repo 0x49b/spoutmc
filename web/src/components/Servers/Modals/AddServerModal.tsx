@@ -223,6 +223,15 @@ const AddServerModal: React.FC<AddServerModalProps> = ({
                             {validationError}
                         </Alert>
                     )}
+                    <Alert
+                        variant="warning"
+                        isInline
+                        title="Proxy restart notice"
+                        className="pf-v6-u-mb-md"
+                    >
+                        Adding a non-proxy server updates <code>velocity.toml</code> and automatically restarts
+                        the proxy. Connected players may be disconnected briefly.
+                    </Alert>
 
                     <FormGroup label="Server Name" isRequired fieldId="server-name">
                         <TextInput

@@ -51,19 +51,25 @@ import FileBrowser from './FileBrowser.tsx';
 import FileEditorModal from './Modals/FileEditorModal.tsx';
 import * as api from '../../service/apiService.ts';
 import RestartServerModal from "./Modals/RestartServerModal.tsx";
+import {
+    ServerRealtimeWsClient,
+    useServerDetailWsTransport,
+    RealtimeMessage,
+    acquireServerRealtimeWsClient,
+    releaseServerRealtimeWsClient
+} from '../../service/serverRealtimeWs.ts';
 
 const ServerDetail: React.FC = () => {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
     const {
         getServerById,
+        fetchServers,
         restartServer,
         stopServer,
         startServer,
         deleteServer,
-        updateServer,
-        connectSSE,
-        disconnectSSE
+        updateServer
     } = useServerStore();
     const {fetchPlugins, getPluginsForServer} = usePluginStore();
     const [isRestarting, setIsRestarting] = useState(false);
@@ -85,6 +91,8 @@ const ServerDetail: React.FC = () => {
     } | null>(null);
     const [gitOpsStatus, setGitOpsStatus] = useState<api.GitOpsStatus | null>(null);
     const statsEventSourceRef = useRef<EventSource | null>(null);
+    const realtimeWsRef = useRef<ServerRealtimeWsClient | null>(null);
+    const useWsTransport = useServerDetailWsTransport();
 
     const server = getServerById(id || '');
 
@@ -94,11 +102,18 @@ const ServerDetail: React.FC = () => {
         fetchPlugins();
     }, [fetchPlugins]);
 
+    useEffect(() => {
+        if (!server && id) {
+            void fetchServers();
+        }
+    }, [server, id, fetchServers]);
+
     // Set up SSE connection for server stats
     useEffect(() => {
-        connectSSE();
-        if (server?.id) {
-            statsEventSourceRef.current = new EventSource(`http://localhost:3000/api/v1/server/${server.id}/stats`);
+        if (server?.id && !useWsTransport) {
+            statsEventSourceRef.current = new EventSource(
+                api.withSSEAuth(`http://localhost:3000/api/v1/server/${server.id}/stats`)
+            );
             statsEventSourceRef.current.onmessage = (event: MessageEvent) => {
                 const parsed = JSON.parse(event.data);
                 setStats(parsed);
@@ -111,13 +126,52 @@ const ServerDetail: React.FC = () => {
         }
 
         return () => {
-            disconnectSSE()
             if (statsEventSourceRef.current) {
                 statsEventSourceRef.current.close();
                 statsEventSourceRef.current = null;
             }
         };
-    }, [server?.id]);
+    }, [server?.id, useWsTransport]);
+
+    useEffect(() => {
+        if (!server?.id || !useWsTransport) {
+            return;
+        }
+
+        const wsClient = acquireServerRealtimeWsClient(server.id, `ws://localhost:3000/api/v1/ws/server/${server.id}`);
+        realtimeWsRef.current = wsClient;
+        wsClient.addListener({
+            id: 'server-detail-stats',
+            onOpen: () => {
+                wsClient.subscribe('stats');
+            },
+            onMessage: (message: RealtimeMessage) => {
+                if (message.type === 'stats' && message.payload) {
+                    setStats(message.payload as ServerStats);
+                    setIsInitialLoading(false);
+                }
+                if (message.type === 'error' && message.channel === 'stats') {
+                    setIsInitialLoading(false);
+                }
+            },
+            onError: () => {
+                setIsInitialLoading(false);
+            },
+            onClose: () => {
+                setIsInitialLoading(false);
+            }
+        });
+        wsClient.connect();
+
+        return () => {
+            wsClient.unsubscribe('stats');
+            wsClient.removeListener('server-detail-stats');
+            releaseServerRealtimeWsClient(server.id);
+            if (realtimeWsRef.current === wsClient) {
+                realtimeWsRef.current = null;
+            }
+        };
+    }, [server?.id, useWsTransport]);
 
     // Load files when Files tab is opened
     useEffect(() => {
@@ -337,7 +391,9 @@ const ServerDetail: React.FC = () => {
             {gitOpsStatus?.enabled ? (
                 <PageSection className="pf-v6-u-pb-0">
                     <div className="pf-v6-u-color-200">
-                        GitOps is enabled: server removal is disabled in the UI. Remove the server from the Git repository instead.
+                        GitOps is enabled: server removal is disabled in the UI. Remove the server from the Git
+                        repository instead. Any server change synced from Git updates <code>velocity.toml</code> and
+                        restarts the proxy.
                     </div>
                 </PageSection>
             ) : null}
@@ -598,10 +654,11 @@ const ServerDetail: React.FC = () => {
                         >
                             <ConsoleTab
                                 containerId={server.id}
-                                logsUrl={`http://localhost:3000/api/v1/server/${server.id}/logs`}
+                                logsUrl={api.withSSEAuth(`http://localhost:3000/api/v1/server/${server.id}/logs`)}
                                 commandUrl={`http://localhost:3000/api/v1/server/${server.id}/command`}
                                 isActive={activeTab === 'console'}
                                 enableSendCommand={true}
+                                wsClient={useWsTransport ? realtimeWsRef.current : null}
                             />
                         </Tab>
 

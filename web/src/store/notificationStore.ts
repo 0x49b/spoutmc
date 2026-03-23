@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as api from '../service/apiService';
 
 export type ToastVariant = 'success' | 'info' | 'warning' | 'danger';
 
@@ -7,6 +8,17 @@ export interface AppNotification {
   variant: ToastVariant;
   title: string;
   description?: string;
+  createdAt: number;
+}
+
+export interface GlobalNotification {
+  id: number;
+  key: string;
+  severity: string;
+  title: string;
+  message: string;
+  source: string;
+  isOpen: boolean;
   createdAt: number;
 }
 
@@ -24,15 +36,19 @@ interface NotificationState {
   toasts: AppNotification[];
   /** Non-success toasts land here after the toast dismisses (timeout or close). Success toasts are never stored. */
   drawerItems: AppNotification[];
+  globalItems: GlobalNotification[];
   pushToast: (input: PushToastInput) => void;
   /** Called when toast times out or user closes it. Success: removed only; other variants: copied to drawer. */
   dismissToast: (id: string) => void;
   removeFromDrawer: (id: string) => void;
+  fetchGlobalNotifications: () => Promise<void>;
+  dismissGlobalNotification: (id: number) => Promise<void>;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   toasts: [],
   drawerItems: [],
+  globalItems: [],
 
   pushToast: (input) => {
     const item: AppNotification = {
@@ -54,5 +70,33 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   removeFromDrawer: (id) =>
-    set((s) => ({ drawerItems: s.drawerItems.filter((t) => t.id !== id) }))
+    set((s) => ({ drawerItems: s.drawerItems.filter((t) => t.id !== id) })),
+
+  fetchGlobalNotifications: async () => {
+    try {
+      const response = await api.getNotifications();
+      const items: GlobalNotification[] = response.data.map((n) => ({
+        id: n.id,
+        key: n.key,
+        severity: n.severity,
+        title: n.title,
+        message: n.message,
+        source: n.source,
+        isOpen: n.isOpen,
+        createdAt: new Date(n.createdAt).getTime()
+      }));
+      set({ globalItems: items });
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    }
+  },
+
+  dismissGlobalNotification: async (id) => {
+    try {
+      await api.dismissNotification(id);
+      set((s) => ({ globalItems: s.globalItems.filter((n) => n.id !== id) }));
+    } catch (error) {
+      console.error('Failed to dismiss notification:', error);
+    }
+  }
 }));

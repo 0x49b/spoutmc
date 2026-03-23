@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -366,8 +368,8 @@ func addServerHandler(c echo.Context) error {
 	if !req.Proxy {
 		// Reload config to get the updated state
 		updatedConfig := config.All()
-		if err := docker.UpdateVelocityTomlAddServer(&updatedConfig, req.Name, assignedPort, req.Lobby); err != nil {
-			logger.Error("Failed to update velocity.toml", zap.Error(err))
+		if err := docker.SyncVelocityTomlAndRestartProxy(c.Request().Context(), &updatedConfig); err != nil {
+			logger.Error("Failed to sync velocity.toml and restart proxy", zap.Error(err))
 			// Don't fail the entire operation, just log the error
 		}
 	}
@@ -732,15 +734,6 @@ func deleteServerHandler(c echo.Context) error {
 		}
 	}
 
-	// Update velocity.toml if this is not a proxy server
-	if !isProxy {
-		cfg := config.All()
-		if err := docker.UpdateVelocityTomlRemoveServer(&cfg, serverName); err != nil {
-			logger.Error("Failed to update velocity.toml", zap.Error(err))
-			// Don't fail the entire operation, just log the error
-		}
-	}
-
 	// Stop the container (this also excludes from watchdog)
 	if err := containerpkg.StopContainer(c.Request().Context(), containerID); err != nil {
 		logger.Error("Failed to stop container", zap.Error(err))
@@ -797,6 +790,15 @@ func deleteServerHandler(c echo.Context) error {
 		}
 	}
 
+	// Update velocity.toml and restart proxy if this is not a proxy server
+	if !isProxy {
+		cfg := config.All()
+		if err := docker.SyncVelocityTomlAndRestartProxy(c.Request().Context(), &cfg); err != nil {
+			logger.Error("Failed to sync velocity.toml and restart proxy", zap.Error(err))
+			// Don't fail the entire operation, just log the error
+		}
+	}
+
 	logger.Info("Server deleted successfully", zap.String("name", serverName))
 
 	return c.JSON(http.StatusOK, map[string]string{
@@ -826,6 +828,15 @@ func streamServers(c echo.Context) error {
 			containers, err := docker.GetNetworkContainers(c.Request().Context())
 
 			if err != nil {
+				// SSE clients reconnect frequently; treat canceled context as normal disconnect.
+				errText := strings.ToLower(err.Error())
+				if c.Request().Context().Err() != nil ||
+					errors.Is(err, context.Canceled) ||
+					errors.Is(err, context.DeadlineExceeded) ||
+					strings.Contains(errText, "context canceled") ||
+					strings.Contains(errText, "request canceled") {
+					return nil
+				}
 				logger.Error("Error fetching containers for stream", zap.Error(err))
 				continue
 			}

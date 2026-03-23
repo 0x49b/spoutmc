@@ -32,6 +32,34 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * EventSource cannot send Authorization headers. Protected SSE routes accept the same JWT
+ * via the access_token query parameter (see server JWT middleware).
+ */
+export function withSSEAuth(url: string): string {
+  const token = localStorage.getItem('auth_token');
+  if (!token) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set('access_token', token);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/** For fetch() calls that bypass axios but still need the session JWT. */
+export function getAuthFetchHeaders(): Record<string, string> {
+  const token = localStorage.getItem('auth_token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 // Auth API
 export interface LoginResponse {
   token: string;
@@ -267,6 +295,23 @@ export interface GitOpsStatus {
 
 export const getGitOpsStatus = () => api.get<GitOpsStatus>('/git/status');
 export const triggerGitOpsSync = () => api.post('/git/sync');
+
+// Notifications API
+export interface SystemNotification {
+  id: number;
+  key: string;
+  severity: 'info' | 'warning' | 'danger' | 'success' | string;
+  title: string;
+  message: string;
+  source: string;
+  isOpen: boolean;
+  createdAt: string;
+  updatedAt: string;
+  dismissedAt?: string;
+}
+
+export const getNotifications = () => api.get<SystemNotification[]>('/notification');
+export const dismissNotification = (id: number) => api.post(`/notification/${id}/dismiss`);
 
 // Infrastructure API
 export const getInfrastructureContainer = (id: string) =>

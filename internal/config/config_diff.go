@@ -129,4 +129,11 @@ func ApplyConfigChanges(ctx context.Context, oldConfig, newConfig models.SpoutCo
 		}
 	}
 
+	hasServerChanges := len(changeSet.Added) > 0 || len(changeSet.Updated) > 0 || len(changeSet.Removed) > 0
+	if hasServerChanges {
+		if err := docker.SyncVelocityTomlAndRestartProxy(ctx, &newConfig); err != nil {
+			logger.Error("failed to sync velocity.toml and restart proxy after config changes", zap.Error(err))
+		}
+	}
+
 }

@@ -229,7 +229,19 @@ func startFileWatcherOp(ctx context.Context) error {
 
 // startDatabaseOp connects to the database and runs migrations
 func startDatabaseOp(ctx context.Context) error {
-	return storage.InitDB(ctx)
+	if err := storage.InitDB(ctx); err != nil {
+		return err
+	}
+
+	// Re-parse current Git repository once DB is ready so parse/validation issues
+	// can be persisted to the notification table.
+	if config.IsGitOpsEnabled() {
+		if err := git.LoadConfigurationFromGit(); err != nil {
+			logger.Warn("Failed to reload Git configuration after database init", zap.Error(err))
+		}
+	}
+
+	return nil
 }
 
 // startWebserverOp starts the web server

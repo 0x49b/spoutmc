@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { InfrastructureContainer, getContainerId } from '../types';
 import axios from 'axios';
 import { updateContainerWithStats } from '../utils/infrastructureStats';
+import * as api from '../service/apiService';
 
 interface InfrastructureState {
   containers: InfrastructureContainer[];
@@ -55,7 +56,7 @@ export const useInfrastructureStore = create<InfrastructureState>((set, get) => 
     }
 
     try {
-      const eventSource = new EventSource(`${API_BASE_URL}/infrastructure/stream`);
+      const eventSource = new EventSource(api.withSSEAuth(`${API_BASE_URL}/infrastructure/stream`));
 
       eventSource.onopen = () => {
         console.log('SSE connection established for infrastructure');

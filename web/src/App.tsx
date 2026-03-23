@@ -180,6 +180,8 @@ const PageLayout = () => {
     const {user, logout, hasPermission, hasRole} = useAuthStore();
     const toolbarAvatarSrc = getUserAvatarDataUrl(user);
     const drawerNotificationCount = useNotificationStore((s) => s.drawerItems.length);
+    const globalNotificationCount = useNotificationStore((s) => s.globalItems.length);
+    const fetchGlobalNotifications = useNotificationStore((s) => s.fetchGlobalNotifications);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState(false);
@@ -199,6 +201,14 @@ const PageLayout = () => {
             console.error('Failed to logout:', error);
         }
     };
+
+    useEffect(() => {
+        fetchGlobalNotifications();
+        const interval = setInterval(() => {
+            fetchGlobalNotifications();
+        }, 10000);
+        return () => clearInterval(interval);
+    }, [fetchGlobalNotifications]);
 
     const visibleNavItems = useMemo(
         () =>
@@ -241,11 +251,11 @@ const PageLayout = () => {
                             <ToolbarItem>
                                 <NotificationBadge
                                     variant={
-                                        drawerNotificationCount > 0
+                                        drawerNotificationCount + globalNotificationCount > 0
                                             ? NotificationBadgeVariant.unread
                                             : NotificationBadgeVariant.read
                                     }
-                                    count={drawerNotificationCount}
+                                    count={drawerNotificationCount + globalNotificationCount}
                                     icon={<BellIcon/>}
                                     isExpanded={isNotificationsDrawerOpen}
                                     aria-label="Notifications"

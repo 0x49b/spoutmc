@@ -9,13 +9,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"spoutmc/internal/pathutil"
 	"spoutmc/internal/plugins"
 	"spoutmc/internal/storage"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -313,6 +313,23 @@ func RestartContainerById(ctx context.Context, containerId string) {
 	if err := cli.ContainerRestart(ctx, containerId, container.StopOptions{}); err != nil {
 		logger.Error("Cannot start container", zap.Error(err))
 	}
+}
+
+// RestartProxyContainer restarts the proxy container if present.
+func RestartProxyContainer(ctx context.Context) error {
+	proxyContainer, err := GetProxyContainer(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get proxy container: %w", err)
+	}
+
+	if err := cli.ContainerRestart(ctx, proxyContainer.ID, container.StopOptions{}); err != nil {
+		return fmt.Errorf("failed to restart proxy container %s: %w", proxyContainer.ID, err)
+	}
+
+	logger.Info("Proxy container restarted",
+		zap.String("name", strings.TrimPrefix(proxyContainer.Names[0], "/")),
+		zap.String("id", proxyContainer.ID[:12]))
+	return nil
 }
 
 func GetProxyContainer(ctx context.Context) (container.Summary, error) {
