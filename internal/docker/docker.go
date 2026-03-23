@@ -371,11 +371,10 @@ func filterForContainerLabel(ctx context.Context, label string) (container.Summa
 	}
 
 	for _, nc := range networkContainer {
-		containerDetails, err := cli.ContainerInspect(ctx, nc.ID)
-		if err != nil {
-			return container.Summary{}, err
-		}
-		_, check := containerDetails.Config.Labels[label]
+		// ⚡ Bolt: Eliminate redundant ContainerInspect API call.
+		// The container.Summary object returned by ContainerList already contains Labels.
+		// This turns O(N) Docker daemon round-trips into O(1).
+		_, check := nc.Labels[label]
 
 		if check {
 			return nc, nil
