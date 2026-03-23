@@ -6,6 +6,7 @@ import (
 	"spoutmc/internal/database"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
+	"spoutmc/internal/permissions"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -28,8 +29,8 @@ func InitDB(ctx context.Context) error {
 
 	db = conn
 
-	// Run migrations for User, Role, and join table
-	if err := db.AutoMigrate(&models.User{}, &models.Role{}); err != nil {
+	// Run migrations for User, Role, Permission, and join tables
+	if err := db.AutoMigrate(&models.User{}, &models.Role{}, &models.Permission{}); err != nil {
 		return err
 	}
 
@@ -67,6 +68,65 @@ func InitDB(ctx context.Context) error {
 		if db.Model(&models.Role{}).Where("name = ?", r.Name).Count(&count); count == 0 {
 			db.Create(&models.Role{Name: r.Name, DisplayName: r.DisplayName, Slug: r.Slug})
 			logger.Info("Seeded default role", zap.String("role", r.Name))
+		}
+	}
+
+	// Seed default permission definitions only on empty table (first install). After that, the DB is authoritative.
+	keyToID := make(map[string]uint)
+	var permCount int64
+	db.Model(&models.Permission{}).Count(&permCount)
+	if permCount == 0 {
+		for _, def := range permissions.Definitions {
+			p := models.Permission{Key: def.Key, Description: def.Description}
+			if err := db.Create(&p).Error; err != nil {
+				logger.Error("Failed to seed permission", zap.String("key", def.Key), zap.Error(err))
+				continue
+			}
+			keyToID[def.Key] = p.ID
+			logger.Info("Seeded permission", zap.String("key", def.Key))
+		}
+	} else {
+		var all []models.Permission
+		if err := db.Find(&all).Error; err == nil {
+			for _, p := range all {
+				keyToID[p.Key] = p.ID
+			}
+		}
+	}
+
+	// Attach default permissions to built-in roles only when they have none yet (avoid overwriting admin edits).
+	var rolesForPermSeed []models.Role
+	if db.Find(&rolesForPermSeed).Error == nil {
+		for _, role := range rolesForPermSeed {
+			if db.Model(&role).Association("Permissions").Count() > 0 {
+				continue
+			}
+			if role.Name == "admin" {
+				var allPerms []models.Permission
+				if err := db.Find(&allPerms).Error; err != nil || len(allPerms) == 0 {
+					continue
+				}
+				if err := db.Model(&role).Association("Permissions").Replace(allPerms); err != nil {
+					logger.Error("Failed to attach permissions to role", zap.String("role", role.Name), zap.Error(err))
+				}
+				continue
+			}
+			ks, ok := permissions.RolePermissionKeys[role.Name]
+			if !ok {
+				continue
+			}
+			var perms []models.Permission
+			for _, k := range ks {
+				if id, ok := keyToID[k]; ok {
+					perms = append(perms, models.Permission{Model: gorm.Model{ID: id}})
+				}
+			}
+			if len(perms) == 0 {
+				continue
+			}
+			if err := db.Model(&role).Association("Permissions").Replace(perms); err != nil {
+				logger.Error("Failed to attach permissions to role", zap.String("role", role.Name), zap.Error(err))
+			}
 		}
 	}
 

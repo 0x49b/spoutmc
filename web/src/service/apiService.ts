@@ -38,6 +38,12 @@ export interface LoginResponse {
   user: UserDTO;
 }
 
+export interface PermissionDTO {
+  id: number;
+  key: string;
+  description?: string;
+}
+
 export interface UserDTO {
   id: number;
   createdAt: string;
@@ -46,6 +52,10 @@ export interface UserDTO {
   displayName: string;
   email: string;
   roles: { id: number; name: string; displayName?: string }[];
+  /** Effective permission keys (roles + direct). */
+  permissions?: string[];
+  /** Directly granted permissions only. */
+  directPermissions?: PermissionDTO[];
   avatar?: string;
 }
 
@@ -63,12 +73,14 @@ export const createUser = (data: {
   displayName: string;
   minecraftName?: string;
   roleIds?: number[];
+  permissionIds?: number[];
 }) => api.post<UserDTO>('/user', data);
 export const updateUser = (id: string, data: {
   email?: string;
   displayName?: string;
   minecraftName?: string;
   roleIds?: number[];
+  permissionIds?: number[];
 }) => api.put<UserDTO>(`/user/${id}`, data);
 export const deleteUser = (id: string) => api.delete(`/user/${id}`);
 export const updateProfile = (data: {
@@ -85,13 +97,23 @@ export interface RoleDTO {
   displayName: string;
   slug: string;
   userCount?: number;
+  permissions?: PermissionDTO[];
 }
 
 export const getRoles = () => api.get<RoleDTO[]>('/role');
+export const getRole = (id: string) => api.get<RoleDTO>(`/role/${id}`);
+export const getPermissions = () => api.get<PermissionDTO[]>('/permission');
+export const createPermission = (body: { key: string; description?: string }) =>
+  api.post<PermissionDTO>('/permission', body);
+export const updatePermission = (id: number, body: { key?: string; description?: string }) =>
+  api.put<PermissionDTO>(`/permission/${id}`, body);
+export const deletePermission = (id: number) => api.delete(`/permission/${id}`);
 export const createRole = (displayName: string) =>
   api.post<RoleDTO>('/role', { displayName });
-export const updateRole = (id: string, displayName: string) =>
-  api.put<RoleDTO>(`/role/${id}`, { displayName });
+export const updateRole = (
+  id: string,
+  body: { displayName: string; permissionIds: number[] }
+) => api.put<RoleDTO>(`/role/${id}`, body);
 export const deleteRole = (id: string) => api.delete(`/role/${id}`);
 
 // Players API

@@ -45,24 +45,21 @@ export interface BreadcrumbItem {
   path: string;
 }
 
-export type Role = 'admin' | 'manager' | 'editor' | 'mod' | 'support';
-
-export interface Permission {
-  action: string;
-  subject: string;
-}
-
-export interface RoleDTO {
-  id: number;
-  name: string;
-}
+/** Role name from the API (built-in or custom). */
+export type Role = string;
 
 export interface UserProfile {
   id: string;
   email: string;
   roles: Role[];
+  /** Effective permission keys (component.module.permission), union of roles + direct grants. */
+  permissions: string[];
+  /** Direct permission grants only (for editing). */
+  directPermissions?: { id: number; key: string; description?: string }[];
   displayName: string;
   minecraftName?: string;
+  /** Raw base64 image (PNG minime or legacy JPEG default) */
+  avatar?: string;
   created_at: string;
   lastLoginAt?: string;
   aud: string;

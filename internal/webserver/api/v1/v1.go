@@ -6,6 +6,8 @@ import (
 	"spoutmc/internal/webserver/api/v1/git"
 	"spoutmc/internal/webserver/api/v1/host"
 	"spoutmc/internal/webserver/api/v1/infrastructure"
+	"spoutmc/internal/webserver/api/v1/minime"
+	"spoutmc/internal/webserver/api/v1/permission"
 	"spoutmc/internal/webserver/api/v1/player"
 	"spoutmc/internal/webserver/api/v1/role"
 	"spoutmc/internal/webserver/api/v1/server"
@@ -25,6 +27,7 @@ func RegisterV1(g *echo.Group) {
 	// Public routes (no JWT required)
 	auth.RegisterAuthRoutes(v1)
 	setup.RegisterSetupRoutes(v1)
+	minime.RegisterMinimeRoutes(v1)
 
 	// Protected routes (JWT required)
 	protected := v1.Group("", middleware.JWT)
@@ -32,6 +35,7 @@ func RegisterV1(g *echo.Group) {
 	server.RegisterServerRoutes(protected)
 	user.RegisterUserRoutes(protected)
 	role.RegisterRoleRoutes(protected)
+	permission.RegisterPermissionRoutes(protected)
 	player.RegisterPlayerRoutes(protected)
 	host.RegisterHostRoutes(protected)
 	git.RegisterGitRoutes(protected)

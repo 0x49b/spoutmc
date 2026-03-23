@@ -12,15 +12,16 @@ const defaultJWTSecret = "spoutmc-jwt-secret-change-in-production"
 
 // Claims holds JWT claims for SpoutMC users
 type Claims struct {
-	UserID      uint     `json:"userId"`
-	Email       string   `json:"email"`
-	DisplayName string   `json:"displayName"`
-	Roles       []string `json:"roles"`
+	UserID       uint     `json:"userId"`
+	Email        string   `json:"email"`
+	DisplayName  string   `json:"displayName"`
+	Roles        []string `json:"roles"`
+	Permissions  []string `json:"permissions"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken creates a JWT for the given user
-func GenerateToken(userID uint, email, displayName string, roles []string) (string, error) {
+func GenerateToken(userID uint, email, displayName string, roles []string, permissionKeys []string) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		secret = defaultJWTSecret
@@ -31,11 +32,15 @@ func GenerateToken(userID uint, email, displayName string, roles []string) (stri
 		roleNames[i] = r
 	}
 
+	perms := make([]string, len(permissionKeys))
+	copy(perms, permissionKeys)
+
 	claims := Claims{
 		UserID:      userID,
 		Email:       email,
 		DisplayName: displayName,
 		Roles:       roleNames,
+		Permissions: perms,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

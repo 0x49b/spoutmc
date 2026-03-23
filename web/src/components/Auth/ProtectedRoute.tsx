@@ -4,17 +4,18 @@ import { useAuthStore } from '../../store/authStore';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredPermissions?: {
-    action: string;
-    subject: string;
-  }[];
+  /** Permission keys (e.g. auth.user.manage) — user must have all of them (or admin). */
+  requiredPermissionKeys?: string[];
+  /** Only users with the admin role (not just inherited permissions). */
+  requireAdmin?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children,
-  requiredPermissions = []
+  requiredPermissionKeys = [],
+  requireAdmin = false
 }) => {
-  const { user, loading, hasPermission } = useAuthStore();
+  const { user, loading, hasPermission, hasRole } = useAuthStore();
   const location = useLocation();
   
   if (loading) {
@@ -28,12 +29,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  
-  // Check permissions if specified
-  if (requiredPermissions.length > 0) {
-    const hasAllPermissions = requiredPermissions.every(
-      ({ action, subject }) => hasPermission(action, subject)
+
+  if (requireAdmin && !hasRole('admin')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">This page is only available to administrators.</p>
+        </div>
+      </div>
     );
+  }
+  
+  if (requiredPermissionKeys.length > 0) {
+    const hasAllPermissions = requiredPermissionKeys.every((key) => hasPermission(key));
     
     if (!hasAllPermissions) {
       return (
