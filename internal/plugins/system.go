@@ -21,13 +21,13 @@ type SystemPluginEntry struct {
 
 // SystemPlugins lists plugins Spout applies automatically (shown as system-managed in the UI).
 var SystemPlugins = []SystemPluginEntry{
-	{
+	/*{
 		ID:          "spoutmc-bridge",
 		Name:        "SpoutMC Bridge",
 		Description: "Bridge between Velocity and SpoutMC",
 		URL:         "https://github.com/0x49b/spoutmc/releases/download/v0.0.6/velocity-players-bridge-0.0.6.jar",
 		Kinds:       []ServerKind{ServerKindProxy},
-	},
+	},*/
 }
 
 // SystemURLsForKind returns download URLs for built-in plugins applicable to kind.

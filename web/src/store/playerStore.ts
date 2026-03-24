@@ -7,6 +7,7 @@ interface PlayerState {
   loading: boolean;
   error: string | null;
   eventSource: EventSource | null;
+  sseShouldReconnect: boolean;
   actionInProgressByPlayer: Record<string, boolean>;
 
   fetchPlayers: () => Promise<void>;
@@ -43,6 +44,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   loading: false,
   error: null,
   eventSource: null,
+  sseShouldReconnect: false,
   actionInProgressByPlayer: {},
 
   fetchPlayers: async () => {
@@ -59,6 +61,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   connectSSE: () => {
+    set({ sseShouldReconnect: true });
+
     const current = get().eventSource;
     if (current) {
       current.close();
@@ -66,7 +70,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     try {
       const eventSource = new EventSource(api.withSSEAuth(`${API_BASE_URL}/player/stream`));
-      eventSource.onopen = () => set({ error: null });
+      eventSource.onopen = () => {
+        if (get().eventSource !== eventSource) return;
+        set({ error: null });
+      };
       eventSource.onmessage = event => {
         try {
           const data = JSON.parse(event.data);
@@ -78,10 +85,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         }
       };
       eventSource.onerror = () => {
+        if (get().eventSource !== eventSource) return;
         eventSource.close();
+        set({ eventSource: null });
+
         setTimeout(() => {
           const state = get();
-          if (!state.eventSource || state.eventSource.readyState === EventSource.CLOSED) {
+          if (
+            state.sseShouldReconnect &&
+            (!state.eventSource || state.eventSource.readyState === EventSource.CLOSED)
+          ) {
             get().connectSSE();
           }
         }, 5000);
@@ -94,6 +107,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   disconnectSSE: () => {
+    set({ sseShouldReconnect: false });
     const eventSource = get().eventSource;
     if (eventSource) {
       eventSource.close();

@@ -182,6 +182,7 @@ const PageLayout = () => {
     const drawerNotificationCount = useNotificationStore((s) => s.drawerItems.length);
     const globalNotificationCount = useNotificationStore((s) => s.globalItems.length);
     const fetchGlobalNotifications = useNotificationStore((s) => s.fetchGlobalNotifications);
+    const getBackoffDelay = useNotificationStore((s) => s.getBackoffDelay);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState(false);
@@ -203,12 +204,22 @@ const PageLayout = () => {
     };
 
     useEffect(() => {
-        fetchGlobalNotifications();
-        const interval = setInterval(() => {
-            fetchGlobalNotifications();
-        }, 10000);
-        return () => clearInterval(interval);
-    }, [fetchGlobalNotifications]);
+        let timeoutId: ReturnType<typeof setTimeout>;
+        let cancelled = false;
+
+        const poll = async () => {
+            await fetchGlobalNotifications();
+            if (!cancelled) {
+                timeoutId = setTimeout(poll, getBackoffDelay());
+            }
+        };
+
+        poll();
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+        };
+    }, [fetchGlobalNotifications, getBackoffDelay]);
 
     const visibleNavItems = useMemo(
         () =>

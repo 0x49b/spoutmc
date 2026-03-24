@@ -37,18 +37,21 @@ interface NotificationState {
   /** Non-success toasts land here after the toast dismisses (timeout or close). Success toasts are never stored. */
   drawerItems: AppNotification[];
   globalItems: GlobalNotification[];
+  consecutiveFailures: number;
   pushToast: (input: PushToastInput) => void;
   /** Called when toast times out or user closes it. Success: removed only; other variants: copied to drawer. */
   dismissToast: (id: string) => void;
   removeFromDrawer: (id: string) => void;
   fetchGlobalNotifications: () => Promise<void>;
   dismissGlobalNotification: (id: number) => Promise<void>;
+  getBackoffDelay: () => number;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   toasts: [],
   drawerItems: [],
   globalItems: [],
+  consecutiveFailures: 0,
 
   pushToast: (input) => {
     const item: AppNotification = {
@@ -85,8 +88,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         isOpen: n.isOpen,
         createdAt: new Date(n.createdAt).getTime()
       }));
-      set({ globalItems: items });
+      set({ globalItems: items, consecutiveFailures: 0 });
     } catch (error) {
+      set((s) => ({ consecutiveFailures: s.consecutiveFailures + 1 }));
       console.error('Failed to load notifications:', error);
     }
   },
@@ -98,5 +102,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     } catch (error) {
       console.error('Failed to dismiss notification:', error);
     }
+  },
+
+  getBackoffDelay: () => {
+    const failures = get().consecutiveFailures;
+    if (failures === 0) return 10000;
+    return Math.min(10000 * Math.pow(2, failures), 60000);
   }
 }));
