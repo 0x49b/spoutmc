@@ -94,11 +94,16 @@ public final class BridgeApiHandler implements HttpHandler {
 
             sendJson(exchange, 404, "{\"error\":\"not found\"}");
         } catch (Throwable e) {
-            logger.error("[SpoutPlayers] API handler error", e);
+            if (isBrokenPipe(e)) {
+                logger.debug("[SpoutPlayers] Client disconnected: {}", e.getMessage());
+            } else {
+                logger.error("[SpoutPlayers] API handler error", e);
+            }
             try {
                 sendJson(exchange, 500, "{\"error\":\"internal server error\"}");
             } catch (Throwable writeError) {
-                logger.error("[SpoutPlayers] Failed to write error response", writeError);
+                // Expected when client disconnected or headers already sent
+                logger.debug("[SpoutPlayers] Could not write error response: {}", writeError.getMessage());
                 try {
                     exchange.close();
                 } catch (Throwable ignored) {
@@ -315,6 +320,17 @@ public final class BridgeApiHandler implements HttpHandler {
             return false;
         }
         return Objects.equals(auth, "Bearer " + config.token);
+    }
+
+    private static boolean isBrokenPipe(Throwable t) {
+        while (t != null) {
+            if (t instanceof IOException && t.getMessage() != null
+                    && (t.getMessage().contains("Broken pipe") || t.getMessage().contains("Connection reset"))) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
     }
 
     private void sendJson(HttpExchange exchange, int statusCode, String payload) throws IOException {

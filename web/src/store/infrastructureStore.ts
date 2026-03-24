@@ -1,15 +1,15 @@
-import { create } from 'zustand';
-import { InfrastructureContainer, getContainerId } from '../types';
+import {create} from 'zustand';
+import {getContainerId, InfrastructureContainer} from '../types';
 import axios from 'axios';
-import { updateContainerWithStats } from '../utils/infrastructureStats';
-import { withAccessToken } from '../utils/sseUrl';
-import { hasTokenSync } from '../security/tokenVault';
+import {updateContainerWithStats} from '../utils/infrastructureStats';
+import * as api from '../service/apiService';
 
 interface InfrastructureState {
   containers: InfrastructureContainer[];
   loading: boolean;
   error: string | null;
   eventSource: EventSource | null;
+  sseShouldReconnect: boolean;
 
   // Actions
   fetchInfrastructure: () => Promise<void>;
@@ -25,13 +25,12 @@ interface InfrastructureState {
 
 const API_BASE_URL = 'http://localhost:3000/api/v1';
 
-let infrastructureSseEpoch = 0;
-
 export const useInfrastructureStore = create<InfrastructureState>((set, get) => ({
   containers: [],
   loading: false,
   error: null,
   eventSource: null,
+  sseShouldReconnect: false,
 
   fetchInfrastructure: async () => {
     set({ loading: true, error: null });
@@ -52,21 +51,19 @@ export const useInfrastructureStore = create<InfrastructureState>((set, get) => 
   },
 
   connectSSE: () => {
-    if (!hasTokenSync()) {
-      return;
-    }
+    set({ sseShouldReconnect: true });
 
+    // Clean up existing connection if any
     const currentEventSource = get().eventSource;
     if (currentEventSource) {
       currentEventSource.close();
     }
 
-    const epoch = infrastructureSseEpoch;
-
     try {
-      const eventSource = new EventSource(withAccessToken(`${API_BASE_URL}/infrastructure/stream`));
+      const eventSource = new EventSource(api.withSSEAuth(`${API_BASE_URL}/infrastructure/stream`));
 
       eventSource.onopen = () => {
+        if (get().eventSource !== eventSource) return;
         console.log('SSE connection established for infrastructure');
         set({ error: null });
       };
@@ -98,21 +95,21 @@ export const useInfrastructureStore = create<InfrastructureState>((set, get) => 
       };
 
       eventSource.onerror = (error) => {
+        if (get().eventSource !== eventSource) return;
         console.error('SSE connection error:', error);
         eventSource.close();
-        if (get().eventSource === eventSource) {
-          set({ eventSource: null });
-        }
+        set({ eventSource: null });
 
-        window.setTimeout(() => {
-          if (epoch !== infrastructureSseEpoch) {
-            return;
+        // Try to reconnect after 5 seconds
+        setTimeout(() => {
+          const currentState = get();
+          if (
+            currentState.sseShouldReconnect &&
+            (!currentState.eventSource || currentState.eventSource.readyState === EventSource.CLOSED)
+          ) {
+            console.log('Attempting to reconnect infrastructure SSE...');
+            get().connectSSE();
           }
-          if (!hasTokenSync()) {
-            return;
-          }
-          console.log('Attempting to reconnect infrastructure SSE...');
-          get().connectSSE();
         }, 5000);
       };
 
@@ -124,7 +121,7 @@ export const useInfrastructureStore = create<InfrastructureState>((set, get) => 
   },
 
   disconnectSSE: () => {
-    infrastructureSseEpoch += 1;
+    set({ sseShouldReconnect: false });
     const eventSource = get().eventSource;
     if (eventSource) {
       eventSource.close();

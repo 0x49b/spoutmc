@@ -1,4 +1,4 @@
-import { Server } from '../types';
+import {Server} from '../types';
 
 /**
  * Docker container interface from backend API

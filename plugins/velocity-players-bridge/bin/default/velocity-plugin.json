@@ -1,0 +1,1 @@
+{"id":"spoutmc-players","name":"SpoutMC Players Bridge","version":"0.1.0","description":"Tracks players and exposes HTTP/SSE API for SpoutMC","authors":["SpoutMC"],"dependencies":[],"main":"io.spoutmc.velocityplayers.SpoutPlayersPlugin"}

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/roleutil"
 	"spoutmc/internal/storage"
+	"spoutmc/internal/utils/role"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -62,7 +62,7 @@ func getRole(c echo.Context) error {
 	}
 
 	var role models.Role
-	if err := db.First(&role, c.Param("id")).Error; err != nil {
+	if err := db.Preload("Permissions").First(&role, c.Param("id")).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "Role not found"})
 	}
 
@@ -71,7 +71,16 @@ func getRole(c echo.Context) error {
 		Name:        role.Name,
 		DisplayName: role.DisplayName,
 		Slug:        role.Slug,
+		Permissions: permissionsToResponse(role.Permissions),
 	})
+}
+
+func permissionsToResponse(perms []models.Permission) []models.PermissionResponse {
+	out := make([]models.PermissionResponse, len(perms))
+	for i, p := range perms {
+		out[i] = models.PermissionResponse{ID: p.ID, Key: p.Key, Description: p.Description}
+	}
+	return out
 }
 
 func createRole(c echo.Context) error {
@@ -108,7 +117,8 @@ func createRole(c echo.Context) error {
 
 func updateRole(c echo.Context) error {
 	var req struct {
-		DisplayName string `json:"displayName"`
+		DisplayName   string  `json:"displayName"`
+		PermissionIDs *[]uint `json:"permissionIds"`
 	}
 	if err := c.Bind(&req); err != nil || req.DisplayName == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "displayName is required"})
@@ -137,11 +147,26 @@ func updateRole(c echo.Context) error {
 		return c.JSON(http.StatusConflict, map[string]string{"error": "Role name or slug already exists"})
 	}
 
+	if req.PermissionIDs != nil {
+		var perms []models.Permission
+		if err := db.Find(&perms, *req.PermissionIDs).Error; err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid permission IDs"})
+		}
+		if err := db.Model(&role).Association("Permissions").Replace(perms); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update role permissions"})
+		}
+	}
+
+	if err := db.Preload("Permissions").First(&role, role.ID).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to reload role"})
+	}
+
 	return c.JSON(http.StatusOK, models.RoleResponse{
 		ID:          role.ID,
 		Name:        role.Name,
 		DisplayName: role.DisplayName,
 		Slug:        role.Slug,
+		Permissions: permissionsToResponse(role.Permissions),
 	})
 }
 

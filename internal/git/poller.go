@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"spoutmc/internal/config"
+	"spoutmc/internal/notifications"
 	"sync"
 	"time"
 
@@ -60,6 +61,13 @@ func (p *Poller) poll(ctx context.Context) {
 	hasChanges, err := p.repo.Pull()
 	if err != nil {
 		logger.Error("Failed to pull Git repository", zap.Error(err))
+		_ = notifications.UpsertOpen(
+			"gitops:pull-failed",
+			"danger",
+			"GitOps pull failed",
+			err.Error(),
+			"gitops",
+		)
 		MarkSyncError(p.repo.GetLastCommit(), p.repo.GetLastCommitMessage(), err)
 		return
 	}

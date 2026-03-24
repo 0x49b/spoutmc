@@ -11,14 +11,18 @@ import (
 	"path/filepath"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/pathutil"
+	"spoutmc/internal/plugins"
+	"spoutmc/internal/storage"
+	"spoutmc/internal/utils/path"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"go.uber.org/zap"
 )
@@ -68,6 +72,11 @@ func GetNetworkContainers(ctx context.Context) ([]container.Summary, error) {
 func containerExists(ctx context.Context, containerName string) bool {
 	_, err := GetContainer(ctx, containerName)
 	return err == nil
+}
+
+// ContainerExists reports whether a container with this name exists (Spout server name).
+func ContainerExists(ctx context.Context, containerName string) bool {
+	return containerExists(ctx, containerName)
 }
 
 func GetContainer(ctx context.Context, containerName string) (container.Summary, error) {
@@ -186,7 +195,8 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 			containerLabels["io.spout.lobby"] = "true"
 		}
 
-		envVars := MapEnvironmentVariables(s.Env)
+		envWithPlugins := plugins.MergePluginsEnv(storage.GetDB(), s)
+		envVars := MapEnvironmentVariables(envWithPlugins)
 
 		// Prepare volume bindings
 		mounts := MapVolumeBindings(s.Volumes, normalizedDataPath, s.Name)
@@ -314,6 +324,23 @@ func RestartContainerById(ctx context.Context, containerId string) {
 	}
 }
 
+// RestartProxyContainer restarts the proxy container if present.
+func RestartProxyContainer(ctx context.Context) error {
+	proxyContainer, err := GetProxyContainer(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get proxy container: %w", err)
+	}
+
+	if err := cli.ContainerRestart(ctx, proxyContainer.ID, container.StopOptions{}); err != nil {
+		return fmt.Errorf("failed to restart proxy container %s: %w", proxyContainer.ID, err)
+	}
+
+	logger.Info("Proxy container restarted",
+		zap.String("name", strings.TrimPrefix(proxyContainer.Names[0], "/")),
+		zap.String("id", proxyContainer.ID[:12]))
+	return nil
+}
+
 func GetProxyContainer(ctx context.Context) (container.Summary, error) {
 	proxyContainer, err := filterForContainerLabel(ctx, "io.spout.proxy")
 	if err != nil {
@@ -362,15 +389,29 @@ func filterForContainerLabel(ctx context.Context, label string) (container.Summa
 		if check {
 			return nc, nil
 		}
+
 	}
 	return container.Summary{}, errors.New(fmt.Sprintf("no Server found for label %s", label))
 }
 
-// fetchDockerLogs retrieves logs from the Docker container
+// FetchDockerLogs streams Docker container logs. When TTY is disabled (typical for Paper/Velocity),
+// Docker multiplexes stdout/stderr with framing bytes; those must be decoded with stdcopy before
+// line scanning — otherwise the console shows garbage or nothing useful.
 func FetchDockerLogs(ctx context.Context, id string) (<-chan string, error) {
-	options := container.LogsOptions{ShowStdout: true, Follow: true, Tail: "1000"}
+	info, err := cli.ContainerInspect(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("unable to inspect container %s: %w", id, err)
+	}
+	isTTY := info.Config != nil && info.Config.Tty
 
-	reader, err := cli.ContainerLogs(ctx, id, options)
+	options := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Tail:       "1000",
+	}
+
+	readCloser, err := cli.ContainerLogs(ctx, id, options)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve logs for container %s: %w", id, err)
 	}
@@ -378,24 +419,55 @@ func FetchDockerLogs(ctx context.Context, id string) (<-chan string, error) {
 	logChan := make(chan string)
 
 	go func() {
-		defer reader.Close()
+		defer readCloser.Close()
 		defer close(logChan)
 
-		scanner := bufio.NewScanner(reader)
-		for scanner.Scan() {
-			line := scanner.Text()
-
-			// Filter out lines that only contain ">" or are effectively empty
-			trimmed := strings.TrimSpace(line)
-			if trimmed == "" || trimmed == ">" {
-				continue
+		pump := func(r io.Reader) {
+			if r == nil {
+				return
 			}
+			scanner := bufio.NewScanner(r)
+			for scanner.Scan() {
+				line := scanner.Text()
+				trimmed := strings.TrimSpace(line)
+				if trimmed == "" || trimmed == ">" {
+					continue
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case logChan <- line:
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				logger.Warn("error reading docker log stream", zap.Error(err))
+			}
+		}
 
-			logChan <- line
+		if isTTY {
+			pump(readCloser)
+			return
 		}
-		if err := scanner.Err(); err != nil {
-			fmt.Printf("error reading logs: %v\n", err)
-		}
+
+		outR, outW := io.Pipe()
+		errR, errW := io.Pipe()
+		go func() {
+			defer outW.Close()
+			defer errW.Close()
+			_, _ = stdcopy.StdCopy(outW, errW, readCloser)
+		}()
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			pump(outR)
+		}()
+		go func() {
+			defer wg.Done()
+			pump(errR)
+		}()
+		wg.Wait()
 	}()
 
 	return logChan, nil

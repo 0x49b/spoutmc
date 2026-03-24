@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
-import { LoginPage as PFLoginPage, LoginForm } from '@patternfly/react-core';
-import { useAuthStore } from '../../store/authStore';
+import React, {useState} from 'react';
+import {Navigate, useNavigate} from 'react-router-dom';
+import {LoginForm, LoginPage as PFLoginPage} from '@patternfly/react-core';
+import {useAuthStore} from '../../store/authStore';
 import favicon from '../../assets/favicon.png';
 
 const LoginPage: React.FC = () => {

@@ -1,24 +1,24 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
-  Avatar,
-  Button,
-  Card,
-  CardBody,
-  EmptyState,
-  EmptyStateBody,
-  EmptyStateVariant,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalVariant,
-  PageSection,
-  Toolbar,
-  ToolbarContent,
-  ToolbarItem
+    Avatar,
+    Button,
+    Card,
+    CardBody,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateVariant,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalVariant,
+    PageSection,
+    Toolbar,
+    ToolbarContent,
+    ToolbarItem
 } from '@patternfly/react-core';
-import { ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import {ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
 import PageHeader from '../UI/PageHeader';
-import { usePlayerStore } from '../../store/playerStore';
+import {usePlayerStore} from '../../store/playerStore';
 import StatusBadge from '../UI/StatusBadge';
 
 const BannedPlayersList: React.FC = () => {

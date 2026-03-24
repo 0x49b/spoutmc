@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, ModalVariant, Button } from '@patternfly/react-core';
+import {Button, Modal, ModalVariant} from '@patternfly/react-core';
 
 interface ViewBanDialogProps {
   isOpen: boolean;

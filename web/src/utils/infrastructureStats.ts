@@ -1,4 +1,4 @@
-import { InfrastructureContainer } from '../types';
+import {InfrastructureContainer} from '../types';
 
 function toNum(val: unknown): number {
   const n = Number(val);

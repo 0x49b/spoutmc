@@ -1,24 +1,23 @@
-import { create } from 'zustand';
-import { Player } from '../types';
+import {create} from 'zustand';
+import {Player} from '../types';
 import * as api from '../service/apiService';
-import { withAccessToken } from '../utils/sseUrl';
-import { hasTokenSync } from '../security/tokenVault';
 
 interface PlayerState {
   players: Player[];
   loading: boolean;
   error: string | null;
   eventSource: EventSource | null;
+  sseShouldReconnect: boolean;
   actionInProgressByPlayer: Record<string, boolean>;
 
   fetchPlayers: () => Promise<void>;
   connectSSE: () => void;
   disconnectSSE: () => void;
-  sendMessage: (playerName: string, message: string) => Promise<void>;
+  sendMessage: (playerName: string, message: string, sender?: string, role?: string) => Promise<void>;
   kickPlayer: (playerName: string, reason: string) => Promise<void>;
   banPlayer: (playerName: string, reason: string) => Promise<void>;
   unbanPlayer: (playerName: string) => Promise<void>;
-  getPlayerChat: (playerName: string, scope?: 'all') => Promise<api.PlayerChatMessageDTO[]>;
+  getPlayerChat: (playerName: string) => Promise<api.PlayerChatMessageDTO[]>;
 
   getPlayerById: (id: string) => Player | undefined;
   getBannedPlayers: () => Player[];
@@ -40,14 +39,12 @@ const mapPlayer = (dto: api.PlayerDTO): Player => ({
 
 const mapPlayers = (dtos: api.PlayerDTO[]): Player[] => dtos.map(mapPlayer);
 
-/** Bumped on explicit disconnect so scheduled onerror reconnects do not run after unmount/logout. */
-let playerSseEpoch = 0;
-
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   players: [],
   loading: false,
   error: null,
   eventSource: null,
+  sseShouldReconnect: false,
   actionInProgressByPlayer: {},
 
   fetchPlayers: async () => {
@@ -64,20 +61,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   connectSSE: () => {
-    if (!hasTokenSync()) {
-      return;
-    }
+    set({ sseShouldReconnect: true });
 
     const current = get().eventSource;
     if (current) {
       current.close();
     }
 
-    const epoch = playerSseEpoch;
-
     try {
-      const eventSource = new EventSource(withAccessToken(`${API_BASE_URL}/player/stream`));
-      eventSource.onopen = () => set({ error: null });
+      const eventSource = new EventSource(api.withSSEAuth(`${API_BASE_URL}/player/stream`));
+      eventSource.onopen = () => {
+        if (get().eventSource !== eventSource) return;
+        set({ error: null });
+      };
       eventSource.onmessage = event => {
         try {
           const data = JSON.parse(event.data);
@@ -89,18 +85,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         }
       };
       eventSource.onerror = () => {
+        if (get().eventSource !== eventSource) return;
         eventSource.close();
-        if (get().eventSource === eventSource) {
-          set({ eventSource: null });
-        }
-        window.setTimeout(() => {
-          if (epoch !== playerSseEpoch) {
-            return;
+        set({ eventSource: null });
+
+        setTimeout(() => {
+          const state = get();
+          if (
+            state.sseShouldReconnect &&
+            (!state.eventSource || state.eventSource.readyState === EventSource.CLOSED)
+          ) {
+            get().connectSSE();
           }
-          if (!hasTokenSync()) {
-            return;
-          }
-          get().connectSSE();
         }, 5000);
       };
 
@@ -111,7 +107,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   disconnectSSE: () => {
-    playerSseEpoch += 1;
+    set({ sseShouldReconnect: false });
     const eventSource = get().eventSource;
     if (eventSource) {
       eventSource.close();
@@ -119,7 +115,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  sendMessage: async (playerName: string, message: string) => {
+  sendMessage: async (playerName: string, message: string, sender?: string, role?: string) => {
     set(state => ({
       actionInProgressByPlayer: {
         ...state.actionInProgressByPlayer,
@@ -127,7 +123,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
     }));
     try {
-      await api.sendPlayerMessage(playerName, message);
+      await api.sendPlayerMessage(playerName, message, sender, role);
     } finally {
       set(state => ({
         actionInProgressByPlayer: {
@@ -138,8 +134,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  getPlayerChat: async (playerName: string, scope?: 'all') => {
-    const response = await api.getPlayerChat(playerName, scope);
+  getPlayerChat: async (playerName: string) => {
+    const response = await api.getPlayerChat(playerName);
     return response.data;
   },
 

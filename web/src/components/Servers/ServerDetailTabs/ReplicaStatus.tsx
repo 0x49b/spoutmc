@@ -1,6 +1,6 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Server } from '../../../types';
+import {motion} from 'framer-motion';
+import {Server} from '../../../types';
 
 interface ReplicaStatusProps {
   server: Server;

@@ -1,31 +1,30 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
-  Avatar,
-  Button,
-  Card,
-  CardBody,
-  Checkbox,
-  EmptyState,
-  EmptyStateBody,
-  EmptyStateVariant,
-  Form,
-  FormGroup,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalVariant,
-  PageSection,
-  TextInput,
-  Toolbar,
-  ToolbarContent,
-  ToolbarItem
+    Avatar,
+    Button,
+    Card,
+    CardBody,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateVariant,
+    Form,
+    FormGroup,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalVariant,
+    PageSection,
+    TextInput,
+    Toolbar,
+    ToolbarContent,
+    ToolbarItem
 } from '@patternfly/react-core';
-import { ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import {ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
 import PageHeader from '../UI/PageHeader';
-import { usePlayerStore } from '../../store/playerStore';
-import { useAuthStore } from '../../store/authStore';
+import {usePlayerStore} from '../../store/playerStore';
+import {useAuthStore} from '../../store/authStore';
 import StatusBadge from '../UI/StatusBadge';
-import { PlayerChatMessageDTO } from '../../service/apiService';
+import {PlayerChatMessageDTO} from '../../service/apiService';
 
 const PlayersList: React.FC = () => {
   const {
@@ -42,8 +41,6 @@ const PlayersList: React.FC = () => {
     banPlayer
   } = usePlayerStore();
   const currentUser = useAuthStore(state => state.user);
-  const roleCatalog = useAuthStore(state => state.roles);
-  const fetchRoles = useAuthStore(state => state.fetchRoles);
 
   const [messagePlayer, setMessagePlayer] = useState<string | null>(null);
   const [kickTarget, setKickTarget] = useState<string | null>(null);
@@ -54,7 +51,6 @@ const PlayersList: React.FC = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<PlayerChatMessageDTO[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatArchiveMode, setChatArchiveMode] = useState(false);
   const pollingRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -90,47 +86,28 @@ const PlayersList: React.FC = () => {
     setActionError(null);
     setChatMessages([]);
     setChatLoading(false);
-    setChatArchiveMode(false);
     if (pollingRef.current) {
       window.clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
   };
 
-  const canViewChatArchive = useMemo(() => {
-    const r = currentUser?.roles ?? [];
-    return r.includes('admin') || r.includes('manager');
-  }, [currentUser]);
+  const getPrimaryRole = () => {
+    const roles = currentUser?.roles ?? [];
+    if (roles.includes('admin')) return 'admin';
+    if (roles.includes('moderator')) return 'moderator';
+    if (roles.includes('viewer')) return 'viewer';
+    return 'staff';
+  };
 
-  const primaryRoleLabel = useMemo(() => {
-    const userRoles = currentUser?.roles ?? [];
-    const rank: Record<string, number> = { admin: 5, manager: 4, editor: 3, mod: 2, support: 1 };
-    let bestScore = -1;
-    let label = 'Staff';
-    for (const name of userRoles) {
-      const s = rank[name] ?? 0;
-      if (s > bestScore) {
-        bestScore = s;
-        const dto = roleCatalog.find(x => x.name === name);
-        label = (dto?.displayName || name).trim() || 'Staff';
-      }
-    }
-    return label;
-  }, [currentUser, roleCatalog]);
-
-  const staffPreviewName = useMemo(() => {
-    const mc = currentUser?.minecraftName?.trim();
-    if (mc) return mc;
-    const dn = currentUser?.displayName?.trim();
-    if (dn) return dn;
-    return currentUser?.email?.trim() || 'Staff';
-  }, [currentUser]);
+  const getSenderDisplayName = () => {
+    return currentUser?.displayName?.trim() || currentUser?.email?.trim() || 'SpoutMC';
+  };
 
   const loadChat = async (playerName: string) => {
     setChatLoading(true);
     try {
-      const scope = chatArchiveMode && canViewChatArchive ? 'all' : undefined;
-      const messages = await getPlayerChat(playerName, scope);
+      const messages = await getPlayerChat(playerName);
       setChatMessages(messages);
       setActionError(null);
     } catch (err) {
@@ -160,13 +137,7 @@ const PlayersList: React.FC = () => {
         pollingRef.current = null;
       }
     };
-  }, [messagePlayer, chatArchiveMode, canViewChatArchive]);
-
-  useEffect(() => {
-    if (messagePlayer && canViewChatArchive) {
-      void fetchRoles();
-    }
-  }, [messagePlayer, canViewChatArchive, fetchRoles]);
+  }, [messagePlayer]);
 
   const executeAction = async (action: () => Promise<void>) => {
     setActionError(null);
@@ -186,7 +157,7 @@ const PlayersList: React.FC = () => {
     setActionError(null);
     void (async () => {
       try {
-        await sendMessage(messagePlayer, messageText.trim());
+        await sendMessage(messagePlayer, messageText.trim(), sender, role);
         setMessageText('');
         await loadChat(messagePlayer);
       } catch (err) {
@@ -328,12 +299,8 @@ const PlayersList: React.FC = () => {
               ) : null}
               {chatMessages.map((entry, index) => {
                 const isOutgoing = entry.direction === 'outgoing';
-                const staffTag =
-                  chatArchiveMode && canViewChatArchive && entry.staffUserId
-                    ? ` (#${entry.staffUserId})`
-                    : '';
                 const senderLabel = isOutgoing
-                  ? `[${entry.role || 'Staff'}] ${entry.sender || 'SpoutMC'}${staffTag}`
+                  ? `[${(entry.role || 'staff').toUpperCase()}] ${entry.sender || 'SpoutMC'}`
                   : `${entry.player}`;
                 return (
                   <div key={`${entry.timestamp}-${index}`} style={{ marginBottom: '0.6rem' }}>
@@ -351,21 +318,11 @@ const PlayersList: React.FC = () => {
             </div>
           ) : null}
           <Form id="player-message-form" onSubmit={submitMessageForm}>
-            {canViewChatArchive ? (
-              <div className="pf-v6-u-mb-md">
-                <Checkbox
-                  id="player-chat-archive"
-                  label="Show full archive (all staff threads)"
-                  isChecked={chatArchiveMode}
-                  onChange={(_e, checked) => setChatArchiveMode(checked)}
-                />
-              </div>
-            ) : null}
             <FormGroup label="Message" fieldId="player-message">
               <TextInput id="player-message" value={messageText} onChange={(_event, value) => setMessageText(value)} />
             </FormGroup>
             <div className="pf-v6-u-font-size-sm pf-v6-u-color-200 pf-v6-u-mb-sm">
-              In-game format: [{primaryRoleLabel}] {staffPreviewName}: …
+              Sent as [{getPrimaryRole().toUpperCase()}] {getSenderDisplayName()}
             </div>
             {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
           </Form>

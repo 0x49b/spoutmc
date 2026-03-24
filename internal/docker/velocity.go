@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -322,6 +323,19 @@ func buildVelocityTomlWithServers(existingContent string, servers map[string]str
 // This is now a wrapper around CreateOrUpdateVelocityToml for backwards compatibility
 func SyncVelocityToml(cfg *models.SpoutConfiguration) error {
 	return CreateOrUpdateVelocityToml(cfg)
+}
+
+// SyncVelocityTomlAndRestartProxy refreshes velocity.toml and restarts the proxy.
+func SyncVelocityTomlAndRestartProxy(ctx context.Context, cfg *models.SpoutConfiguration) error {
+	if err := SyncVelocityToml(cfg); err != nil {
+		return err
+	}
+
+	if err := RestartProxyContainer(ctx); err != nil {
+		return fmt.Errorf("velocity.toml updated but proxy restart failed: %w", err)
+	}
+
+	return nil
 }
 
 // UpdateVelocityTomlAddServer adds a new server to velocity.toml

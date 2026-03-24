@@ -33,10 +33,44 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * EventSource cannot send Authorization headers. Protected SSE routes accept the same JWT
+ * via the access_token query parameter (see server JWT middleware).
+ */
+export function withSSEAuth(url: string): string {
+  const token = localStorage.getItem('auth_token');
+  if (!token) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set('access_token', token);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/** For fetch() calls that bypass axios but still need the session JWT. */
+export function getAuthFetchHeaders(): Record<string, string> {
+  const token = localStorage.getItem('auth_token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 // Auth API
 export interface LoginResponse {
   token: string;
   user: UserDTO;
+}
+
+export interface PermissionDTO {
+  id: number;
+  key: string;
+  description?: string;
 }
 
 export interface UserDTO {
@@ -47,6 +81,10 @@ export interface UserDTO {
   displayName: string;
   email: string;
   roles: { id: number; name: string; displayName?: string }[];
+  /** Effective permission keys (roles + direct). */
+  permissions?: string[];
+  /** Directly granted permissions only. */
+  directPermissions?: PermissionDTO[];
   avatar?: string;
 }
 
@@ -64,12 +102,14 @@ export const createUser = (data: {
   displayName: string;
   minecraftName?: string;
   roleIds?: number[];
+  permissionIds?: number[];
 }) => api.post<UserDTO>('/user', data);
 export const updateUser = (id: string, data: {
   email?: string;
   displayName?: string;
   minecraftName?: string;
   roleIds?: number[];
+  permissionIds?: number[];
 }) => api.put<UserDTO>(`/user/${id}`, data);
 export const deleteUser = (id: string) => api.delete(`/user/${id}`);
 export const updateProfile = (data: {
@@ -86,13 +126,23 @@ export interface RoleDTO {
   displayName: string;
   slug: string;
   userCount?: number;
+  permissions?: PermissionDTO[];
 }
 
 export const getRoles = () => api.get<RoleDTO[]>('/role');
+export const getRole = (id: string) => api.get<RoleDTO>(`/role/${id}`);
+export const getPermissions = () => api.get<PermissionDTO[]>('/permission');
+export const createPermission = (body: { key: string; description?: string }) =>
+  api.post<PermissionDTO>('/permission', body);
+export const updatePermission = (id: number, body: { key?: string; description?: string }) =>
+  api.put<PermissionDTO>(`/permission/${id}`, body);
+export const deletePermission = (id: number) => api.delete(`/permission/${id}`);
 export const createRole = (displayName: string) =>
   api.post<RoleDTO>('/role', { displayName });
-export const updateRole = (id: string, displayName: string) =>
-  api.put<RoleDTO>(`/role/${id}`, { displayName });
+export const updateRole = (
+  id: string,
+  body: { displayName: string; permissionIds: number[] }
+) => api.put<RoleDTO>(`/role/${id}`, body);
 export const deleteRole = (id: string) => api.delete(`/role/${id}`);
 
 // Players API
@@ -198,6 +248,33 @@ export const getServerFile = (serverId: string, path: string, volume?: string) =
 export const updateServerFile = (serverId: string, path: string, content: string, volume?: string) =>
   api.put(`/server/${serverId}/file`, { content }, { params: { path, volume } });
 
+// Plugin registry API
+export interface PluginRegistryEntryDTO {
+  id: string;
+  name: string;
+  url: string;
+  description?: string;
+  systemManaged: boolean;
+  serverNames: string[];
+  kinds?: string[];
+}
+
+export const getPlugins = () => api.get<PluginRegistryEntryDTO[]>('/plugin');
+
+export const createRegistryPlugin = (body: {
+  name: string;
+  url: string;
+  description?: string;
+  serverNames: string[];
+}) => api.post<PluginRegistryEntryDTO>('/plugin', body);
+
+export const updateRegistryPlugin = (
+  id: string,
+  body: { name: string; url: string; description?: string; serverNames: string[] }
+) => api.put<PluginRegistryEntryDTO>(`/plugin/${id}`, body);
+
+export const deleteRegistryPlugin = (id: string) => api.delete(`/plugin/${id}`);
+
 // GitOps API
 export interface GitOpsSyncSummary {
   added: number;
@@ -223,6 +300,23 @@ export interface GitOpsStatus {
 
 export const getGitOpsStatus = () => api.get<GitOpsStatus>('/git/status');
 export const triggerGitOpsSync = () => api.post('/git/sync');
+
+// Notifications API
+export interface SystemNotification {
+  id: number;
+  key: string;
+  severity: 'info' | 'warning' | 'danger' | 'success' | string;
+  title: string;
+  message: string;
+  source: string;
+  isOpen: boolean;
+  createdAt: string;
+  updatedAt: string;
+  dismissedAt?: string;
+}
+
+export const getNotifications = () => api.get<SystemNotification[]>('/notification');
+export const dismissNotification = (id: number) => api.post(`/notification/${id}/dismiss`);
 
 // Infrastructure API
 export const getInfrastructureContainer = (id: string) =>

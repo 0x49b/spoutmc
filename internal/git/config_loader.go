@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"spoutmc/internal/infrastructure"
 	"spoutmc/internal/models"
+	"spoutmc/internal/notifications"
 	"strings"
 
 	"go.uber.org/zap"
@@ -75,6 +76,13 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			logger.Warn(logEmoji+" Failed to parse server YAML file, skipping",
 				zap.String("file", path),
 				zap.Error(err))
+			_ = notifications.UpsertOpen(
+				fmt.Sprintf("gitops:server-parse:%s", path),
+				"warning",
+				"GitOps server manifest skipped",
+				fmt.Sprintf("File %s was skipped: %v", path, err),
+				"gitops",
+			)
 			return nil // Continue processing other files
 		}
 
@@ -82,6 +90,13 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 		if server.Name == "" {
 			logger.Warn(logEmoji+" Server configuration missing 'name' field, skipping",
 				zap.String("file", path))
+			_ = notifications.UpsertOpen(
+				fmt.Sprintf("gitops:server-invalid:%s", path),
+				"warning",
+				"GitOps server manifest skipped",
+				fmt.Sprintf("File %s is missing required field 'name'.", path),
+				"gitops",
+			)
 			return nil
 		}
 
@@ -90,6 +105,13 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			logger.Warn(logEmoji+" Server configuration missing 'image' field, skipping",
 				zap.String("file", path),
 				zap.String("server", server.Name))
+			_ = notifications.UpsertOpen(
+				fmt.Sprintf("gitops:server-invalid:%s", path),
+				"warning",
+				"GitOps server manifest skipped",
+				fmt.Sprintf("File %s is missing required field 'image'.", path),
+				"gitops",
+			)
 			return nil
 		}
 
@@ -97,6 +119,13 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			logger.Warn(logEmoji+" Invalid server configuration, skipping",
 				zap.String("file", path),
 				zap.Error(err))
+			_ = notifications.UpsertOpen(
+				fmt.Sprintf("gitops:server-invalid:%s", path),
+				"warning",
+				"GitOps server manifest skipped",
+				fmt.Sprintf("File %s is invalid: %v", path, err),
+				"gitops",
+			)
 			return nil
 		}
 
@@ -105,6 +134,13 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			logger.Warn(logEmoji+" Duplicate server name found, skipping",
 				zap.String("file", path),
 				zap.String("server", server.Name))
+			_ = notifications.UpsertOpen(
+				fmt.Sprintf("gitops:server-duplicate:%s", server.Name),
+				"warning",
+				"GitOps duplicate server name",
+				fmt.Sprintf("Server name %q appears more than once. One manifest was skipped.", server.Name),
+				"gitops",
+			)
 			return nil
 		}
 

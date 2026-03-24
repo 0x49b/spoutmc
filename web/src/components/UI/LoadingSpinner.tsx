@@ -1,5 +1,5 @@
 import React from 'react';
-import { Spinner } from '@patternfly/react-core';
+import {Spinner} from '@patternfly/react-core';
 
 const LoadingSpinner: React.FC = () => {
   return (

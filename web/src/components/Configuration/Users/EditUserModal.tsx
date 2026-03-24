@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  Modal,
-  ModalVariant,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-  Form,
-  FormGroup,
-  TextInput,
-  Checkbox,
-  Alert
+    Alert,
+    Button,
+    Checkbox,
+    Form,
+    FormGroup,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalHeader,
+    ModalVariant,
+    TextInput
 } from '@patternfly/react-core';
-import { useAuthStore } from '../../../store/authStore';
-import { getUser } from '../../../service/apiService';
+import {useAuthStore} from '../../../store/authStore';
+import {getPermissions, getUser} from '../../../service/apiService';
+import {RolePermissionsDualList} from '../Roles/RolePermissionsDualList';
 
 interface EditUserModalProps {
   isOpen: boolean;
@@ -39,6 +40,9 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [minecraftName, setMinecraftName] = useState(initialMinecraftName || '');
   const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>([]);
+  const [directPermissionIds, setDirectPermissionIds] = useState<number[]>([]);
+  const [allPermissions, setAllPermissions] = useState<{ id: number; key: string; description?: string }[]>([]);
+  const [permError, setPermError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -47,12 +51,17 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
       setEmail(initialEmail);
       setDisplayName(initialDisplayName);
       setMinecraftName(initialMinecraftName || '');
+      setPermError('');
       if (roles.length === 0) fetchRoles();
-      getUser(userId)
-        .then(({ data }) => {
-          setSelectedRoleIds(data.roles.map((r) => r.id));
+      Promise.all([getUser(userId), getPermissions()])
+        .then(([{ data: u }, { data: perms }]) => {
+          setSelectedRoleIds(u.roles.map((r) => r.id));
+          setDirectPermissionIds(u.directPermissions?.map((p) => p.id) ?? []);
+          setAllPermissions(perms);
         })
-        .catch(() => {});
+        .catch(() => {
+          setPermError('Failed to load user or permissions');
+        });
     }
   }, [isOpen, userId, initialEmail, initialDisplayName, initialMinecraftName]); // eslint-disable-line react-hooks/exhaustive-deps -- fetchRoles when needed, roles from store
 
@@ -75,7 +84,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         email,
         displayName,
         minecraftName: minecraftName || undefined,
-        roleIds: selectedRoleIds
+        roleIds: selectedRoleIds,
+        permissionIds: directPermissionIds
       });
       onSuccess();
       onClose();
@@ -87,11 +97,14 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   };
 
   return (
-    <Modal variant={ModalVariant.medium} isOpen={isOpen} onClose={onClose}>
+    <Modal variant={ModalVariant.large} isOpen={isOpen} onClose={onClose}>
       <ModalHeader title="Edit User" />
       <ModalBody>
         {error && (
           <Alert variant="danger" title={error} className="pf-v6-u-mb-md" />
+        )}
+        {permError && (
+          <Alert variant="danger" title={permError} className="pf-v6-u-mb-md" />
         )}
         <Form id="edit-user-form" onSubmit={handleSubmit}>
           <FormGroup label="Email" isRequired fieldId="email">
@@ -130,6 +143,22 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               />
             ))}
           </FormGroup>
+          {allPermissions.length > 0 && (
+            <FormGroup label="Direct permissions" fieldId="user-direct-perms">
+              <p className="pf-v6-u-mb-md" style={{ color: 'var(--pf-v6-global--Color--200)', fontSize: '0.875rem' }}>
+                Optional extra grants in addition to role permissions. Effective access is the union of both.
+              </p>
+              <RolePermissionsDualList
+                id="user-direct-permissions"
+                allPermissions={allPermissions}
+                chosenIds={directPermissionIds}
+                onChosenIdsChange={setDirectPermissionIds}
+                isDisabled={loading || !!permError}
+                availableTitle="Available permissions"
+                chosenTitle="Granted directly to this user"
+              />
+            </FormGroup>
+          )}
         </Form>
       </ModalBody>
       <ModalFooter>
@@ -137,7 +166,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
           variant="primary"
           type="submit"
           form="edit-user-form"
-          isDisabled={loading}
+          isDisabled={loading || !!permError}
         >
           {loading ? 'Saving...' : 'Save'}
         </Button>

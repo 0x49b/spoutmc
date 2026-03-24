@@ -1,10 +1,11 @@
 plugins {
     java
     id("com.gradleup.shadow") version "8.3.0"
+    `maven-publish`
 }
 
 group = "io.spoutmc"
-version = "0.1.1"
+version = (findProperty("releaseVersion") as String?) ?: "0.1.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -30,5 +31,36 @@ tasks {
 
     shadowJar {
         archiveClassifier.set("")
+    }
+}
+
+publishing {
+    publications {
+        register<MavenPublication>("maven") {
+            groupId = project.group.toString()
+            artifactId = "velocity-players-bridge"
+            version = project.version.toString()
+            artifact(tasks.shadowJar.get())
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri(
+                System.getenv("GITHUB_REPOSITORY")?.let { "https://maven.pkg.github.com/$it" }
+                    ?: (findProperty("gpr.repositoryUrl") as String? ?: "https://maven.pkg.github.com/OWNER/REPO"),
+            )
+            credentials {
+                // Prefer non-blank gpr.*; empty properties must not win over env (would cause HTTP 401 on publish).
+                username = sequenceOf(
+                    findProperty("gpr.user") as String?,
+                    System.getenv("GITHUB_ACTOR"),
+                ).firstOrNull { !it.isNullOrBlank() } ?: ""
+                password = sequenceOf(
+                    findProperty("gpr.key") as String?,
+                    System.getenv("GITHUB_TOKEN"),
+                ).firstOrNull { !it.isNullOrBlank() } ?: ""
+            }
+        }
     }
 }

@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"spoutmc/internal/access"
 	"spoutmc/internal/config"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/security"
 	"spoutmc/internal/storage"
 	"sync"
 	"time"
@@ -99,7 +99,7 @@ func completeSetup(c echo.Context) error {
 		if db != nil {
 			var count int64
 			if db.Model(&models.User{}).Count(&count); count == 0 {
-				hashedPassword, err := security.Hash(req.AdminPassword)
+				hashedPassword, err := access.Hash(req.AdminPassword)
 				if err != nil {
 					logger.Warn("Failed to hash admin password", zap.Error(err))
 				} else {

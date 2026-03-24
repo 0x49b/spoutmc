@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"spoutmc/internal/models"
-	"spoutmc/internal/pathutil"
+	"spoutmc/internal/utils/path"
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"

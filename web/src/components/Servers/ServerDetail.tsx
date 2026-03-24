@@ -11,6 +11,7 @@ import {
     FlexItem,
     Grid,
     GridItem,
+    Label,
     PageSection,
     Spinner,
     Tab,
@@ -37,6 +38,7 @@ import {
 } from '@patternfly/react-icons';
 import {useServerStore} from '../../store/serverStore.ts';
 import {usePluginStore} from '../../store/pluginStore.ts';
+import {Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
 import PageHeader from '../UI/PageHeader.tsx';
 import StatusBadge from '../UI/StatusBadge.tsx';
 import {ConsoleTab} from './ServerDetailTabs/ConsoleTab.tsx';
@@ -49,22 +51,27 @@ import FileBrowser from './FileBrowser.tsx';
 import FileEditorModal from './Modals/FileEditorModal.tsx';
 import * as api from '../../service/apiService.ts';
 import RestartServerModal from "./Modals/RestartServerModal.tsx";
-import { withAccessToken } from '../../utils/sseUrl';
+import {
+    acquireServerRealtimeWsClient,
+    RealtimeMessage,
+    releaseServerRealtimeWsClient,
+    ServerRealtimeWsClient,
+    useServerDetailWsTransport
+} from '../../service/serverRealtimeWs.ts';
 
 const ServerDetail: React.FC = () => {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
     const {
         getServerById,
+        fetchServers,
         restartServer,
         stopServer,
         startServer,
         deleteServer,
-        updateServer,
-        connectSSE,
-        disconnectSSE
+        updateServer
     } = useServerStore();
-    const {plugins} = usePluginStore();
+    const {fetchPlugins, getPluginsForServer} = usePluginStore();
     const [isRestarting, setIsRestarting] = useState(false);
     const [isPowerActionLoading, setIsPowerActionLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<string | number>('overview');
@@ -84,15 +91,28 @@ const ServerDetail: React.FC = () => {
     } | null>(null);
     const [gitOpsStatus, setGitOpsStatus] = useState<api.GitOpsStatus | null>(null);
     const statsEventSourceRef = useRef<EventSource | null>(null);
+    const realtimeWsRef = useRef<ServerRealtimeWsClient | null>(null);
+    const useWsTransport = useServerDetailWsTransport();
 
     const server = getServerById(id || '');
 
+    const registryPluginsForServer = server ? getPluginsForServer(server.name) : [];
+
+    useEffect(() => {
+        fetchPlugins();
+    }, [fetchPlugins]);
+
+    useEffect(() => {
+        if (!server && id) {
+            void fetchServers();
+        }
+    }, [server, id, fetchServers]);
+
     // Set up SSE connection for server stats
     useEffect(() => {
-        connectSSE();
-        if (server?.id) {
+        if (server?.id && !useWsTransport) {
             statsEventSourceRef.current = new EventSource(
-                withAccessToken(`http://localhost:3000/api/v1/server/${server.id}/stats`)
+                api.withSSEAuth(`http://localhost:3000/api/v1/server/${server.id}/stats`)
             );
             statsEventSourceRef.current.onmessage = (event: MessageEvent) => {
                 const parsed = JSON.parse(event.data);
@@ -106,13 +126,52 @@ const ServerDetail: React.FC = () => {
         }
 
         return () => {
-            disconnectSSE()
             if (statsEventSourceRef.current) {
                 statsEventSourceRef.current.close();
                 statsEventSourceRef.current = null;
             }
         };
-    }, [server?.id]);
+    }, [server?.id, useWsTransport]);
+
+    useEffect(() => {
+        if (!server?.id || !useWsTransport) {
+            return;
+        }
+
+        const wsClient = acquireServerRealtimeWsClient(server.id, `ws://localhost:3000/api/v1/ws/server/${server.id}`);
+        realtimeWsRef.current = wsClient;
+        wsClient.addListener({
+            id: 'server-detail-stats',
+            onOpen: () => {
+                wsClient.subscribe('stats');
+            },
+            onMessage: (message: RealtimeMessage) => {
+                if (message.type === 'stats' && message.payload) {
+                    setStats(message.payload as ServerStats);
+                    setIsInitialLoading(false);
+                }
+                if (message.type === 'error' && message.channel === 'stats') {
+                    setIsInitialLoading(false);
+                }
+            },
+            onError: () => {
+                setIsInitialLoading(false);
+            },
+            onClose: () => {
+                setIsInitialLoading(false);
+            }
+        });
+        wsClient.connect();
+
+        return () => {
+            wsClient.unsubscribe('stats');
+            wsClient.removeListener('server-detail-stats');
+            releaseServerRealtimeWsClient(server.id);
+            if (realtimeWsRef.current === wsClient) {
+                realtimeWsRef.current = null;
+            }
+        };
+    }, [server?.id, useWsTransport]);
 
     // Load files when Files tab is opened
     useEffect(() => {
@@ -332,7 +391,9 @@ const ServerDetail: React.FC = () => {
             {gitOpsStatus?.enabled ? (
                 <PageSection className="pf-v6-u-pb-0">
                     <div className="pf-v6-u-color-200">
-                        GitOps is enabled: server removal is disabled in the UI. Remove the server from the Git repository instead.
+                        GitOps is enabled: server removal is disabled in the UI. Remove the server from the Git
+                        repository instead. Any server change synced from Git updates <code>velocity.toml</code> and
+                        restarts the proxy.
                     </div>
                 </PageSection>
             ) : null}
@@ -468,7 +529,7 @@ const ServerDetail: React.FC = () => {
                                                 <div className="pf-v6-u-font-size-sm">Plugins</div>
                                                 <div
                                                     className="pf-v6-u-font-size-xl pf-v6-u-font-weight-bold pf-v6-u-mt-xs">
-                                                    {server.plugins.length}
+                                                    {registryPluginsForServer.length}
                                                 </div>
                                             </div>
                                         </FlexItem>
@@ -537,10 +598,47 @@ const ServerDetail: React.FC = () => {
                             <Card>
                                 <CardBody>
                                     <Title headingLevel="h3" size="lg">
-                                        Server Plugins ({plugins.length})
+                                        Plugins for this server ({registryPluginsForServer.length})
                                     </Title>
-                                    <p className="pf-v6-u-mt-md">Plugin list would go here (using
-                                        PatternFly Table)</p>
+                                    {registryPluginsForServer.length === 0 ? (
+                                        <EmptyState titleText="No registry plugins apply to this server"
+                                                    variant={EmptyStateVariant.sm}
+                                                    className="pf-v6-u-mt-md">
+                                            <EmptyStateBody>
+                                                Assign plugins in the Plugins page or rely on system-managed
+                                                plugins for this server type.
+                                            </EmptyStateBody>
+                                        </EmptyState>
+                                    ) : (
+                                        <Table aria-label="Plugins for server" variant="compact" className="pf-v6-u-mt-md">
+                                            <Thead>
+                                                <Tr>
+                                                    <Th>Name</Th>
+                                                    <Th>URL</Th>
+                                                    <Th>Source</Th>
+                                                </Tr>
+                                            </Thead>
+                                            <Tbody>
+                                                {registryPluginsForServer.map((p) => (
+                                                    <Tr key={p.id}>
+                                                        <Td dataLabel="Name">{p.name}</Td>
+                                                        <Td dataLabel="URL">
+                                                            <span className="pf-v6-u-font-size-sm" title={p.url}>
+                                                                {p.url.length > 80 ? `${p.url.slice(0, 80)}…` : p.url}
+                                                            </span>
+                                                        </Td>
+                                                        <Td dataLabel="Source">
+                                                            {p.systemManaged ? (
+                                                                <Label color="purple">System-managed</Label>
+                                                            ) : (
+                                                                <Label color="green">User</Label>
+                                                            )}
+                                                        </Td>
+                                                    </Tr>
+                                                ))}
+                                            </Tbody>
+                                        </Table>
+                                    )}
                                 </CardBody>
                             </Card>
                         </Tab>
@@ -556,10 +654,11 @@ const ServerDetail: React.FC = () => {
                         >
                             <ConsoleTab
                                 containerId={server.id}
-                                logsUrl={`http://localhost:3000/api/v1/server/${server.id}/logs`}
+                                logsUrl={api.withSSEAuth(`http://localhost:3000/api/v1/server/${server.id}/logs`)}
                                 commandUrl={`http://localhost:3000/api/v1/server/${server.id}/command`}
                                 isActive={activeTab === 'console'}
                                 enableSendCommand={true}
+                                wsClient={useWsTransport ? realtimeWsRef.current : null}
                             />
                         </Tab>
 

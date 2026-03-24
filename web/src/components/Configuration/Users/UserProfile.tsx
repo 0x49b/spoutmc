@@ -1,27 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  PageSection,
-  Card,
-  CardBody,
-  Title,
-  Form,
-  FormGroup,
-  TextInput,
-  Button,
-  Alert
+    Avatar,
+    Button,
+    Card,
+    CardBody,
+    Flex,
+    FlexItem,
+    Form,
+    FormGroup,
+    PageSection,
+    TextInput,
+    Title
 } from '@patternfly/react-core';
 import PageHeader from '../../UI/PageHeader';
-import { useAuthStore } from '../../../store/authStore';
+import {getUserAvatarDataUrl, useAuthStore} from '../../../store/authStore';
+import {useNotificationStore} from '../../../store/notificationStore';
 
 const UserProfile: React.FC = () => {
-  const { user, updateProfile, error } = useAuthStore();
+  const { user, updateProfile, clearError } = useAuthStore();
+  const pushToast = useNotificationStore((s) => s.pushToast);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [minecraftName, setMinecraftName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [success, setSuccess] = useState('');
-  const [validationError, setValidationError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -34,16 +36,14 @@ const UserProfile: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setValidationError('');
-    setSuccess('');
 
     if (password && password !== confirmPassword) {
-      setValidationError('Passwords do not match');
+      pushToast({ variant: 'danger', title: 'Passwords do not match' });
       return;
     }
 
     if (password && password.length < 6) {
-      setValidationError('Password must be at least 6 characters');
+      pushToast({ variant: 'danger', title: 'Password must be at least 6 characters' });
       return;
     }
 
@@ -52,14 +52,18 @@ const UserProfile: React.FC = () => {
       await updateProfile({
         email: email || undefined,
         displayName: displayName || undefined,
-        minecraftName: minecraftName || undefined,
+        minecraftName,
         password: password || undefined
       });
-      setSuccess('Profile updated successfully');
+      pushToast({ variant: 'success', title: 'Profile updated successfully' });
       setPassword('');
       setConfirmPassword('');
     } catch {
-      // Error handled by store
+      const err = useAuthStore.getState().error;
+      if (err) {
+        pushToast({ variant: 'danger', title: err });
+        clearError();
+      }
     } finally {
       setSaving(false);
     }
@@ -69,32 +73,30 @@ const UserProfile: React.FC = () => {
     return null;
   }
 
+  const profileAvatarSrc = getUserAvatarDataUrl(user);
+
   return (
     <>
       <PageHeader title="Your Profile" description="View and edit your profile" />
       <PageSection>
         <Card>
           <CardBody>
-            <Title headingLevel="h3" size="lg">
-              Profile Information
-            </Title>
-            <p className="pf-v6-u-mt-sm pf-v6-u-mb-md" style={{ color: 'var(--pf-v6-global--Color--200)' }}>
-              Roles: {user.roles.join(', ')}
-            </p>
-
-            {(error || validationError) && (
-              <Alert
-                variant="danger"
-                title={error || validationError}
-                className="pf-v6-u-mb-md"
-                onClose={() => {
-                  setValidationError('');
-                }}
-              />
-            )}
-            {success && (
-              <Alert variant="success" title={success} className="pf-v6-u-mb-md" />
-            )}
+            <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }} className="pf-v6-u-mb-md">
+              <FlexItem>
+                <Avatar src={profileAvatarSrc} alt="" size="lg" />
+              </FlexItem>
+              <FlexItem>
+                <Title headingLevel="h3" size="lg">
+                  Profile Information
+                </Title>
+                <p className="pf-v6-u-mt-sm" style={{ color: 'var(--pf-v6-global--Color--200)' }}>
+                  Roles: {user.roles.join(', ')}
+                </p>
+                <p className="pf-v6-u-mt-xs" style={{ color: 'var(--pf-v6-global--Color--200)', fontSize: 'var(--pf-v6-global--FontSize--sm)' }}>
+                  Avatar is generated from your Minecraft skin when you save a Minecraft name.
+                </p>
+              </FlexItem>
+            </Flex>
 
             <Form onSubmit={handleSubmit}>
               <FormGroup label="Email" isRequired fieldId="email">

@@ -85,7 +85,9 @@ jobs:
 
   plugins:
     name: Build Plugins
-    needs: frontend
+    needs:
+      - prepare
+      - frontend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -98,16 +100,20 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
 
-      - name: Build plugin jars
+      - name: Build Velocity plugin JAR
         run: |
           cd plugins/velocity-players-bridge
           chmod +x gradlew
-          ./gradlew clean shadowJar
+          ./gradlew clean shadowJar --no-daemon \
+            -PreleaseVersion="${{ needs.prepare.outputs.version }}"
 
-      - name: Prepare plugin artifacts
+      - name: Prepare plugin artifacts for release
         run: |
           mkdir -p release/plugins
-          cp plugins/velocity-players-bridge/build/libs/*.jar release/plugins/
+          VERSION="${{ needs.prepare.outputs.version }}"
+          # Single predictable asset name on the GitHub Release page
+          cp plugins/velocity-players-bridge/build/libs/*.jar \
+            "release/plugins/velocity-players-bridge-${VERSION}.jar"
           for f in release/plugins/*.jar; do
             sha256sum "$f" > "$f.sha256"
           done
@@ -238,7 +244,7 @@ jobs:
             - **macOS (Intel)**: `spoutmc-darwin-amd64`
             - **macOS (Apple Silicon)**: `spoutmc-darwin-arm64`
             - **Windows (AMD64)**: `spoutmc-windows-amd64.exe`
-            - **Velocity plugin**: `velocity-players-bridge-*.jar`
+            - **Velocity plugin**: `velocity-players-bridge-<version>.jar` (matches this release tag)
 
             ### ✅ Verification
 

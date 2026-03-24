@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { UserProfile, Role, Permission } from '../types';
+import {create} from 'zustand';
+import {UserProfile} from '../types';
 import * as api from '../service/apiService';
-import { clearToken, getToken, setToken } from '../security/tokenVault';
+import {userAvatarToDataUrl} from '../utils/avatarDataUrl';
 
 interface AuthState {
   user: UserProfile | null;
@@ -22,6 +22,7 @@ interface AuthState {
     displayName: string;
     minecraftName?: string;
     roleIds?: number[];
+    permissionIds?: number[];
   }) => Promise<void>;
   updateUser: (
     userId: string,
@@ -30,6 +31,7 @@ interface AuthState {
       displayName?: string;
       minecraftName?: string;
       roleIds?: number[];
+      permissionIds?: number[];
     }
   ) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -39,51 +41,35 @@ interface AuthState {
     displayName?: string;
     minecraftName?: string;
   }) => Promise<void>;
+  clearError: () => void;
 
-  // Permissions
-  hasPermission: (action: string, subject: string) => boolean;
+  /** True if the current user has this permission key (e.g. server.list.read). Admin role implies all. */
+  hasPermission: (permissionKey: string) => boolean;
+  /** True if the current user has a role with this name (e.g. admin). */
+  hasRole: (roleName: string) => boolean;
 }
-
-const roleHierarchy: Record<string, number> = {
-  admin: 5,
-  manager: 4,
-  editor: 3,
-  mod: 2,
-  support: 1
-};
-
-const permissions: Record<string, Permission[]> = {
-  admin: [{ action: 'manage', subject: 'all' }],
-  manager: [
-    { action: 'read', subject: 'all' },
-    { action: 'manage', subject: 'servers' },
-    { action: 'manage', subject: 'players' },
-    { action: 'manage', subject: 'users' }
-  ],
-  editor: [
-    { action: 'read', subject: 'all' },
-    { action: 'manage', subject: 'servers' }
-  ],
-  mod: [
-    { action: 'read', subject: 'all' },
-    { action: 'manage', subject: 'players' }
-  ],
-  support: [{ action: 'read', subject: 'all' }]
-};
 
 function userDtoToProfile(dto: api.UserDTO): UserProfile {
   return {
     id: String(dto.id),
     email: dto.email,
-    roles: dto.roles.map((r) => r.name as Role),
+    roles: dto.roles.map((r) => r.name),
+    permissions: dto.permissions ?? [],
+    directPermissions: dto.directPermissions,
     displayName: dto.displayName,
     minecraftName: dto.minecraftName,
+    avatar: dto.avatar,
     created_at: dto.createdAt,
     aud: 'authenticated',
     app_metadata: {},
     user_metadata: {},
     identities: []
   };
+}
+
+/** Data URL for `<Avatar src={...} />` or `<img src={...} />`. */
+export function getUserAvatarDataUrl(user: UserProfile | null): string | undefined {
+  return userAvatarToDataUrl(user?.avatar);
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -97,7 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const { data } = await api.login(email, password);
-      await setToken(data.token);
+      localStorage.setItem('auth_token', data.token);
       set({ user: userDtoToProfile(data.user), loading: false });
     } catch (error) {
       set({
@@ -111,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     set({ loading: true, error: null });
     try {
-      await clearToken();
+      localStorage.removeItem('auth_token');
       set({ user: null, loading: false });
     } catch (error) {
       set({
@@ -125,7 +111,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   checkAuth: async () => {
     set({ loading: true, error: null });
     try {
-      const token = await getToken();
+      const token = localStorage.getItem('auth_token');
       if (!token) {
         set({ user: null, loading: false });
         return;
@@ -133,7 +119,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data } = await api.verifyToken();
       set({ user: userDtoToProfile(data), loading: false });
     } catch (error) {
-      await clearToken();
+      localStorage.removeItem('auth_token');
       set({ user: null, loading: false });
     }
   },
@@ -224,21 +210,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  hasPermission: (action: string, subject: string) => {
-    const { user } = get();
-    if (!user || !user.roles || !Array.isArray(user.roles)) return false;
+  clearError: () => set({ error: null }),
 
-    return user.roles.some((role) => {
-      if (role === 'admin') return true;
-      if (!permissions[role]) return false;
-      const rolePermissions = permissions[role];
-      return rolePermissions.some((p) => {
-        if (p.action === action && p.subject === subject) return true;
-        if (p.action === action && p.subject === 'all') return true;
-        if (p.action === 'manage' && p.subject === subject) return true;
-        if (p.action === 'manage' && p.subject === 'all') return true;
-        return false;
-      });
-    });
+  hasPermission: (permissionKey: string) => {
+    const { user } = get();
+    if (!user?.permissions?.length) return false;
+    if (user.roles?.includes('admin')) return true;
+    return user.permissions.includes(permissionKey);
+  },
+
+  hasRole: (roleName: string) => {
+    const { user } = get();
+    if (!user?.roles?.length || !roleName) return false;
+    return user.roles.includes(roleName);
   }
 }));

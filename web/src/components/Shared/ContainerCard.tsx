@@ -1,14 +1,14 @@
 import React from 'react';
 import {
-  Card,
-  CardBody,
-  CardTitle,
-  Divider,
-  Flex,
-  FlexItem,
-  Progress,
-  ProgressMeasureLocation,
-  ProgressVariant
+    Card,
+    CardBody,
+    CardTitle,
+    Divider,
+    Flex,
+    FlexItem,
+    Progress,
+    ProgressMeasureLocation,
+    ProgressVariant
 } from '@patternfly/react-core';
 import StatusBadge from '../UI/StatusBadge';
 

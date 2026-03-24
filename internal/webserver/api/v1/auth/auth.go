@@ -2,10 +2,9 @@ package auth
 
 import (
 	"net/http"
-	"spoutmc/internal/auth"
+	"spoutmc/internal/access"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/security"
 	"spoutmc/internal/storage"
 	"spoutmc/internal/webserver/middleware"
 
@@ -50,22 +49,11 @@ func verify(c echo.Context) error {
 	}
 
 	var user models.User
-	if err := db.Preload("Roles").First(&user, cl.UserID).Error; err != nil {
+	if err := db.Preload("Roles.Permissions").Preload("DirectPermissions").First(&user, cl.UserID).Error; err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
 	}
 
-	userResp := models.UserResponse{
-		ID:            user.ID,
-		CreatedAt:     user.CreatedAt,
-		MinecraftID:   user.MinecraftID,
-		MinecraftName: user.MinecraftName,
-		DisplayName:   user.DisplayName,
-		Email:         user.Email,
-		Roles:         convertRolesToResponse(user.Roles),
-		Avatar:        user.Avatar,
-	}
-
-	return c.JSON(http.StatusOK, userResp)
+	return c.JSON(http.StatusOK, access.BuildUserResponse(&user))
 }
 
 func login(c echo.Context) error {
@@ -85,11 +73,11 @@ func login(c echo.Context) error {
 	}
 
 	var user models.User
-	if err := db.Preload("Roles").Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := db.Preload("Roles.Permissions").Preload("DirectPermissions").Where("email = ?", req.Email).First(&user).Error; err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 	}
 
-	if !security.Verify(user.Password, req.Password) {
+	if !access.Verify(user.Password, req.Password) {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 	}
 
@@ -98,33 +86,17 @@ func login(c echo.Context) error {
 		roleNames[i] = r.Name
 	}
 
-	token, err := auth.GenerateToken(user.ID, user.Email, user.DisplayName, roleNames)
+	permKeys := access.EffectivePermissionKeysFromUser(&user)
+	token, err := access.GenerateToken(user.ID, user.Email, user.DisplayName, roleNames, permKeys)
 	if err != nil {
 		logger.Error("Failed to generate JWT", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create token"})
 	}
 
-	userResp := models.UserResponse{
-		ID:            user.ID,
-		CreatedAt:     user.CreatedAt,
-		MinecraftID:   user.MinecraftID,
-		MinecraftName: user.MinecraftName,
-		DisplayName:   user.DisplayName,
-		Email:         user.Email,
-		Roles:         convertRolesToResponse(user.Roles),
-		Avatar:        user.Avatar,
-	}
+	userResp := access.BuildUserResponse(&user)
 
 	return c.JSON(http.StatusOK, LoginResponse{
 		Token: token,
 		User:  userResp,
 	})
-}
-
-func convertRolesToResponse(roles []models.Role) []models.RoleResponse {
-	out := make([]models.RoleResponse, len(roles))
-	for i, r := range roles {
-		out[i] = models.RoleResponse{ID: r.ID, Name: r.Name, DisplayName: r.DisplayName, Slug: r.Slug}
-	}
-	return out
 }

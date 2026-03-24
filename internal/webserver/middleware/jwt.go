@@ -1,10 +1,9 @@
 package middleware
 
 import (
-	"net/http"
 	"strings"
 
-	"spoutmc/internal/auth"
+	"spoutmc/internal/access"
 
 	"github.com/labstack/echo/v4"
 )
@@ -12,25 +11,27 @@ import (
 const claimsKey = "jwt_claims"
 
 // JWT validates the Bearer token and sets claims in context.
-// For GET requests, if Authorization is missing, access_token query is accepted so EventSource/SSE clients can authenticate (they cannot set headers).
+// Browsers cannot set headers on EventSource; for SSE, the same JWT may be passed as access_token.
 func JWT(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authHeader := c.Request().Header.Get("Authorization")
-		if authHeader == "" && c.Request().Method == http.MethodGet {
-			if q := strings.TrimSpace(c.QueryParam("access_token")); q != "" {
-				authHeader = "Bearer " + q
+		var token string
+
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+				return echo.NewHTTPError(401, "Invalid authorization header")
 			}
+			token = parts[1]
+		} else {
+			token = c.QueryParam("access_token")
 		}
-		if authHeader == "" {
+
+		if token == "" {
 			return echo.NewHTTPError(401, "Missing authorization header")
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			return echo.NewHTTPError(401, "Invalid authorization header")
-		}
-
-		claims, err := auth.VerifyToken(parts[1])
+		claims, err := access.VerifyToken(token)
 		if err != nil {
 			return echo.NewHTTPError(401, "Invalid or expired token")
 		}
@@ -41,8 +42,8 @@ func JWT(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 // GetClaims returns the JWT claims from context (nil if not authenticated)
-func GetClaims(c echo.Context) *auth.Claims {
-	cl, ok := c.Get(claimsKey).(*auth.Claims)
+func GetClaims(c echo.Context) *access.Claims {
+	cl, ok := c.Get(claimsKey).(*access.Claims)
 	if !ok {
 		return nil
 	}

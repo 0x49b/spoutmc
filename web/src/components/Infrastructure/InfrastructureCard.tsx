@@ -1,7 +1,7 @@
 import React from 'react';
-import { DatabaseIcon } from '@patternfly/react-icons';
-import ContainerCard, { ContainerCardDetail } from '../Shared/ContainerCard';
-import { InfrastructureContainer, getContainerId } from '../../types';
+import {DatabaseIcon} from '@patternfly/react-icons';
+import ContainerCard, {ContainerCardDetail} from '../Shared/ContainerCard';
+import {getContainerId, InfrastructureContainer} from '../../types';
 
 interface InfrastructureCardProps {
   container: InfrastructureContainer & { cpu?: number; memory?: number };

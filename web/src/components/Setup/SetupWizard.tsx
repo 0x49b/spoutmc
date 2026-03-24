@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {
-  PageSection,
-  Card,
-  CardBody,
-  Button,
-  Form,
-  FormGroup,
-  TextInput,
-  Title,
-  Checkbox,
-  Alert
+    Alert,
+    Button,
+    Card,
+    CardBody,
+    Checkbox,
+    Form,
+    FormGroup,
+    PageSection,
+    TextInput,
+    Title
 } from '@patternfly/react-core';
-import { completeSetup } from '../../service/apiService';
+import {completeSetup} from '../../service/apiService';
 
 const SetupWizard: React.FC = () => {
   const navigate = useNavigate();

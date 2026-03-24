@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, ModalVariant, Button, Alert, Spinner } from '@patternfly/react-core';
-import { SaveIcon } from '@patternfly/react-icons';
-import { CodeEditor, Language } from '@patternfly/react-code-editor';
+import React, {useEffect, useState} from 'react';
+import {Alert, Button, Modal, ModalVariant, Spinner} from '@patternfly/react-core';
+import {SaveIcon} from '@patternfly/react-icons';
+import {CodeEditor, Language} from '@patternfly/react-code-editor';
 import * as api from '../../service/apiService';
 
 interface ConfigFileEditorModalProps {

@@ -1,14 +1,12 @@
-import { create } from 'zustand';
-import { Server } from '../types';
+import {create} from 'zustand';
+import {Server} from '../types';
 import * as api from '../service/apiService';
 import {
-  mapDockerContainersToServers,
-  mapContainersWithStatsToServers,
-  DockerContainer,
-  ContainerWithStats
+    ContainerWithStats,
+    DockerContainer,
+    mapContainersWithStatsToServers,
+    mapDockerContainersToServers
 } from '../utils/serverMapper';
-import { withAccessToken } from '../utils/sseUrl';
-import { hasTokenSync } from '../security/tokenVault';
 
 interface ServerState {
   servers: Server[];
@@ -16,6 +14,7 @@ interface ServerState {
   loading: boolean;
   error: string | null;
   eventSource: EventSource | null;
+  sseShouldReconnect: boolean;
 
   // Actions
   fetchServers: () => Promise<void>;
@@ -28,8 +27,6 @@ interface ServerState {
   addServer: (serverData: Omit<Server, 'id' | 'status' | 'uptime' | 'cpu' | 'memory' | 'players'>) => Promise<void>;
   updateServer: (serverId: string, data: { name?: string; env?: Record<string, string> }) => Promise<void>;
   deleteServer: (serverId: string, removeData?: boolean) => Promise<void>;
-  addPluginToServer: (serverId: string, pluginId: string) => Promise<void>;
-  removePluginFromServer: (serverId: string, pluginId: string) => Promise<void>;
 
   // Selectors
   getServerById: (id: string) => Server | undefined;
@@ -39,9 +36,6 @@ interface ServerState {
 const API_BASE_URL = 'http://localhost:3000/api/v1';
 
 // Sort servers: Proxy first, Lobby second, then game servers by port
-/** Bumped on explicit disconnect so scheduled onerror reconnects do not run after unmount/logout. */
-let serverSseEpoch = 0;
-
 const sortServers = (servers: Server[]): Server[] => {
   return [...servers].sort((a, b) => {
     // Proxy always first
@@ -63,6 +57,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   loading: false,
   error: null,
   eventSource: null,
+  sseShouldReconnect: false,
 
   fetchServers: async () => {
     set({ loading: true, error: null });
@@ -83,21 +78,19 @@ export const useServerStore = create<ServerState>((set, get) => ({
   },
 
   connectSSE: () => {
-    if (!hasTokenSync()) {
-      return;
-    }
+    set({ sseShouldReconnect: true });
 
+    // Clean up existing connection if any
     const currentEventSource = get().eventSource;
     if (currentEventSource) {
       currentEventSource.close();
     }
 
-    const epoch = serverSseEpoch;
-
     try {
-      const eventSource = new EventSource(withAccessToken(`${API_BASE_URL}/server/stream`));
+      const eventSource = new EventSource(api.withSSEAuth(`${API_BASE_URL}/server/stream`));
 
       eventSource.onopen = () => {
+        if (get().eventSource !== eventSource) return;
         console.log('SSE connection established for server list');
         set({ error: null });
       };
@@ -135,21 +128,24 @@ export const useServerStore = create<ServerState>((set, get) => ({
       };
 
       eventSource.onerror = (error) => {
-        console.error('SSE connection error:', error);
-        eventSource.close();
-        if (get().eventSource === eventSource) {
-          set({ eventSource: null });
+        if (get().eventSource !== eventSource) {
+          return;
         }
 
-        window.setTimeout(() => {
-          if (epoch !== serverSseEpoch) {
-            return;
+        console.error('SSE connection error:', error);
+        eventSource.close();
+        set({ eventSource: null });
+
+        // Try to reconnect after 5 seconds
+        setTimeout(() => {
+          const currentState = get();
+          if (
+            currentState.sseShouldReconnect &&
+            (!currentState.eventSource || currentState.eventSource.readyState === EventSource.CLOSED)
+          ) {
+            console.log('Attempting to reconnect SSE...');
+            get().connectSSE();
           }
-          if (!hasTokenSync()) {
-            return;
-          }
-          console.log('Attempting to reconnect SSE...');
-          get().connectSSE();
         }, 5000);
       };
 
@@ -161,7 +157,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   },
 
   disconnectSSE: () => {
-    serverSseEpoch += 1;
+    set({ sseShouldReconnect: false });
     const eventSource = get().eventSource;
     if (eventSource) {
       eventSource.close();
@@ -299,44 +295,6 @@ export const useServerStore = create<ServerState>((set, get) => ({
       console.error('Failed to delete server:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to delete server'
-      });
-      throw error;
-    }
-  },
-
-  addPluginToServer: async (serverId: string, pluginId: string) => {
-    set({ loading: true, error: null });
-
-    try {
-      // Note: This would need a backend endpoint for plugin management
-      // For now, this is a placeholder
-      console.warn('addPluginToServer: Backend endpoint not yet implemented');
-
-      set({ loading: false });
-    } catch (error) {
-      console.error('Failed to add plugin to server:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to add plugin to server',
-        loading: false
-      });
-      throw error;
-    }
-  },
-
-  removePluginFromServer: async (serverId: string, pluginId: string) => {
-    set({ loading: true, error: null });
-
-    try {
-      // Note: This would need a backend endpoint for plugin management
-      // For now, this is a placeholder
-      console.warn('removePluginFromServer: Backend endpoint not yet implemented');
-
-      set({ loading: false });
-    } catch (error) {
-      console.error('Failed to remove plugin from server:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to remove plugin from server',
-        loading: false
       });
       throw error;
     }

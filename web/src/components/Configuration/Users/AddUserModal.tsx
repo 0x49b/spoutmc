@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  Modal,
-  ModalVariant,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-  Form,
-  FormGroup,
-  TextInput,
-  FormHelperText,
-  Alert
+    Alert,
+    Button,
+    Form,
+    FormGroup,
+    FormHelperText,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalHeader,
+    ModalVariant,
+    TextInput
 } from '@patternfly/react-core';
-import { useAuthStore } from '../../../store/authStore';
+import {useAuthStore} from '../../../store/authStore';
 
 interface AddUserModalProps {
   isOpen: boolean;
