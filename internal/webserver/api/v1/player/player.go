@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"spoutmc/internal/auth"
+	"spoutmc/internal/access"
 	playerpkg "spoutmc/internal/player"
 	"spoutmc/internal/sse"
 	"spoutmc/internal/storage"
@@ -160,7 +160,7 @@ func getPlayerChat(c echo.Context) error {
 	return c.JSON(http.StatusOK, messages)
 }
 
-func chatArchiveAllowed(cl *auth.Claims) bool {
+func chatArchiveAllowed(cl *access.Claims) bool {
 	for _, r := range cl.Roles {
 		switch strings.ToLower(strings.TrimSpace(r)) {
 		case "admin", "manager":

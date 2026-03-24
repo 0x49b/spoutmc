@@ -25,6 +25,7 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       await clearToken();
+      localStorage.removeItem('auth_token');
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }

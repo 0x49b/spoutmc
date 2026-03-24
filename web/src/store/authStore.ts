@@ -1,6 +1,7 @@
 import {create} from 'zustand';
 import {UserProfile} from '../types';
 import * as api from '../service/apiService';
+import {clearToken, setToken} from '../security/tokenVault';
 import {userAvatarToDataUrl} from '../utils/avatarDataUrl';
 
 interface AuthState {
@@ -84,6 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { data } = await api.login(email, password);
       localStorage.setItem('auth_token', data.token);
+      await setToken(data.token);
       set({ user: userDtoToProfile(data.user), loading: false });
     } catch (error) {
       set({
@@ -98,6 +100,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       localStorage.removeItem('auth_token');
+      await clearToken();
       set({ user: null, loading: false });
     } catch (error) {
       set({
@@ -116,10 +119,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user: null, loading: false });
         return;
       }
+      await setToken(token);
       const { data } = await api.verifyToken();
       set({ user: userDtoToProfile(data), loading: false });
     } catch (error) {
       localStorage.removeItem('auth_token');
+      await clearToken();
       set({ user: null, loading: false });
     }
   },
