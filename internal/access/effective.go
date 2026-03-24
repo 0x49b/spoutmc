@@ -1,10 +1,8 @@
-package authz
+package access
 
 import (
 	"sort"
 	"spoutmc/internal/models"
-	"spoutmc/internal/permissions"
-	"spoutmc/internal/storage"
 
 	"gorm.io/gorm"
 )
@@ -14,8 +12,9 @@ const AdminRoleName = "admin"
 // EffectivePermissionKeys loads the user and returns merged permission keys (roles + direct grants).
 // Users with the admin role receive all permission keys currently in the database.
 func EffectivePermissionKeys(db *gorm.DB, userID uint) ([]string, error) {
+	db = resolveDB(db)
 	if db == nil {
-		db = storage.GetDB()
+		return nil, nil
 	}
 	var user models.User
 	if err := db.Preload("Roles.Permissions").Preload("DirectPermissions").First(&user, userID).Error; err != nil {
@@ -26,24 +25,22 @@ func EffectivePermissionKeys(db *gorm.DB, userID uint) ([]string, error) {
 
 // EffectivePermissionKeysFromUser uses preloaded Roles (with Permissions) and DirectPermissions.
 func EffectivePermissionKeysFromUser(user *models.User) []string {
-	return EffectivePermissionKeysFromUserWithDB(storage.GetDB(), user)
+	return EffectivePermissionKeysFromUserWithDB(resolveDB(nil), user)
 }
 
-// EffectivePermissionKeysFromUserWithDB resolves admin “all permissions” from the database.
+// EffectivePermissionKeysFromUserWithDB resolves admin "all permissions" from the database.
 func EffectivePermissionKeysFromUserWithDB(db *gorm.DB, user *models.User) []string {
 	if user == nil {
 		return nil
 	}
 	for _, r := range user.Roles {
 		if r.Name == AdminRoleName {
-			if db == nil {
-				db = storage.GetDB()
-			}
-			keys, err := permissions.AllKeysFromDB(db)
+			db = resolveDB(db)
+			keys, err := AllKeysFromDB(db)
 			if err != nil || len(keys) == 0 {
 				return nil
 			}
-			return permissions.AllKeysSorted(keys)
+			return AllKeysSorted(keys)
 		}
 	}
 	set := make(map[string]struct{})

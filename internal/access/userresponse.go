@@ -1,4 +1,4 @@
-package authz
+package access
 
 import "spoutmc/internal/models"
 

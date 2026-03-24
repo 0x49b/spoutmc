@@ -7,15 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"spoutmc/internal/config"
-	containerpkg "spoutmc/internal/container"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/files"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/realtime/sseutil"
 	serverpkg "spoutmc/internal/server"
 	"spoutmc/internal/serverapp"
 	"spoutmc/internal/servercfg"
+	"spoutmc/internal/utils/sse"
 	"strings"
 	"time"
 
@@ -317,7 +316,7 @@ func startServerHandler(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.StartContainer(c.Request().Context(), containerID); err != nil {
+	if err := docker.StartContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to start container",
 		})
@@ -340,7 +339,7 @@ func stopServerHandler(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.StopContainer(c.Request().Context(), containerID); err != nil {
+	if err := docker.StopContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to stop container",
 		})
@@ -363,7 +362,7 @@ func restartServerHandler(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.RestartContainer(c.Request().Context(), containerID); err != nil {
+	if err := docker.RestartContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to restart container",
 		})
@@ -661,7 +660,7 @@ func deleteServerHandler(c echo.Context) error {
 	}
 
 	// Stop the container (this also excludes from watchdog)
-	if err := containerpkg.StopContainer(c.Request().Context(), containerID); err != nil {
+	if err := docker.StopContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		logger.Error("Failed to stop container", zap.Error(err))
 		// Continue with removal even if stop fails
 	}

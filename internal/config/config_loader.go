@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/pathutil"
+	"spoutmc/internal/utils/path"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"

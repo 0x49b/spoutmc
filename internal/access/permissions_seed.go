@@ -1,4 +1,4 @@
-package permissions
+package access
 
 // RolePermissionKeys maps default role names to permission keys (seeded on startup).
 // Admin is handled separately (all keys).

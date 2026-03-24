@@ -9,8 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"spoutmc/internal/auth"
-	"spoutmc/internal/authz"
+	"spoutmc/internal/access"
 	cfgpkg "spoutmc/internal/config"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/log"
@@ -56,7 +55,7 @@ func listPlugins(c echo.Context) error {
 	if claims == nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 	}
-	if !authz.ClaimsHasPermission(claims, "server.list.read") {
+	if !access.ClaimsHasPermission(claims, "server.list.read") {
 		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 	}
 
@@ -305,12 +304,12 @@ func deletePlugin(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func requireManagePlugins(c echo.Context, claims *auth.Claims) bool {
+func requireManagePlugins(c echo.Context, claims *access.Claims) bool {
 	if claims == nil {
 		_ = c.NoContent(http.StatusUnauthorized)
 		return false
 	}
-	if !authz.ClaimsCanManagePlugins(claims) {
+	if !access.ClaimsCanManagePlugins(claims) {
 		_ = c.JSON(http.StatusForbidden, map[string]string{"error": "Forbidden"})
 		return false
 	}

@@ -1,4 +1,4 @@
-package permissions
+package access
 
 // Definition is a default permission row used only to seed an empty or outdated database.
 // The runtime source of truth is the `permissions` table; you can add/edit/remove rows via API (admin) or SQL.

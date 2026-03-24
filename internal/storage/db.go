@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"os"
+	"spoutmc/internal/access"
 	"spoutmc/internal/database"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/permissions"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -29,6 +29,7 @@ func InitDB(ctx context.Context) error {
 	}
 
 	db = conn
+	access.SetDBProvider(GetDB)
 
 	// Run migrations for User, Role, Permission, and join tables
 	if err := db.AutoMigrate(
@@ -84,7 +85,7 @@ func InitDB(ctx context.Context) error {
 	var permCount int64
 	db.Model(&models.Permission{}).Count(&permCount)
 	if permCount == 0 {
-		for _, def := range permissions.Definitions {
+		for _, def := range access.Definitions {
 			p := models.Permission{Key: def.Key, Description: def.Description}
 			if err := db.Create(&p).Error; err != nil {
 				logger.Error("Failed to seed permission", zap.String("key", def.Key), zap.Error(err))
@@ -103,7 +104,7 @@ func InitDB(ctx context.Context) error {
 	}
 
 	// Insert missing permission definitions (new keys added in a Spout release).
-	for _, def := range permissions.Definitions {
+	for _, def := range access.Definitions {
 		var existing models.Permission
 		err := db.Where("key = ?", def.Key).First(&existing).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -163,7 +164,7 @@ func InitDB(ctx context.Context) error {
 				}
 				continue
 			}
-			ks, ok := permissions.RolePermissionKeys[role.Name]
+			ks, ok := access.RolePermissionKeys[role.Name]
 			if !ok {
 				continue
 			}

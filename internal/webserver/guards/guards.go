@@ -2,15 +2,14 @@ package guards
 
 import (
 	"net/http"
-	"spoutmc/internal/auth"
-	"spoutmc/internal/authz"
+	"spoutmc/internal/access"
 	"spoutmc/internal/storage"
 	"spoutmc/internal/webserver/middleware"
 
 	"github.com/labstack/echo/v4"
 )
 
-func RequireClaims(c echo.Context) (*auth.Claims, error) {
+func RequireClaims(c echo.Context) (*access.Claims, error) {
 	cl := middleware.GetClaims(c)
 	if cl == nil {
 		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
@@ -29,7 +28,7 @@ func RequireAdmin(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Database not available")
 	}
 
-	if !authz.UserHasRole(db, cl.UserID, authz.AdminRoleName) {
+	if !access.UserHasRole(db, cl.UserID, access.AdminRoleName) {
 		return echo.NewHTTPError(http.StatusForbidden, "admin only")
 	}
 	return nil

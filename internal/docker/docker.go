@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/pathutil"
 	"spoutmc/internal/plugins"
 	"spoutmc/internal/storage"
+	"spoutmc/internal/utils/path"
 	"strings"
 	"sync"
 

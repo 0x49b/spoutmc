@@ -1,4 +1,4 @@
-package auth
+package access
 
 import (
 	"fmt"
@@ -10,17 +10,17 @@ import (
 
 const defaultJWTSecret = "spoutmc-jwt-secret-change-in-production"
 
-// Claims holds JWT claims for SpoutMC users
+// Claims holds JWT claims for SpoutMC users.
 type Claims struct {
-	UserID       uint     `json:"userId"`
-	Email        string   `json:"email"`
-	DisplayName  string   `json:"displayName"`
-	Roles        []string `json:"roles"`
-	Permissions  []string `json:"permissions"`
+	UserID      uint     `json:"userId"`
+	Email       string   `json:"email"`
+	DisplayName string   `json:"displayName"`
+	Roles       []string `json:"roles"`
+	Permissions []string `json:"permissions"`
 	jwt.RegisteredClaims
 }
 
-// GenerateToken creates a JWT for the given user
+// GenerateToken creates a JWT for the given user.
 func GenerateToken(userID uint, email, displayName string, roles []string, permissionKeys []string) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
@@ -51,7 +51,7 @@ func GenerateToken(userID uint, email, displayName string, roles []string, permi
 	return token.SignedString([]byte(secret))
 }
 
-// VerifyToken parses and validates a JWT, returning the claims
+// VerifyToken parses and validates a JWT, returning the claims.
 func VerifyToken(tokenString string) (*Claims, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
@@ -64,7 +64,6 @@ func VerifyToken(tokenString string) (*Claims, error) {
 		}
 		return []byte(secret), nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

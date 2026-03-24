@@ -2,11 +2,9 @@ package auth
 
 import (
 	"net/http"
-	"spoutmc/internal/auth"
-	"spoutmc/internal/authz"
+	"spoutmc/internal/access"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/security"
 	"spoutmc/internal/storage"
 	"spoutmc/internal/webserver/middleware"
 
@@ -55,7 +53,7 @@ func verify(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
 	}
 
-	return c.JSON(http.StatusOK, authz.BuildUserResponse(&user))
+	return c.JSON(http.StatusOK, access.BuildUserResponse(&user))
 }
 
 func login(c echo.Context) error {
@@ -79,7 +77,7 @@ func login(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 	}
 
-	if !security.Verify(user.Password, req.Password) {
+	if !access.Verify(user.Password, req.Password) {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 	}
 
@@ -88,14 +86,14 @@ func login(c echo.Context) error {
 		roleNames[i] = r.Name
 	}
 
-	permKeys := authz.EffectivePermissionKeysFromUser(&user)
-	token, err := auth.GenerateToken(user.ID, user.Email, user.DisplayName, roleNames, permKeys)
+	permKeys := access.EffectivePermissionKeysFromUser(&user)
+	token, err := access.GenerateToken(user.ID, user.Email, user.DisplayName, roleNames, permKeys)
 	if err != nil {
 		logger.Error("Failed to generate JWT", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create token"})
 	}
 
-	userResp := authz.BuildUserResponse(&user)
+	userResp := access.BuildUserResponse(&user)
 
 	return c.JSON(http.StatusOK, LoginResponse{
 		Token: token,

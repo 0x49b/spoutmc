@@ -3,11 +3,10 @@ package infrastructure
 import (
 	"errors"
 	"net/http"
-	containerpkg "spoutmc/internal/container"
 	"spoutmc/internal/docker"
 	"spoutmc/internal/infrastructureapp"
 	"spoutmc/internal/log"
-	"spoutmc/internal/realtime/sseutil"
+	"spoutmc/internal/utils/sse"
 	"strings"
 	"time"
 
@@ -119,7 +118,7 @@ func restartInfrastructureContainer(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.RestartContainer(c.Request().Context(), containerID); err != nil {
+	if err := docker.RestartContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to restart container",
 		})
@@ -142,7 +141,7 @@ func stopInfrastructureContainer(c echo.Context) error {
 	}
 
 	// Use shared container action
-	if err := containerpkg.StopContainer(c.Request().Context(), containerID); err != nil {
+	if err := docker.StopContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to stop container",
 		})
@@ -164,7 +163,7 @@ func startInfrastructureContainer(c echo.Context) error {
 		})
 	}
 
-	if err := containerpkg.StartContainer(c.Request().Context(), containerID); err != nil {
+	if err := docker.StartContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to start container",
 		})

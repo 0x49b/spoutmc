@@ -142,7 +142,6 @@ github.com/samber/lo v1.52.0 h1:Rvi+3BFHES3A8meP33VPAxiBZX/Aws5RxrschYGjomw=
 github.com/samber/lo v1.52.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRoM0=
 github.com/samber/slog-zap v1.0.0 h1:1kMZfxCCRly3U04avgt/UY5mw5nb4ZKNq2HrmogQ5/o=
 github.com/samber/slog-zap v1.0.0/go.mod h1:StA9WLzNI23bpWHj58ZXQhY/IQgSWvvcATmeuDwI2fI=
-github.com/samber/slog-zap/v2 v2.6.3/go.mod h1:Fx+QyKvFfgZilYNiwvnajLsSsEG/miS/bU/PyNlVuTA=
 github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 h1:n661drycOFuPLCN3Uc8sB6B/s6Z4t2xvBgU1htSHuq8=
 github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3/go.mod h1:A0bzQcvG0E7Rwjx0REVgAGH58e96+X0MeOfepqsbeW4=
 github.com/shirou/gopsutil/v4 v4.25.11 h1:X53gB7muL9Gnwwo2evPSE+SfOrltMoR6V3xJAXZILTY=

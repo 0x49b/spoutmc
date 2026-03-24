@@ -3,7 +3,7 @@ package middleware
 import (
 	"strings"
 
-	"spoutmc/internal/auth"
+	"spoutmc/internal/access"
 
 	"github.com/labstack/echo/v4"
 )
@@ -31,7 +31,7 @@ func JWT(next echo.HandlerFunc) echo.HandlerFunc {
 			return echo.NewHTTPError(401, "Missing authorization header")
 		}
 
-		claims, err := auth.VerifyToken(token)
+		claims, err := access.VerifyToken(token)
 		if err != nil {
 			return echo.NewHTTPError(401, "Invalid or expired token")
 		}
@@ -42,8 +42,8 @@ func JWT(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 // GetClaims returns the JWT claims from context (nil if not authenticated)
-func GetClaims(c echo.Context) *auth.Claims {
-	cl, ok := c.Get(claimsKey).(*auth.Claims)
+func GetClaims(c echo.Context) *access.Claims {
+	cl, ok := c.Get(claimsKey).(*access.Claims)
 	if !ok {
 		return nil
 	}

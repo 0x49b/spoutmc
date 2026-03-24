@@ -2,12 +2,11 @@ package user
 
 import (
 	"net/http"
-	"spoutmc/internal/authz"
+	"spoutmc/internal/access"
 	"spoutmc/internal/log"
 	"spoutmc/internal/minecraft"
 	"spoutmc/internal/minime/processor"
 	"spoutmc/internal/models"
-	"spoutmc/internal/security"
 	"spoutmc/internal/storage"
 	"spoutmc/internal/webserver/middleware"
 	"strings"
@@ -52,7 +51,7 @@ func createUser(c echo.Context) error {
 		})
 	}
 
-	hashedPassword, err := security.Hash(req.Password)
+	hashedPassword, err := access.Hash(req.Password)
 	if err != nil {
 		logger.Error("Failed to hash password", zap.Error(err))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Failed to create user"})
@@ -109,7 +108,7 @@ func createUser(c echo.Context) error {
 		// User created but roles might not have loaded
 	}
 
-	return c.JSON(http.StatusCreated, authz.BuildUserResponse(&user))
+	return c.JSON(http.StatusCreated, access.BuildUserResponse(&user))
 }
 
 func updateUser(c echo.Context) error {
@@ -175,7 +174,7 @@ func updateUser(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to reload user"})
 	}
 
-	return c.JSON(http.StatusOK, authz.BuildUserResponse(&user))
+	return c.JSON(http.StatusOK, access.BuildUserResponse(&user))
 }
 
 func deleteUser(c echo.Context) error {
@@ -248,7 +247,7 @@ func updateProfile(c echo.Context) error {
 		}
 	}
 	if req.Password != nil && *req.Password != "" {
-		hashed, err := security.Hash(*req.Password)
+		hashed, err := access.Hash(*req.Password)
 		if err != nil {
 			logger.Error("Failed to hash password", zap.Error(err))
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update password"})
@@ -264,7 +263,7 @@ func updateProfile(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to reload user"})
 	}
 
-	return c.JSON(http.StatusOK, authz.BuildUserResponse(&user))
+	return c.JSON(http.StatusOK, access.BuildUserResponse(&user))
 }
 
 func getUser(c echo.Context) error {
@@ -278,7 +277,7 @@ func getUser(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusOK, authz.BuildUserResponse(&user))
+	return c.JSON(http.StatusOK, access.BuildUserResponse(&user))
 }
 
 func getUsers(c echo.Context) error {
@@ -293,7 +292,7 @@ func getUsers(c echo.Context) error {
 
 	userResponses := make([]models.UserResponse, len(users))
 	for i := range users {
-		userResponses[i] = authz.BuildUserResponse(&users[i])
+		userResponses[i] = access.BuildUserResponse(&users[i])
 	}
 
 	return c.JSON(http.StatusOK, userResponses)

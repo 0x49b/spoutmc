@@ -14,6 +14,7 @@ import {
 import TimesIcon from '@patternfly/react-icons/dist/esm/icons/times-icon';
 import {useNotificationStore} from '../../store/notificationStore';
 
+
 type Props = {
   onClose: () => void;
 };
@@ -46,7 +47,7 @@ const NotificationsDrawerPanel: React.FC<Props> = ({ onClose }) => {
         <NotificationDrawerBody>
           {totalItems === 0 ? (
             <p
-              className="pf-v6-u-text-align-center pf-v6-u-p-lg"
+              className="pf-v6-u-text-align-center pf-v6-u-p-lg p-1"
               style={{ color: 'var(--pf-v6-global--Color--200)' }}
             >
               When an info, warning, or error toast closes, it is listed here so you can read

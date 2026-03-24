@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -42,18 +43,27 @@ func NewService() *Service {
 type serverSocket struct {
 	conn           *websocket.Conn
 	containerID    string
+	ctx            context.Context
+	cancel         context.CancelFunc
+	done           chan struct{}
 	writeCh        chan ServerMessage
 	subscribeStats atomic.Bool
 	subscribeLogs  atomic.Bool
 	cancelLogs     context.CancelFunc
 	logsRunning    atomic.Bool
 	statsRunning   atomic.Bool
+	wg             sync.WaitGroup
+	closed         atomic.Bool
 }
 
 func (s *Service) HandleConnection(ctx context.Context, conn *websocket.Conn, containerID string, userID uint) error {
+	socketCtx, cancel := context.WithCancel(ctx)
 	socket := &serverSocket{
 		conn:        conn,
 		containerID: containerID,
+		ctx:         socketCtx,
+		cancel:      cancel,
+		done:        make(chan struct{}),
 		writeCh:     make(chan ServerMessage, 64),
 	}
 
@@ -73,8 +83,14 @@ func (s *Service) HandleConnection(ctx context.Context, conn *websocket.Conn, co
 
 	err := socket.readLoop(ctx)
 
+	socket.subscribeStats.Store(false)
+	socket.subscribeLogs.Store(false)
+	close(socket.done)
 	socket.stopLogs()
+	socket.cancel()
+	socket.wg.Wait()
 	active = s.activeConnections.Add(-1)
+	socket.closed.Store(true)
 	close(socket.writeCh)
 	<-closed
 	_ = conn.Close()
@@ -130,6 +146,17 @@ func (s *serverSocket) writeLoop(closed chan<- struct{}) {
 }
 
 func (s *serverSocket) enqueue(msg ServerMessage) {
+	if s.closed.Load() {
+		return
+	}
+	select {
+	case <-s.done:
+		return
+	case <-s.ctx.Done():
+		return
+	default:
+	}
+
 	select {
 	case s.writeCh <- msg:
 	default:
@@ -149,6 +176,7 @@ func (s *serverSocket) handleSubscribe(channel string) {
 		logger.Info("ws_subscription_started",
 			zap.String("container", TrimContainerID(s.containerID)),
 			zap.String("channel", channel))
+		s.wg.Add(1)
 		go s.runStatsStream()
 	case "logs":
 		if s.subscribeLogs.Load() {
@@ -185,6 +213,7 @@ func (s *serverSocket) handleUnsubscribe(channel string) {
 }
 
 func (s *serverSocket) runStatsStream() {
+	defer s.wg.Done()
 	if !s.statsRunning.CompareAndSwap(false, true) {
 		return
 	}
@@ -193,7 +222,18 @@ func (s *serverSocket) runStatsStream() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	for s.subscribeStats.Load() {
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.done:
+			return
+		default:
+		}
+		if !s.subscribeStats.Load() {
+			return
+		}
+
 		stats, err := docker.GetContainerStats(context.Background(), s.containerID)
 		if err != nil {
 			errText := strings.ToLower(err.Error())
@@ -214,7 +254,13 @@ func (s *serverSocket) runStatsStream() {
 			})
 		}
 
-		<-ticker.C
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.done:
+			return
+		case <-ticker.C:
+		}
 	}
 }
 
@@ -226,7 +272,9 @@ func (s *serverSocket) startLogsStream() {
 	logsCtx, cancel := context.WithCancel(context.Background())
 	s.cancelLogs = cancel
 
+	s.wg.Add(1)
 	go func() {
+		defer s.wg.Done()
 		defer s.logsRunning.Store(false)
 		defer cancel()
 
@@ -241,17 +289,26 @@ func (s *serverSocket) startLogsStream() {
 			return
 		}
 
-		for s.subscribeLogs.Load() {
-			logline, ok := <-logChan
-			if !ok {
+		for {
+			select {
+			case <-s.ctx.Done():
 				return
+			case <-s.done:
+				return
+			case logline, ok := <-logChan:
+				if !ok {
+					return
+				}
+				if !s.subscribeLogs.Load() {
+					return
+				}
+				s.enqueue(ServerMessage{
+					Type:      "log",
+					Channel:   "logs",
+					Timestamp: time.Now().Unix(),
+					Payload:   logline,
+				})
 			}
-			s.enqueue(ServerMessage{
-				Type:      "log",
-				Channel:   "logs",
-				Timestamp: time.Now().Unix(),
-				Payload:   logline,
-			})
 		}
 	}()
 }

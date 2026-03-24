@@ -1,4 +1,4 @@
-package permissions
+package access
 
 import (
 	"sort"
@@ -8,7 +8,7 @@ import (
 )
 
 // AllKeysFromDB returns every permission key currently stored in the database (sorted).
-// This is the runtime source of truth for “all permissions” (e.g. admin effective set).
+// This is the runtime source of truth for "all permissions" (e.g. admin effective set).
 func AllKeysFromDB(db *gorm.DB) ([]string, error) {
 	if db == nil {
 		return nil, nil

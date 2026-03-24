@@ -213,6 +213,7 @@ func startWatchdogOp(ctx context.Context) error {
 	}
 
 	global.Watchdog = wd
+	docker.SetWatchdogActions(wd)
 	go wd.Start(ctx)
 	return nil
 }

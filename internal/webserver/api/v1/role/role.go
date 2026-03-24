@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
-	"spoutmc/internal/roleutil"
 	"spoutmc/internal/storage"
+	"spoutmc/internal/utils/role"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -117,7 +117,7 @@ func createRole(c echo.Context) error {
 
 func updateRole(c echo.Context) error {
 	var req struct {
-		DisplayName string  `json:"displayName"`
+		DisplayName   string  `json:"displayName"`
 		PermissionIDs *[]uint `json:"permissionIds"`
 	}
 	if err := c.Bind(&req); err != nil || req.DisplayName == "" {
