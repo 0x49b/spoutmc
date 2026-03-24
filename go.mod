@@ -14,6 +14,7 @@ require (
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/samber/slog-zap v1.0.0
+	github.com/samber/slog-zap/v2 v2.6.3
 	github.com/shirou/gopsutil/v4 v4.25.11
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	github.com/twistedasylummc/minime v0.0.4
