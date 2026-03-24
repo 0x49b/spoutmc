@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
-import { constants as fsConstants } from "node:fs";
+import {constants as fsConstants} from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import {spawnSync} from "node:child_process";
+import {fileURLToPath} from "node:url";
 
 const VERSION = "0.0.1";
 const TARGETS = [

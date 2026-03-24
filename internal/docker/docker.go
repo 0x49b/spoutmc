@@ -380,6 +380,7 @@ func filterForContainerLabel(ctx context.Context, label string) (container.Summa
 		if check {
 			return nc, nil
 		}
+
 	}
 	return container.Summary{}, errors.New(fmt.Sprintf("no Server found for label %s", label))
 }

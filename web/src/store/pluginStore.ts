@@ -1,6 +1,6 @@
-import { create } from 'zustand';
+import {create} from 'zustand';
 import * as api from '../service/apiService';
-import type { RegistryPluginEntry } from '../types';
+import type {RegistryPluginEntry} from '../types';
 
 interface PluginState {
   plugins: RegistryPluginEntry[];

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardBody, Alert } from '@patternfly/react-core';
+import {Alert, Card, CardBody} from '@patternfly/react-core';
 
 const PodsTab: React.FC = () => {
   return (

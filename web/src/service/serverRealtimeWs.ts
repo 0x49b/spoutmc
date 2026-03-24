@@ -1,4 +1,4 @@
-import { withSSEAuth } from './apiService';
+import {withSSEAuth} from './apiService';
 
 export type RealtimeMessageType = 'connected' | 'stats' | 'log' | 'command_ack' | 'error' | 'pong';
 

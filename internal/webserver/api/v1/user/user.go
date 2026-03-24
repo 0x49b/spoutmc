@@ -2,7 +2,6 @@ package user
 
 import (
 	"net/http"
-	"strings"
 	"spoutmc/internal/authz"
 	"spoutmc/internal/log"
 	"spoutmc/internal/minecraft"
@@ -11,6 +10,7 @@ import (
 	"spoutmc/internal/security"
 	"spoutmc/internal/storage"
 	"spoutmc/internal/webserver/middleware"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -32,12 +32,12 @@ func RegisterUserRoutes(g *echo.Group) {
 }
 
 type createUserRequest struct {
-	Email           string `json:"email"`
-	Password        string `json:"password"`
-	DisplayName     string `json:"displayName"`
-	MinecraftName   string `json:"minecraftName"`
-	RoleIDs         []uint `json:"roleIds"`
-	PermissionIDs   []uint `json:"permissionIds"`
+	Email         string `json:"email"`
+	Password      string `json:"password"`
+	DisplayName   string `json:"displayName"`
+	MinecraftName string `json:"minecraftName"`
+	RoleIDs       []uint `json:"roleIds"`
+	PermissionIDs []uint `json:"permissionIds"`
 }
 
 func createUser(c echo.Context) error {
@@ -125,11 +125,11 @@ func updateUser(c echo.Context) error {
 	}
 
 	var req struct {
-		Email           *string `json:"email"`
-		DisplayName     *string `json:"displayName"`
-		MinecraftName   *string `json:"minecraftName"`
-		RoleIDs         []uint  `json:"roleIds"`
-		PermissionIDs   *[]uint `json:"permissionIds"`
+		Email         *string `json:"email"`
+		DisplayName   *string `json:"displayName"`
+		MinecraftName *string `json:"minecraftName"`
+		RoleIDs       []uint  `json:"roleIds"`
+		PermissionIDs *[]uint `json:"permissionIds"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})

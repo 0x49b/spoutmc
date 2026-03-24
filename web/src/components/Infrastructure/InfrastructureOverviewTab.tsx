@@ -1,18 +1,18 @@
-import { useEffect, useState } from 'react';
+import {useEffect, useState} from 'react';
 import {
-  Flex,
-  FlexItem,
-  Grid,
-  GridItem,
-  Progress,
-  ProgressMeasureLocation,
-  ProgressVariant,
-  Title
+    Flex,
+    FlexItem,
+    Grid,
+    GridItem,
+    Progress,
+    ProgressMeasureLocation,
+    ProgressVariant,
+    Title
 } from '@patternfly/react-core';
-import { CpuIcon } from '@patternfly/react-icons';
+import {CpuIcon} from '@patternfly/react-icons';
 import * as api from '../../service/apiService';
-import { ServerStats } from '../../model/ServerStats';
-import { redactEnvValue } from '../../utils/redactSensitiveEnv';
+import {ServerStats} from '../../model/ServerStats';
+import {redactEnvValue} from '../../utils/redactSensitiveEnv';
 import OverviewTabSkeleton from '../Servers/ServerDetailTabs/OverviewTabSkeleton';
 
 interface MemoryUsage {

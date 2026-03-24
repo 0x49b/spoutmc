@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import {create} from 'zustand';
 import * as api from '../service/apiService';
 
 export type ToastVariant = 'success' | 'info' | 'warning' | 'danger';

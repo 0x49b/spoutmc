@@ -16,10 +16,7 @@ import {
     PageSection,
     SearchInput
 } from '@patternfly/react-core';
-import {
-    PlusIcon,
-    SyncAltIcon
-} from '@patternfly/react-icons';
+import {PlusIcon, SyncAltIcon} from '@patternfly/react-icons';
 import {useServerStore} from '../../store/serverStore';
 import StatusBadge from '../UI/StatusBadge';
 import PageHeader from '../UI/PageHeader';

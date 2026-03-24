@@ -1,41 +1,40 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, {useEffect, useRef, useState} from 'react';
+import {useNavigate, useParams} from 'react-router-dom';
 import {
-  Button,
-  Card,
-  CardBody,
-  EmptyState,
-  EmptyStateBody,
-  EmptyStateVariant,
-  Flex,
-  FlexItem,
-  Grid,
-  GridItem,
-  PageSection,
-  Spinner,
-  Tab,
-  Tabs,
-  TabTitleIcon,
-  TabTitleText
+    Button,
+    Card,
+    CardBody,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateVariant,
+    Flex,
+    FlexItem,
+    Grid,
+    GridItem,
+    PageSection,
+    Spinner,
+    Tab,
+    Tabs,
+    TabTitleIcon,
+    TabTitleText
 } from '@patternfly/react-core';
 import {
-  ArrowLeftIcon,
-  ChartLineIcon,
-  ClockIcon,
-  DatabaseIcon,
-  EditIcon,
-  PowerOffIcon,
-  SyncAltIcon,
-  TerminalIcon
+    ArrowLeftIcon,
+    ChartLineIcon,
+    ClockIcon,
+    EditIcon,
+    PowerOffIcon,
+    SyncAltIcon,
+    TerminalIcon
 } from '@patternfly/react-icons';
-import { useInfrastructureStore } from '../../store/infrastructureStore';
-import { getContainerId } from '../../types';
+import {useInfrastructureStore} from '../../store/infrastructureStore';
+import {getContainerId} from '../../types';
 import * as api from '../../service/apiService';
 import PageHeader from '../UI/PageHeader';
 import StatusBadge from '../UI/StatusBadge';
-import { ConsoleTab } from '../Servers/ServerDetailTabs/ConsoleTab';
-import { InfrastructureOverviewTab } from './InfrastructureOverviewTab';
-import { ServerStats } from '../../model/ServerStats';
+import {ConsoleTab} from '../Servers/ServerDetailTabs/ConsoleTab';
+import {InfrastructureOverviewTab} from './InfrastructureOverviewTab';
+import {ServerStats} from '../../model/ServerStats';
 
 const API_BASE_URL = 'http://localhost:3000/api/v1'; // TODO: use env/config
 

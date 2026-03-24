@@ -1,18 +1,18 @@
-import React, { useMemo, useState } from 'react';
+import React, {useMemo, useState} from 'react';
 import {
-  DualListSelector,
-  DualListSelectorPane,
-  DualListSelectorList,
-  DualListSelectorListItem,
-  DualListSelectorControlsWrapper,
-  DualListSelectorControl,
-  SearchInput
+    DualListSelector,
+    DualListSelectorControl,
+    DualListSelectorControlsWrapper,
+    DualListSelectorList,
+    DualListSelectorListItem,
+    DualListSelectorPane,
+    SearchInput
 } from '@patternfly/react-core';
 import {
-  AngleDoubleLeftIcon,
-  AngleDoubleRightIcon,
-  AngleLeftIcon,
-  AngleRightIcon
+    AngleDoubleLeftIcon,
+    AngleDoubleRightIcon,
+    AngleLeftIcon,
+    AngleRightIcon
 } from '@patternfly/react-icons';
 
 export interface PermissionOption {

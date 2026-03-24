@@ -1,11 +1,11 @@
-import { create } from 'zustand';
-import { Server } from '../types';
+import {create} from 'zustand';
+import {Server} from '../types';
 import * as api from '../service/apiService';
 import {
-  mapDockerContainersToServers,
-  mapContainersWithStatsToServers,
-  DockerContainer,
-  ContainerWithStats
+    ContainerWithStats,
+    DockerContainer,
+    mapContainersWithStatsToServers,
+    mapDockerContainersToServers
 } from '../utils/serverMapper';
 
 interface ServerState {

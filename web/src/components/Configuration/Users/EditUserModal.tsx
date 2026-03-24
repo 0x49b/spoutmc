@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  Modal,
-  ModalVariant,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-  Form,
-  FormGroup,
-  TextInput,
-  Checkbox,
-  Alert
+    Alert,
+    Button,
+    Checkbox,
+    Form,
+    FormGroup,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalHeader,
+    ModalVariant,
+    TextInput
 } from '@patternfly/react-core';
-import { useAuthStore } from '../../../store/authStore';
-import { getPermissions, getUser } from '../../../service/apiService';
-import { RolePermissionsDualList } from '../Roles/RolePermissionsDualList';
+import {useAuthStore} from '../../../store/authStore';
+import {getPermissions, getUser} from '../../../service/apiService';
+import {RolePermissionsDualList} from '../Roles/RolePermissionsDualList';
 
 interface EditUserModalProps {
   isOpen: boolean;

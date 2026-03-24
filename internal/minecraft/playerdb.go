@@ -8,8 +8,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/google/uuid"
 	"spoutmc/internal/models"
+
+	"github.com/google/uuid"
 )
 
 // GetPlayerProfile resolves a Minecraft player by username or UUID (with or without dashes)

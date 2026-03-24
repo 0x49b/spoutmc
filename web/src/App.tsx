@@ -48,6 +48,8 @@ import {
     NavExpandable,
     NavItem,
     NavList,
+    NotificationBadge,
+    NotificationBadgeVariant,
     Page,
     PageSidebar,
     PageSidebarBody,
@@ -55,9 +57,7 @@ import {
     Toolbar,
     ToolbarContent,
     ToolbarGroup,
-    ToolbarItem,
-    NotificationBadge,
-    NotificationBadgeVariant
+    ToolbarItem
 } from '@patternfly/react-core';
 import {
     BarsIcon,

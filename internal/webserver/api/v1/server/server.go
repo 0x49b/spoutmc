@@ -1,8 +1,6 @@
 package server
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,19 +12,21 @@ import (
 	"spoutmc/internal/files"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
+	"spoutmc/internal/realtime/sseutil"
 	serverpkg "spoutmc/internal/server"
+	"spoutmc/internal/serverapp"
 	"spoutmc/internal/servercfg"
-	"spoutmc/internal/sse"
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/labstack/echo/v4"
-	"github.com/teris-io/shortid"
 	"go.uber.org/zap"
 )
 
-var logger = log.GetLogger(log.ModuleAPI)
+var (
+	logger               = log.GetLogger(log.ModuleAPI)
+	defaultServerService = serverapp.NewService()
+)
 
 // RegisterServerRoutes registers container/server-related API endpoints.
 func RegisterServerRoutes(g *echo.Group) {
@@ -60,11 +60,15 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server/:id/logs", getServerLogs)
 }
 
+func RegisterServerRoutesWithService(g *echo.Group, service *serverapp.Service) {
+	if service != nil {
+		defaultServerService = service
+	}
+	RegisterServerRoutes(g)
+}
+
 func getServerStats(c echo.Context) error {
-	w := c.Response()
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	sseutil.SetupResponse(c)
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -75,26 +79,13 @@ func getServerStats(c echo.Context) error {
 			logger.Info("SSE client disconnected", zap.String("ip", c.RealIP()))
 			return nil
 		case <-ticker.C:
-			container, err := docker.GetContainerStats(c.Request().Context(), c.Param("id"))
+			stats, err := defaultServerService.GetContainerStats(c.Request().Context(), c.Param("id"))
 			if err != nil {
 				return err
 			}
-
-			id, _ := shortid.Generate()
-			data, err := json.Marshal(container)
-			if err != nil {
+			if err := sseutil.WriteJSON(c, stats); err != nil {
 				return err
 			}
-
-			event := sse.Event{
-				ID:        []byte(id),
-				Data:      data,
-				Timestamp: time.Now().Unix(),
-			}
-			if err = event.MarshalTo(w); err != nil {
-				return err
-			}
-			w.Flush()
 		}
 	}
 }
@@ -102,7 +93,9 @@ func getServerStats(c echo.Context) error {
 func getServerLogs(c echo.Context) error {
 	logger.Info("SSE Client connected", zap.String("ip", c.RealIP()))
 
-	logChan, err := docker.FetchDockerLogs(c.Request().Context(), c.Param("id"))
+	sseutil.SetupResponse(c)
+
+	logChan, err := defaultServerService.FetchContainerLogs(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		logger.Error("Error fetching docker logs", zap.Error(err))
 		if strings.Contains(strings.ToLower(err.Error()), "no such container") {
@@ -115,11 +108,6 @@ func getServerLogs(c echo.Context) error {
 		})
 	}
 
-	w := c.Response()
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
 	for {
 		select {
 		case <-c.Request().Context().Done():
@@ -130,101 +118,39 @@ func getServerLogs(c echo.Context) error {
 				return nil
 			}
 
-			id, _ := shortid.Generate()
-			event := sse.Event{
-				ID:        []byte(id),
-				Data:      []byte(logline),
-				Timestamp: time.Now().Unix(),
-			}
-			if err := event.MarshalTo(w); err != nil {
+			if err := sseutil.WriteBytes(c, []byte(logline)); err != nil {
 				return err
 			}
-			w.Flush()
 		}
 	}
 }
 
 func getServer(c echo.Context) error {
-	// Get detailed container info for StartedAt
-	inspectData, err := docker.GetContainerById(c.Request().Context(), c.Param("id"))
-	if err != nil {
-		return err
-	}
-
-	// Get container summary for labels and basic info
-	containers, err := docker.GetNetworkContainers(c.Request().Context())
-	if err != nil {
-		return err
-	}
-
-	// Find matching container to get summary and labels
-	var containerSummary container.Summary
-	var found bool
-	for _, cont := range containers {
-		if cont.ID == c.Param("id") {
-			containerSummary = cont
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	enriched, err := defaultServerService.GetServer(c.Request().Context(), c.Param("id"))
+	if errors.Is(err, serverapp.ErrServerNotFound) {
 		return c.JSON(http.StatusNotFound, map[string]string{
 			"error": "Container not found",
 		})
 	}
-
-	// Create enriched response with server type
-	enriched := EnrichedContainer{
-		Summary: containerSummary,
-		Type:    serverpkg.DetermineServerType(containerSummary.Labels),
+	if err != nil {
+		return err
 	}
-
-	if inspectData.State != nil {
-		enriched.StartedAt = inspectData.State.StartedAt
-	}
-
 	return c.JSON(http.StatusOK, enriched)
 }
 
 func getServers(c echo.Context) error {
-	containers, err := docker.GetNetworkContainers(c.Request().Context())
+	containers, err := defaultServerService.ListServers(c.Request().Context())
 	if err != nil {
 		return err
 	}
-
-	// Enrich containers with StartedAt timestamp and Type
-	enrichedContainers := make([]EnrichedContainer, 0, len(containers))
-	for _, container := range containers {
-		enriched := EnrichedContainer{
-			Summary: container,
-			Type:    serverpkg.DetermineServerType(container.Labels),
-		}
-
-		// Get detailed container info to extract StartedAt
-		inspectData, err := docker.GetContainerById(c.Request().Context(), container.ID)
-		if err == nil && inspectData.State != nil {
-			enriched.StartedAt = inspectData.State.StartedAt
-		}
-
-		enrichedContainers = append(enrichedContainers, enriched)
-	}
-
-	return c.JSON(http.StatusOK, enrichedContainers)
+	return c.JSON(http.StatusOK, containers)
 }
 
 // EnrichedContainer combines container summary with additional runtime info
-type EnrichedContainer struct {
-	container.Summary
-	StartedAt string `json:"StartedAt,omitempty"` // ISO 8601 timestamp when container was started
-	Type      string `json:"Type,omitempty"`      // Server type: "proxy", "lobby", or "game"
-}
+type EnrichedContainer = serverapp.EnrichedContainer
 
 // ContainerWithStats combines container info with real-time stats
-type ContainerWithStats struct {
-	Container EnrichedContainer `json:"container"`
-	Stats     interface{}       `json:"stats,omitempty"`
-}
+type ContainerWithStats = serverapp.ContainerWithStats
 
 // AddServerRequest represents the request body for adding a new server
 type AddServerRequest struct {
@@ -810,11 +736,7 @@ func deleteServerHandler(c echo.Context) error {
 
 func streamServers(c echo.Context) error {
 	logger.Info("SSE Client connected to server stream", zap.String("ip", c.RealIP()))
-
-	w := c.Response()
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	sseutil.SetupResponse(c)
 
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -825,71 +747,17 @@ func streamServers(c echo.Context) error {
 			logger.Info("SSE client disconnected from server stream", zap.String("ip", c.RealIP()))
 			return nil
 		case <-ticker.C:
-			containers, err := docker.GetNetworkContainers(c.Request().Context())
-
+			snapshot, err := defaultServerService.StreamSnapshot(c.Request().Context())
 			if err != nil {
-				// SSE clients reconnect frequently; treat canceled context as normal disconnect.
-				errText := strings.ToLower(err.Error())
-				if c.Request().Context().Err() != nil ||
-					errors.Is(err, context.Canceled) ||
-					errors.Is(err, context.DeadlineExceeded) ||
-					strings.Contains(errText, "context canceled") ||
-					strings.Contains(errText, "request canceled") {
+				if serverapp.IsContextCanceled(err, c.Request().Context()) {
 					return nil
 				}
 				logger.Error("Error fetching containers for stream", zap.Error(err))
 				continue
 			}
-
-			// Enrich containers with stats and StartedAt
-			enrichedContainers := make([]ContainerWithStats, 0, len(containers))
-			for _, container := range containers {
-				// Create enriched container with StartedAt and Type
-				enrichedContainer := EnrichedContainer{
-					Summary: container,
-					Type:    serverpkg.DetermineServerType(container.Labels),
-				}
-
-				// Get detailed container info to extract StartedAt
-				inspectData, err := docker.GetContainerById(c.Request().Context(), container.ID)
-				if err == nil && inspectData.State != nil {
-					enrichedContainer.StartedAt = inspectData.State.StartedAt
-				}
-
-				containerData := ContainerWithStats{
-					Container: enrichedContainer,
-				}
-
-				// Try to fetch stats for this container (non-blocking)
-				stats, err := docker.GetContainerStats(c.Request().Context(), container.ID)
-				if err != nil {
-					// Log but don't fail the whole stream
-					logger.Debug("Could not fetch stats for container",
-						zap.String("id", container.ID[:12]),
-						zap.Error(err))
-				} else {
-					containerData.Stats = stats
-				}
-
-				enrichedContainers = append(enrichedContainers, containerData)
-			}
-
-			id, _ := shortid.Generate()
-			data, err := json.Marshal(enrichedContainers)
-			if err != nil {
-				logger.Error("Error marshalling containers", zap.Error(err))
-				continue
-			}
-
-			event := sse.Event{
-				ID:        []byte(id),
-				Data:      data,
-				Timestamp: time.Now().Unix(),
-			}
-			if err = event.MarshalTo(w); err != nil {
+			if err := sseutil.WriteJSON(c, snapshot); err != nil {
 				return err
 			}
-			w.Flush()
 		}
 	}
 }

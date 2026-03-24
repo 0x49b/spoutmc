@@ -1,26 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  PageSection,
-  Card,
-  CardBody,
-  Button,
-  EmptyState,
-  EmptyStateBody,
-  EmptyStateVariant,
-  Modal,
-  ModalVariant,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Alert
+    Alert,
+    Button,
+    Card,
+    CardBody,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateVariant,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalHeader,
+    ModalVariant,
+    PageSection
 } from '@patternfly/react-core';
-import { ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
-import { TrashIcon } from '@patternfly/react-icons';
+import {ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
+import {TrashIcon} from '@patternfly/react-icons';
 import PageHeader from '../../UI/PageHeader';
-import { useAuthStore } from '../../../store/authStore';
+import {useAuthStore} from '../../../store/authStore';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
-import type { UserProfile } from '../../../types';
+import type {UserProfile} from '../../../types';
 
 const UsersList: React.FC = () => {
   const { users, fetchUsers, fetchRoles, deleteUser, hasRole, roles } = useAuthStore();

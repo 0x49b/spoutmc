@@ -52,11 +52,11 @@ import FileEditorModal from './Modals/FileEditorModal.tsx';
 import * as api from '../../service/apiService.ts';
 import RestartServerModal from "./Modals/RestartServerModal.tsx";
 import {
-    ServerRealtimeWsClient,
-    useServerDetailWsTransport,
-    RealtimeMessage,
     acquireServerRealtimeWsClient,
-    releaseServerRealtimeWsClient
+    RealtimeMessage,
+    releaseServerRealtimeWsClient,
+    ServerRealtimeWsClient,
+    useServerDetailWsTransport
 } from '../../service/serverRealtimeWs.ts';
 
 const ServerDetail: React.FC = () => {

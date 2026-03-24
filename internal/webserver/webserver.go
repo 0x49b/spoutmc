@@ -10,8 +10,12 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"spoutmc/internal/infrastructureapp"
 	"spoutmc/internal/log"
+	realtimews "spoutmc/internal/realtime/ws"
+	"spoutmc/internal/serverapp"
 	"spoutmc/internal/webserver/api"
+	"spoutmc/internal/webserver/api/v1"
 	"spoutmc/internal/webserver/static"
 	"strconv"
 	"strings"
@@ -103,7 +107,12 @@ func Start() (*echo.Echo, error) {
 	}
 
 	// Register API routes (these take precedence due to Echo's router priority)
-	api.RegisterAPI(e)
+	modules := v1.Modules{
+		ServerService: serverapp.NewService(),
+		InfraService:  infrastructureapp.NewService(),
+		WSService:     realtimews.NewService(),
+	}
+	api.RegisterAPIWithModules(e, modules)
 
 	ln, err := net.Listen("tcp", ":3000")
 	if err != nil {

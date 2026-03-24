@@ -1,5 +1,5 @@
 import React from 'react';
-import { Skeleton as PFSkeleton } from '@patternfly/react-core';
+import {Skeleton as PFSkeleton} from '@patternfly/react-core';
 
 interface SkeletonProps {
   className?: string;

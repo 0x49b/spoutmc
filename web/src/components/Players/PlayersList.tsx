@@ -1,30 +1,30 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
-  Avatar,
-  Button,
-  Card,
-  CardBody,
-  EmptyState,
-  EmptyStateBody,
-  EmptyStateVariant,
-  Form,
-  FormGroup,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalVariant,
-  PageSection,
-  TextInput,
-  Toolbar,
-  ToolbarContent,
-  ToolbarItem
+    Avatar,
+    Button,
+    Card,
+    CardBody,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateVariant,
+    Form,
+    FormGroup,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalVariant,
+    PageSection,
+    TextInput,
+    Toolbar,
+    ToolbarContent,
+    ToolbarItem
 } from '@patternfly/react-core';
-import { ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import {ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
 import PageHeader from '../UI/PageHeader';
-import { usePlayerStore } from '../../store/playerStore';
-import { useAuthStore } from '../../store/authStore';
+import {usePlayerStore} from '../../store/playerStore';
+import {useAuthStore} from '../../store/authStore';
 import StatusBadge from '../UI/StatusBadge';
-import { PlayerChatMessageDTO } from '../../service/apiService';
+import {PlayerChatMessageDTO} from '../../service/apiService';
 
 const PlayersList: React.FC = () => {
   const {

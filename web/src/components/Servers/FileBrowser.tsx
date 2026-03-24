@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { TreeView, TreeViewDataItem } from '@patternfly/react-core';
-import { FolderIcon, FolderOpenIcon, FileIcon } from '@patternfly/react-icons';
-import { FileNode } from '../../service/apiService';
+import React from 'react';
+import {TreeView, TreeViewDataItem} from '@patternfly/react-core';
+import {FileIcon, FolderIcon} from '@patternfly/react-icons';
+import {FileNode} from '../../service/apiService';
 
 interface FileBrowserProps {
   files: FileNode;

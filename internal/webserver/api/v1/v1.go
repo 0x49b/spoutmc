@@ -2,6 +2,9 @@ package v1
 
 import (
 	"net/http"
+	"spoutmc/internal/infrastructureapp"
+	realtimews "spoutmc/internal/realtime/ws"
+	"spoutmc/internal/serverapp"
 	"spoutmc/internal/webserver/api/v1/auth"
 	"spoutmc/internal/webserver/api/v1/git"
 	"spoutmc/internal/webserver/api/v1/host"
@@ -21,7 +24,17 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+type Modules struct {
+	ServerService *serverapp.Service
+	InfraService  *infrastructureapp.Service
+	WSService     *realtimews.Service
+}
+
 func RegisterV1(g *echo.Group) {
+	RegisterV1WithModules(g, Modules{})
+}
+
+func RegisterV1WithModules(g *echo.Group, modules Modules) {
 	v1 := g.Group("/v1")
 	v1.GET("/ping", func(c echo.Context) error {
 		return c.String(http.StatusOK, "pong")
@@ -34,8 +47,21 @@ func RegisterV1(g *echo.Group) {
 
 	// Protected routes (JWT required)
 	protected := v1.Group("", middleware.JWT)
+	serverService := modules.ServerService
+	if serverService == nil {
+		serverService = serverapp.NewService()
+	}
+	infraService := modules.InfraService
+	if infraService == nil {
+		infraService = infrastructureapp.NewService()
+	}
+	wsService := modules.WSService
+	if wsService == nil {
+		wsService = realtimews.NewService()
+	}
+
 	auth.RegisterAuthVerifyRoute(protected)
-	server.RegisterServerRoutes(protected)
+	server.RegisterServerRoutesWithService(protected, serverService)
 	user.RegisterUserRoutes(protected)
 	role.RegisterRoleRoutes(protected)
 	permission.RegisterPermissionRoutes(protected)
@@ -43,7 +69,7 @@ func RegisterV1(g *echo.Group) {
 	player.RegisterPlayerRoutes(protected)
 	host.RegisterHostRoutes(protected)
 	git.RegisterGitRoutes(protected)
-	infrastructure.RegisterInfrastructureRoutes(protected)
+	infrastructure.RegisterInfrastructureRoutesWithService(protected, infraService)
 	plugin.RegisterPluginRoutes(protected)
-	wsapi.RegisterWSRoutes(protected)
+	wsapi.RegisterWSRoutesWithService(protected, wsService)
 }

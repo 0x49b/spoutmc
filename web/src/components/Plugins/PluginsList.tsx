@@ -1,29 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  PageSection,
-  Card,
-  CardBody,
-  Button,
-  Label,
-  Modal,
-  ModalVariant,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Bullseye,
-  Spinner,
-  Alert,
-  EmptyState,
-  EmptyStateBody,
-  EmptyStateVariant
+    Alert,
+    Bullseye,
+    Button,
+    Card,
+    CardBody,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateVariant,
+    Label,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalHeader,
+    ModalVariant,
+    PageSection,
+    Spinner
 } from '@patternfly/react-core';
-import { PlusIcon } from '@patternfly/react-icons';
-import { ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import {PlusIcon} from '@patternfly/react-icons';
+import {ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
 import PageHeader from '../UI/PageHeader';
-import { usePluginStore } from '../../store/pluginStore';
-import { useAuthStore } from '../../store/authStore';
+import {usePluginStore} from '../../store/pluginStore';
+import {useAuthStore} from '../../store/authStore';
 import PluginFormModal from './PluginFormModal';
-import type { RegistryPluginEntry } from '../../types';
+import type {RegistryPluginEntry} from '../../types';
 
 const truncateUrl = (u: string, max = 56) => (u.length <= max ? u : `${u.slice(0, max)}…`);
 

@@ -1,13 +1,13 @@
 import React from 'react';
 import {
-  Dropdown,
-  DropdownItem,
-  DropdownList,
-  MenuToggle,
-  MenuToggleElement
+    Dropdown,
+    DropdownItem,
+    DropdownList,
+    MenuToggle,
+    MenuToggleElement
 } from '@patternfly/react-core';
-import { DesktopIcon, MoonIcon, SunIcon } from '@patternfly/react-icons';
-import { Theme, useThemeStore } from '../../store/themeStore';
+import {DesktopIcon, MoonIcon, SunIcon} from '@patternfly/react-icons';
+import {Theme, useThemeStore} from '../../store/themeStore';
 
 const ThemeToggle: React.FC = () => {
   const { theme, setTheme } = useThemeStore();

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Alert, AlertActionCloseButton, AlertGroup } from '@patternfly/react-core';
-import { useNotificationStore } from '../../store/notificationStore';
+import {Alert, AlertActionCloseButton, AlertGroup} from '@patternfly/react-core';
+import {useNotificationStore} from '../../store/notificationStore';
 
 const TOAST_TIMEOUT_MS = 5000;
 

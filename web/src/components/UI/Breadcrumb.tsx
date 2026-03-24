@@ -1,8 +1,11 @@
 import React from 'react';
-import { useLocation, Link } from 'react-router-dom';
-import { Breadcrumb as PFBreadcrumb, BreadcrumbItem as PFBreadcrumbItem } from '@patternfly/react-core';
-import { BreadcrumbItem } from '../../types';
-import { useServerStore } from '../../store/serverStore';
+import {Link, useLocation} from 'react-router-dom';
+import {
+    Breadcrumb as PFBreadcrumb,
+    BreadcrumbItem as PFBreadcrumbItem
+} from '@patternfly/react-core';
+import {BreadcrumbItem} from '../../types';
+import {useServerStore} from '../../store/serverStore';
 
 const Breadcrumb: React.FC = () => {
   const location = useLocation();

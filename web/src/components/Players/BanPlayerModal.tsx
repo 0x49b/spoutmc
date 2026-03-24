@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Modal, ModalVariant, Button, Form, FormGroup, TextInput } from '@patternfly/react-core';
+import React, {useState} from 'react';
+import {Button, Form, FormGroup, Modal, ModalVariant, TextInput} from '@patternfly/react-core';
 
 interface BanPlayerModalProps {
   isOpen: boolean;

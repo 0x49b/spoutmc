@@ -1,18 +1,18 @@
 import React from 'react';
 import {
-  Button,
-  ButtonVariant,
-  DrawerPanelContent,
-  NotificationDrawer,
-  NotificationDrawerBody,
-  NotificationDrawerHeader,
-  NotificationDrawerList,
-  NotificationDrawerListItem,
-  NotificationDrawerListItemBody,
-  NotificationDrawerListItemHeader
+    Button,
+    ButtonVariant,
+    DrawerPanelContent,
+    NotificationDrawer,
+    NotificationDrawerBody,
+    NotificationDrawerHeader,
+    NotificationDrawerList,
+    NotificationDrawerListItem,
+    NotificationDrawerListItemBody,
+    NotificationDrawerListItemHeader
 } from '@patternfly/react-core';
 import TimesIcon from '@patternfly/react-icons/dist/esm/icons/times-icon';
-import { useNotificationStore } from '../../store/notificationStore';
+import {useNotificationStore} from '../../store/notificationStore';
 
 type Props = {
   onClose: () => void;

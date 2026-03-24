@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { Player } from '../types';
+import {create} from 'zustand';
+import {Player} from '../types';
 import * as api from '../service/apiService';
 
 interface PlayerState {

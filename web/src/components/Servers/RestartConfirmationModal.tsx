@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal, ModalVariant, Button, Alert } from '@patternfly/react-core';
-import { CheckCircleIcon, SyncAltIcon } from '@patternfly/react-icons';
+import {Alert, Button, Modal, ModalVariant} from '@patternfly/react-core';
+import {CheckCircleIcon, SyncAltIcon} from '@patternfly/react-icons';
 
 interface RestartConfirmationModalProps {
   isOpen: boolean;

@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { InfrastructureContainer, getContainerId } from '../types';
+import {create} from 'zustand';
+import {getContainerId, InfrastructureContainer} from '../types';
 import axios from 'axios';
-import { updateContainerWithStats } from '../utils/infrastructureStats';
+import {updateContainerWithStats} from '../utils/infrastructureStats';
 import * as api from '../service/apiService';
 
 interface InfrastructureState {

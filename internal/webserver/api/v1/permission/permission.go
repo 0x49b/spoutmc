@@ -3,12 +3,11 @@ package permission
 import (
 	"errors"
 	"net/http"
-	"strings"
-	"spoutmc/internal/authz"
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"spoutmc/internal/storage"
-	"spoutmc/internal/webserver/middleware"
+	"spoutmc/internal/webserver/guards"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -25,20 +24,7 @@ func RegisterPermissionRoutes(g *echo.Group) {
 	g.DELETE("/permission/:id", deletePermission)
 }
 
-func requireAdmin(c echo.Context) error {
-	cl := middleware.GetClaims(c)
-	if cl == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
-	}
-	db := storage.GetDB()
-	if db == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Database not available")
-	}
-	if !authz.UserHasRole(db, cl.UserID, authz.AdminRoleName) {
-		return echo.NewHTTPError(http.StatusForbidden, "admin only")
-	}
-	return nil
-}
+func requireAdmin(c echo.Context) error { return guards.RequireAdmin(c) }
 
 func listPermissions(c echo.Context) error {
 	db := storage.GetDB()

@@ -1,7 +1,7 @@
 import React from 'react';
-import { NetworkIcon, OutlinedHddIcon, ServerGroupIcon } from '@patternfly/react-icons';
-import ContainerCard, { ContainerCardDetail } from '../Shared/ContainerCard';
-import { Server } from '../../types';
+import {NetworkIcon, OutlinedHddIcon, ServerGroupIcon} from '@patternfly/react-icons';
+import ContainerCard, {ContainerCardDetail} from '../Shared/ContainerCard';
+import {Server} from '../../types';
 
 interface ServerCardProps {
     server: Server;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { PageSection, Title, Flex, FlexItem } from '@patternfly/react-core';
+import {Flex, FlexItem, PageSection, Title} from '@patternfly/react-core';
 import Breadcrumb from './Breadcrumb';
 
 interface PageHeaderProps {

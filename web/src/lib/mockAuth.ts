@@ -1,4 +1,4 @@
-import { Role, UserProfile } from '../types';
+import {UserProfile} from '../types';
 
 // Mock users for development
 const mockUsers = [

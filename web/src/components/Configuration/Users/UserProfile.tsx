@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  PageSection,
-  Card,
-  CardBody,
-  Title,
-  Form,
-  FormGroup,
-  TextInput,
-  Button,
-  Avatar,
-  Flex,
-  FlexItem
+    Avatar,
+    Button,
+    Card,
+    CardBody,
+    Flex,
+    FlexItem,
+    Form,
+    FormGroup,
+    PageSection,
+    TextInput,
+    Title
 } from '@patternfly/react-core';
 import PageHeader from '../../UI/PageHeader';
-import { getUserAvatarDataUrl, useAuthStore } from '../../../store/authStore';
-import { useNotificationStore } from '../../../store/notificationStore';
+import {getUserAvatarDataUrl, useAuthStore} from '../../../store/authStore';
+import {useNotificationStore} from '../../../store/notificationStore';
 
 const UserProfile: React.FC = () => {
   const { user, updateProfile, clearError } = useAuthStore();

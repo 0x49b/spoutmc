@@ -11,13 +11,7 @@ import {
     Grid,
     PageSection
 } from '@patternfly/react-core';
-import {
-    ArrowRightIcon,
-    CubeIcon,
-    CubesIcon,
-    ServerIcon,
-    UsersIcon
-} from '@patternfly/react-icons';
+import {ArrowRightIcon, CubeIcon, CubesIcon, ServerIcon, UsersIcon} from '@patternfly/react-icons';
 import {useServerStore} from '../../store/serverStore';
 import {usePlayerStore} from '../../store/playerStore';
 import {usePluginStore} from '../../store/pluginStore';

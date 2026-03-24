@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { UserProfile } from '../types';
+import {create} from 'zustand';
+import {UserProfile} from '../types';
 import * as api from '../service/apiService';
-import { userAvatarToDataUrl } from '../utils/avatarDataUrl';
+import {userAvatarToDataUrl} from '../utils/avatarDataUrl';
 
 interface AuthState {
   user: UserProfile | null;

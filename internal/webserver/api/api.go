@@ -7,6 +7,10 @@ import (
 )
 
 func RegisterAPI(e *echo.Echo) {
+	RegisterAPIWithModules(e, v1.Modules{})
+}
+
+func RegisterAPIWithModules(e *echo.Echo, modules v1.Modules) {
 	api := e.Group("/api")
-	v1.RegisterV1(api)
+	v1.RegisterV1WithModules(api, modules)
 }

@@ -1,11 +1,21 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { TextInput, Button, Flex, FlexItem, Alert, Menu, MenuContent, MenuList, MenuItem } from '@patternfly/react-core';
-import { PaperPlaneIcon } from '@patternfly/react-icons';
-import { LogViewer, LogViewerSearch } from '@patternfly/react-log-viewer';
+import {useCallback, useEffect, useRef, useState} from 'react';
+import {
+    Alert,
+    Button,
+    Flex,
+    FlexItem,
+    Menu,
+    MenuContent,
+    MenuItem,
+    MenuList,
+    TextInput
+} from '@patternfly/react-core';
+import {PaperPlaneIcon} from '@patternfly/react-icons';
+import {LogViewer, LogViewerSearch} from '@patternfly/react-log-viewer';
 import AnsiToHtml from 'ansi-to-html';
 import ConsoleTabSkeleton from './ConsoleTabSkeleton';
-import { getAuthFetchHeaders } from '../../../service/apiService';
-import { RealtimeMessage, ServerRealtimeWsClient } from '../../../service/serverRealtimeWs';
+import {getAuthFetchHeaders} from '../../../service/apiService';
+import {RealtimeMessage, ServerRealtimeWsClient} from '../../../service/serverRealtimeWs';
 
 interface ConsoleTabProps {
     /** Container/server ID */
