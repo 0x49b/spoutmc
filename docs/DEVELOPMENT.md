@@ -756,6 +756,52 @@ air init
    docker logs <container-name>
    ```
 
+## Player Moderation (UUID) and Velocity Bridge Workflow
+
+This feature persists player moderation/chat data using the canonical Minecraft UUID (stable across gamertag changes).
+
+### 1) Required `spoutmc.yaml` additions
+
+Add the predefined timed-ban options for the frontend ban dropdown:
+
+```yaml
+player-bans:
+  ban-durations:
+    - key: "1h"
+      label: "1 hour"
+      duration: "1h"
+    - key: "5h"
+      label: "5 hours"
+      duration: "5h"
+    - key: "1d"
+      label: "1 day"
+      duration: "24h"
+    - key: "2d"
+      label: "2 days"
+      duration: "48h"
+    - key: "2w"
+      label: "2 weeks"
+      duration: "336h"
+```
+
+If `player-bans` / `ban-durations` is missing, the backend falls back to these same defaults.
+
+### 2) Updating the Velocity players bridge
+
+SpoutMC downloads the Velocity bridge JAR from the compile-time system registry in:
+
+- `internal/plugins/system.go`
+
+Whenever you change the bridge behavior that the backend depends on (for example: UUID in `/players` snapshots, UUID-keyed ban checks, and the optional `playerUuid` field in chat ingest), you must:
+
+1. Build a new bridge JAR from source (`plugins/velocity-players-bridge`).
+2. Publish/upload that JAR to the URL referenced by `internal/plugins/system.go`.
+3. Recreate (restart) the affected containers so the updated JAR is downloaded.
+
+Notes:
+- SpoutMC only injects/updates plugin `PLUGINS` on container creation (or recreate). For running containers, you need a recreate to pick up a new bridge JAR URL.
+- The URL in `internal/plugins/system.go` is versioned and tied to SpoutMC releases; keep it in sync with the bridge changes you ship.
+
 ## Additional Resources
 
 - **Build Instructions**: `BUILD.md`

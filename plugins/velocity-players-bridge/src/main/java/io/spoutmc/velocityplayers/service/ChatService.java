@@ -78,7 +78,7 @@ public final class ChatService {
         }
     }
 
-    public void sendStaffMessage(Player player, long staffUserId, String sender, String role, String message) {
+    public void sendStaffMessage(Player player, long staffUserId, String sender, String role, String message, boolean newConversation) {
         String senderLabel = sender == null || sender.isBlank() ? "SpoutMC" : sender.trim();
         String roleLabel = role == null || role.isBlank() ? "Staff" : role.trim();
         String normalized = PluginUtils.normalizeName(player.getUsername()).trim();
@@ -89,7 +89,7 @@ public final class ChatService {
             firstInThread = chatMessages.stream().noneMatch(m -> "outgoing".equals(m.direction));
         }
 
-        if (firstInThread) {
+        if (newConversation || firstInThread) {
             player.sendMessage(Component.text(
                     "A staff member is contacting you privately through SpoutMC support chat.",
                     NamedTextColor.RED
@@ -155,26 +155,27 @@ public final class ChatService {
             trimChatHistory(chatMessages);
         }
 
-        ingestIncomingReply(player.getUsername(), staffId, message, timestampIso);
+        ingestIncomingReply(player.getUsername(), player.getUniqueId().toString(), staffId, message, timestampIso);
         return true;
     }
 
-    private void ingestIncomingReply(String mcPlayerName, long staffUserId, String message, String timestampIso) {
+    private void ingestIncomingReply(String mcPlayerName, String mcPlayerUuid, long staffUserId, String message, String timestampIso) {
         String urlStr = config.spoutmcChatIngestUrl;
         String secret = config.spoutmcChatIngestSecret;
         if (urlStr == null || urlStr.isBlank() || secret == null || secret.isBlank()) {
             return;
         }
 
-        Thread thread = new Thread(() -> postIngest(urlStr, secret, mcPlayerName, staffUserId, message, timestampIso), "spoutmc-chat-ingest");
+        Thread thread = new Thread(() -> postIngest(urlStr, secret, mcPlayerName, mcPlayerUuid, staffUserId, message, timestampIso), "spoutmc-chat-ingest");
         thread.setDaemon(true);
         thread.start();
     }
 
-    private void postIngest(String urlStr, String secret, String mcPlayerName, long staffUserId, String message, String timestampIso) {
+    private void postIngest(String urlStr, String secret, String mcPlayerName, String mcPlayerUuid, long staffUserId, String message, String timestampIso) {
         try {
             JsonObject body = new JsonObject();
             body.addProperty("playerName", mcPlayerName);
+            body.addProperty("playerUuid", mcPlayerUuid);
             body.addProperty("staffUserId", staffUserId);
             body.addProperty("message", message);
             body.addProperty("timestamp", timestampIso);

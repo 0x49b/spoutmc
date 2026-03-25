@@ -93,7 +93,7 @@ public final class SpoutPlayersPlugin {
 
     @Subscribe
     public void onLogin(LoginEvent event) {
-        BanRecord ban = playerStateService.getBan(event.getPlayer().getUsername());
+        BanRecord ban = playerStateService.getBan(event.getPlayer().getUniqueId().toString());
         if (ban != null) {
             String reason = ban.reason == null || ban.reason.isBlank() ? "Banned from this network" : ban.reason;
             event.setResult(ResultedEvent.ComponentResult.denied(Component.text("You are banned: " + reason)));

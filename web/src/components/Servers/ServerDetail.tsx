@@ -111,9 +111,9 @@ const ServerDetail: React.FC = () => {
     // Set up SSE connection for server stats
     useEffect(() => {
         if (server?.id && !useWsTransport) {
-            statsEventSourceRef.current = new EventSource(
-                api.withSSEAuth(`http://localhost:3000/api/v1/server/${server.id}/stats`)
-            );
+            const statsUrl = api.withSSEAuth(`http://localhost:3000/api/v1/server/${server.id}/stats`);
+
+            statsEventSourceRef.current = new EventSource(statsUrl);
             statsEventSourceRef.current.onmessage = (event: MessageEvent) => {
                 const parsed = JSON.parse(event.data);
                 setStats(parsed);
@@ -140,6 +140,7 @@ const ServerDetail: React.FC = () => {
 
         const wsClient = acquireServerRealtimeWsClient(server.id, `ws://localhost:3000/api/v1/ws/server/${server.id}`);
         realtimeWsRef.current = wsClient;
+
         wsClient.addListener({
             id: 'server-detail-stats',
             onOpen: () => {

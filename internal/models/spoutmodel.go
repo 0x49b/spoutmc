@@ -3,11 +3,12 @@ package models
 import "time"
 
 type SpoutConfiguration struct {
-	Git     *GitConfig     `json:"git,omitempty" yaml:"git,omitempty"`
-	Storage *StorageConfig `json:"storage,omitempty" yaml:"storage,omitempty"`
-	Files   *FilesConfig   `json:"files,omitempty" yaml:"files,omitempty"`
-	EULA    *EULAConfig    `json:"eula,omitempty" yaml:"eula,omitempty"`
-	Servers []SpoutServer  `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Git        *GitConfig        `json:"git,omitempty" yaml:"git,omitempty"`
+	Storage    *StorageConfig    `json:"storage,omitempty" yaml:"storage,omitempty"`
+	Files      *FilesConfig      `json:"files,omitempty" yaml:"files,omitempty"`
+	EULA       *EULAConfig       `json:"eula,omitempty" yaml:"eula,omitempty"`
+	PlayerBans *PlayerBansConfig `json:"playerBans,omitempty" yaml:"player-bans,omitempty"`
+	Servers    []SpoutServer     `json:"servers,omitempty" yaml:"servers,omitempty"`
 }
 
 type GitConfig struct {
@@ -31,6 +32,20 @@ type FilesConfig struct {
 type EULAConfig struct {
 	Accepted   bool      `json:"accepted" yaml:"accepted"`
 	AcceptedOn time.Time `json:"accepted_on" yaml:"accepted_on"`
+}
+
+type BanDurationOption struct {
+	// Key is a stable identifier used by the frontend (e.g. "1h", "2d").
+	Key string `json:"key" yaml:"key"`
+	// Label is user-facing and displayed in the dropdown.
+	Label string `json:"label" yaml:"label"`
+	// Duration is parsed like time.ParseDuration (e.g. "1h", "5h", "48h", "336h").
+	Duration time.Duration `json:"duration" yaml:"duration"`
+}
+
+type PlayerBansConfig struct {
+	// BanDurations are the predefined timed-bans offered in the UI.
+	BanDurations []BanDurationOption `json:"banDurations,omitempty" yaml:"ban-durations,omitempty"`
 }
 
 type SpoutServer struct {

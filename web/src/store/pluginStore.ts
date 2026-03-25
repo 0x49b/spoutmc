@@ -34,7 +34,8 @@ export const usePluginStore = create<PluginState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const { data } = await api.getPlugins();
-      set({ plugins: data, loading: false });
+      const list = Array.isArray(data) ? data : [];
+      set({ plugins: list, loading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch plugins',
@@ -62,7 +63,8 @@ export const usePluginStore = create<PluginState>((set, get) => ({
   },
 
   getPluginsForServer: (serverName: string) =>
-    get().plugins.filter((p) => p.serverNames.includes(serverName)),
+    (get().plugins ?? []).filter((p) => p.serverNames.includes(serverName)),
 
-  getUserPluginCount: () => get().plugins.filter((p) => !p.systemManaged).length
+  getUserPluginCount: () =>
+    (get().plugins ?? []).filter((p) => !p.systemManaged).length
 }));

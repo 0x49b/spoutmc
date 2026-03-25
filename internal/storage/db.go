@@ -36,10 +36,20 @@ func InitDB(ctx context.Context) error {
 		&models.User{},
 		&models.Role{},
 		&models.Permission{},
+		&models.Player{},
+		&models.PlayerSupportConversation{},
+		&models.PlayerSupportChatMessage{},
+		&models.PlayerBan{},
+		&models.PlayerKick{},
 		&models.UserPlugin{},
 		&models.UserPluginServer{},
 		&models.SystemNotification{},
 	); err != nil {
+		return err
+	}
+
+	if err := BackfillPlayerSupportConversations(db); err != nil {
+		logger.Error("Failed to backfill player support conversations", zap.Error(err))
 		return err
 	}
 
@@ -142,6 +152,23 @@ func InitDB(ctx context.Context) error {
 					logger.Error("Failed to grant plugins.manage to manager", zap.Error(err))
 				} else {
 					logger.Info("Granted plugins.manage to manager role")
+				}
+			}
+		}
+	}
+
+	// Ensure manager role has player.conversations.view_all when that permission exists
+	if pid, ok := keyToID["player.conversations.view_all"]; ok {
+		var manager models.Role
+		if err := db.Where("name = ?", "manager").First(&manager).Error; err == nil {
+			var count int64
+			db.Table("role_permissions").Where("role_id = ? AND permission_id = ?", manager.ID, pid).Count(&count)
+			if count == 0 {
+				perm := models.Permission{Model: gorm.Model{ID: pid}}
+				if err := db.Model(&manager).Association("Permissions").Append(&perm); err != nil {
+					logger.Error("Failed to grant player.conversations.view_all to manager", zap.Error(err))
+				} else {
+					logger.Info("Granted player.conversations.view_all to manager role")
 				}
 			}
 		}

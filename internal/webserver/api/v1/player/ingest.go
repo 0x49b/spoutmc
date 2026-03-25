@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	playerpkg "spoutmc/internal/player"
 
 	"github.com/labstack/echo/v4"
@@ -19,16 +20,24 @@ func RegisterPlayerChatIngestRoute(g *echo.Group) {
 
 func ingestPlayerChatReply(c echo.Context) error {
 	secret := strings.TrimSpace(os.Getenv("SPOUT_PLAYER_CHAT_INGEST_SECRET"))
-	if secret == "" {
+	got := strings.TrimSpace(c.Request().Header.Get("X-Spout-Chat-Ingest"))
+
+	configured := secret != ""
+	authorized := false
+	if configured {
+		authorized = len(got) == len(secret) && subtle.ConstantTimeCompare([]byte(got), []byte(secret)) == 1
+	}
+
+	if !configured {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "chat ingest is not configured"})
 	}
-	got := strings.TrimSpace(c.Request().Header.Get("X-Spout-Chat-Ingest"))
-	if len(got) != len(secret) || subtle.ConstantTimeCompare([]byte(got), []byte(secret)) != 1 {
+	if !authorized {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 	}
 
 	var req struct {
 		PlayerName  string `json:"playerName"`
+		PlayerUUID  string `json:"playerUuid"`
 		StaffUserID uint   `json:"staffUserId"`
 		Message     string `json:"message"`
 		Timestamp   string `json:"timestamp,omitempty"`
@@ -39,7 +48,9 @@ func ingestPlayerChatReply(c echo.Context) error {
 
 	msg := strings.TrimSpace(req.Message)
 	playerName := strings.TrimSpace(req.PlayerName)
-	if msg == "" || req.StaffUserID == 0 || playerName == "" {
+	valid := msg != "" && req.StaffUserID != 0 && playerName != ""
+
+	if !valid {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "playerName, staffUserId, and message are required"})
 	}
 
@@ -51,7 +62,19 @@ func ingestPlayerChatReply(c echo.Context) error {
 	}
 
 	sender := playerName
-	if err := playerpkg.AppendSupportChatMessage(playerName, req.StaffUserID, "incoming", sender, "", msg, at); err != nil {
+	var playerUUIDParsed *uuid.UUID
+	if strings.TrimSpace(req.PlayerUUID) != "" {
+		if u, err := uuid.Parse(req.PlayerUUID); err == nil {
+			playerUUIDParsed = &u
+		}
+	}
+
+	convID, err := playerpkg.ResolveOpenConversationForIngest(playerUUIDParsed, req.StaffUserID, playerName)
+	if err != nil {
+		return c.JSON(http.StatusConflict, map[string]string{"error": err.Error()})
+	}
+
+	if err := playerpkg.AppendSupportChatMessage(convID, playerName, playerUUIDParsed, req.StaffUserID, "incoming", sender, "", msg, at); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to persist message"})
 	}
 

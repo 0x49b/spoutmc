@@ -1,4 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {
     Avatar,
     Button,
@@ -30,6 +31,7 @@ const BannedPlayersList: React.FC = () => {
     unbanPlayer,
     actionInProgressByPlayer
   } = usePlayerStore();
+  const navigate = useNavigate();
   const [selectedPlayerForUnban, setSelectedPlayerForUnban] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -68,12 +70,12 @@ const BannedPlayersList: React.FC = () => {
     }
   };
 
-  const getActions = (playerName: string): IAction[] => [
+  const getActions = (playerId: string): IAction[] => [
     {
       title: 'Unban',
       onClick: () => {
         setActionError(null);
-        setSelectedPlayerForUnban(playerName);
+        setSelectedPlayerForUnban(playerId);
       }
     }
   ];
@@ -114,7 +116,10 @@ const BannedPlayersList: React.FC = () => {
                   {sortedBannedPlayers.map(player => (
                     <Tr key={player.id}>
                       <Td dataLabel="Player">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                          onClick={() => navigate(`/players/${player.id}`)}
+                        >
                           <Avatar src={player.avatarDataUrl} alt={`${player.username} avatar`} size="sm" />
                           <span>{player.username}</span>
                         </div>
@@ -127,8 +132,8 @@ const BannedPlayersList: React.FC = () => {
                       </Td>
                       <Td isActionCell>
                         <ActionsColumn
-                          items={getActions(player.username)}
-                          isDisabled={Boolean(actionInProgressByPlayer[player.username])}
+                          items={getActions(player.id)}
+                          isDisabled={Boolean(actionInProgressByPlayer[player.id])}
                         />
                       </Td>
                     </Tr>
@@ -148,9 +153,14 @@ const BannedPlayersList: React.FC = () => {
       >
         <ModalBody>
           {selectedPlayerForUnban ? (
-            <p>
-              This will remove the ban for <strong>{selectedPlayerForUnban}</strong> and allow them to join again.
-            </p>
+            <>
+              <p>
+                Are you sure you want to unban <strong>{selectedPlayerForUnban}</strong>?
+              </p>
+              <p>
+                This will remove the ban and allow them to join again.
+              </p>
+            </>
           ) : null}
           {actionError ? <div className="pf-v6-u-danger-color-100">{actionError}</div> : null}
         </ModalBody>

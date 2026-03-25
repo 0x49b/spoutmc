@@ -21,12 +21,20 @@ interface PlayerState {
 
   getPlayerById: (id: string) => Player | undefined;
   getBannedPlayers: () => Player[];
+
+  // Player detail (UUID-keyed) helpers
+  getPlayerSummary: (playerUuid: string) => Promise<api.PlayerSummaryDTO>;
+  getPlayerConversations: (playerUuid: string) => Promise<api.PlayerConversationListDTO>;
+  getConversationMessages: (playerUuid: string, staffUserId: number) => Promise<api.PlayerChatMessageDTO[]>;
+  getPlayerBans: (playerUuid: string) => Promise<api.PlayerBanHistoryDTO[]>;
+  getPlayerKicks: (playerUuid: string) => Promise<api.PlayerKickHistoryDTO[]>;
+  getBanDurations: () => Promise<api.BanDurationOptionDTO[]>;
 }
 
 const API_BASE_URL = 'http://localhost:3000/api/v1';
 
 const mapPlayer = (dto: api.PlayerDTO): Player => ({
-  id: dto.name,
+  id: dto.uuid ?? dto.name,
   username: dto.name,
   avatarDataUrl: dto.avatarDataUrl,
   currentServer: dto.currentServer,
@@ -51,7 +59,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await api.getPlayers();
-      set({ players: mapPlayers(response.data), loading: false });
+      const mapped = mapPlayers(response.data);
+
+      set({ players: mapped, loading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch players',
@@ -79,6 +89,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           const data = JSON.parse(event.data);
           const payload = data.Data ? (typeof data.Data === 'string' ? JSON.parse(data.Data) : data.Data) : data;
           const players = Array.isArray(payload) ? mapPlayers(payload) : [];
+
           set({ players, loading: false });
         } catch (err) {
           console.error('Failed to parse players SSE payload', err);
@@ -169,7 +180,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await api.banPlayer(playerName, reason);
       set(state => ({
         players: state.players.map(player =>
-          player.username === playerName
+          player.id === playerName
             ? { ...player, status: 'banned', banned: true, banReason: reason, currentServer: '' }
             : player
         )
@@ -195,7 +206,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await api.unbanPlayer(playerName);
       set(state => ({
         players: state.players.map(player =>
-          player.username === playerName
+          player.id === playerName
             ? {
               ...player,
               status: player.currentServer ? 'online' : 'offline',
@@ -213,6 +224,36 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         }
       }));
     }
+  },
+
+  getPlayerSummary: async (playerUuid: string) => {
+    const res = await api.getPlayerSummary(playerUuid);
+    return res.data;
+  },
+
+  getPlayerConversations: async (playerUuid: string) => {
+    const res = await api.getPlayerConversations(playerUuid);
+    return res.data;
+  },
+
+  getConversationMessages: async (playerUuid: string, staffUserId: number) => {
+    const res = await api.getConversationMessages(playerUuid, staffUserId);
+    return res.data;
+  },
+
+  getPlayerBans: async (playerUuid: string) => {
+    const res = await api.getPlayerBans(playerUuid);
+    return res.data;
+  },
+
+  getPlayerKicks: async (playerUuid: string) => {
+    const res = await api.getPlayerKicks(playerUuid);
+    return res.data;
+  },
+
+  getBanDurations: async () => {
+    const res = await api.getBanDurations();
+    return res.data.options;
   },
 
   getPlayerById: (id: string) => get().players.find(player => player.id === id),

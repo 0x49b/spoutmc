@@ -1,4 +1,5 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {
     Avatar,
     Button,
@@ -19,7 +20,7 @@ import {
     ToolbarContent,
     ToolbarItem
 } from '@patternfly/react-core';
-import {ActionsColumn, IAction, Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
+import {Table, Tbody, Td, Th, Thead, Tr} from '@patternfly/react-table';
 import PageHeader from '../UI/PageHeader';
 import {usePlayerStore} from '../../store/playerStore';
 import {useAuthStore} from '../../store/authStore';
@@ -31,7 +32,6 @@ const PlayersList: React.FC = () => {
     players,
     loading,
     error,
-    actionInProgressByPlayer,
     fetchPlayers,
     connectSSE,
     disconnectSSE,
@@ -41,6 +41,7 @@ const PlayersList: React.FC = () => {
     banPlayer
   } = usePlayerStore();
   const currentUser = useAuthStore(state => state.user);
+  const navigate = useNavigate();
 
   const [messagePlayer, setMessagePlayer] = useState<string | null>(null);
   const [kickTarget, setKickTarget] = useState<string | null>(null);
@@ -52,6 +53,7 @@ const PlayersList: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<PlayerChatMessageDTO[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const pollingRef = useRef<number | null>(null);
+  const [confirmBanOpen, setConfirmBanOpen] = useState(false);
 
   useEffect(() => {
     fetchPlayers();
@@ -175,32 +177,8 @@ const PlayersList: React.FC = () => {
   const submitBanForm = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!banTarget) return;
-    void executeAction(() => banPlayer(banTarget, banReason.trim()));
+    setConfirmBanOpen(true);
   };
-
-  const getActions = (playerName: string): IAction[] => [
-    {
-      title: 'Message',
-      onClick: () => {
-        setActionError(null);
-        setMessagePlayer(playerName);
-      }
-    },
-    {
-      title: 'Kick',
-      onClick: () => {
-        setActionError(null);
-        setKickTarget(playerName);
-      }
-    },
-    {
-      title: 'Ban',
-      onClick: () => {
-        setActionError(null);
-        setBanTarget(playerName);
-      }
-    }
-  ];
 
   return (
     <>
@@ -233,12 +211,15 @@ const PlayersList: React.FC = () => {
                   <Th>Current server</Th>
                   <Th>Banned</Th>
                   <Th>Status</Th>
-                  <Th />
                 </Tr>
               </Thead>
               <Tbody>
                 {sortedPlayers.map(player => (
-                  <Tr key={player.id}>
+                  <Tr
+                    key={player.id}
+                    style={{cursor: 'pointer'}}
+                    onClick={() => navigate(`/players/${player.id}`)}
+                  >
                     <Td dataLabel="Player">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Avatar src={player.avatarDataUrl} alt={`${player.username} avatar`} size="sm" />
@@ -253,12 +234,6 @@ const PlayersList: React.FC = () => {
                     </Td>
                     <Td dataLabel="Status">
                       <StatusBadge status={player.status} />
-                    </Td>
-                    <Td isActionCell>
-                      <ActionsColumn
-                        items={getActions(player.username)}
-                        isDisabled={Boolean(actionInProgressByPlayer[player.username])}
-                      />
                     </Td>
                   </Tr>
                 ))}
@@ -386,6 +361,40 @@ const PlayersList: React.FC = () => {
             Ban
           </Button>
           <Button key="cancel" variant="link" type="button" onClick={resetActionState}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        variant={ModalVariant.small}
+        title={`Confirm ban${banTarget ? ` ${banTarget}` : ''}`}
+        isOpen={confirmBanOpen}
+        onClose={() => setConfirmBanOpen(false)}
+      >
+        <ModalBody>
+          <p>
+            Are you sure you want to ban <strong>{banTarget}</strong>?
+          </p>
+          <p>
+            <strong>Reason:</strong> {banReason || '-'}
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            key="confirm-ban"
+            variant="danger"
+            type="button"
+            onClick={() => {
+              if (!banTarget) return;
+              void executeAction(() => banPlayer(banTarget, banReason.trim())).finally(() => {
+                setConfirmBanOpen(false);
+              });
+            }}
+          >
+            Confirm Ban
+          </Button>
+          <Button key="cancel-confirm-ban" variant="link" type="button" onClick={() => setConfirmBanOpen(false)}>
             Cancel
           </Button>
         </ModalFooter>

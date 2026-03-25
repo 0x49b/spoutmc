@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -90,7 +89,7 @@ func GetContainer(ctx context.Context, containerName string) (container.Summary,
 	}
 
 	if len(containerList) < 1 {
-		return container.Summary{}, errors.New(fmt.Sprintf("Cannot find container for name %s", containerName))
+		return container.Summary{}, fmt.Errorf("Cannot find container for name %s", containerName)
 	}
 
 	return containerList[0], nil
@@ -105,7 +104,6 @@ func GetContainerById(ctx context.Context, containerId string) (container.Inspec
 }
 
 func GetContainerStats(ctx context.Context, containerId string) (container.StatsResponse, error) {
-
 	stats, err := cli.ContainerStats(ctx, containerId, false)
 	if err != nil {
 		return container.StatsResponse{}, err
@@ -116,11 +114,13 @@ func GetContainerStats(ctx context.Context, containerId string) (container.Stats
 			logger.Error("Cannot close container stats", zap.Error(err))
 		}
 	}(stats.Body)
+
 	var statsResponse container.StatsResponse
 	decoder := json.NewDecoder(stats.Body)
 	if err := decoder.Decode(&statsResponse); err != nil && err != io.EOF {
 		return container.StatsResponse{}, err
 	}
+
 	return statsResponse, nil
 }
 
@@ -391,7 +391,7 @@ func filterForContainerLabel(ctx context.Context, label string) (container.Summa
 		}
 
 	}
-	return container.Summary{}, errors.New(fmt.Sprintf("no Server found for label %s", label))
+	return container.Summary{}, fmt.Errorf("no Server found for label %s", label)
 }
 
 // FetchDockerLogs streams Docker container logs. When TTY is disabled (typical for Paper/Velocity),

@@ -10,6 +10,7 @@ var RolePermissionKeys = map[string][]string{
 		"server.manage",
 		"player.list.read",
 		"player.manage",
+		"player.conversations.view_all",
 		"plugins.manage",
 	},
 	"editor": {

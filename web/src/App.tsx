@@ -12,6 +12,7 @@ import ServersList from './components/Servers/ServersList';
 import ServerDetail from './components/Servers/ServerDetail';
 import PlayersList from './components/Players/PlayersList';
 import BannedPlayersList from './components/Players/BannedPlayersList';
+import PlayerDetail from './components/Players/PlayerDetail';
 import PluginsList from './components/Plugins/PluginsList';
 import InfrastructureList from './components/Infrastructure/InfrastructureList';
 import InfrastructureDetail from './components/Infrastructure/InfrastructureDetail';
@@ -519,6 +520,14 @@ function App() {
                             <ProtectedRoute
                                 requiredPermissionKeys={['player.list.read']}>
                                 <PlayersList/>
+                            </ProtectedRoute>
+                        )
+                    },
+                    {
+                        path: 'players/:playerUuid',
+                        element: (
+                            <ProtectedRoute requiredPermissionKeys={['player.list.read']}>
+                                <PlayerDetail/>
                             </ProtectedRoute>
                         )
                     },

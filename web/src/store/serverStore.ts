@@ -61,7 +61,6 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   fetchServers: async () => {
     set({ loading: true, error: null });
-
     try {
       const response = await api.getServers();
       const dockerContainers: DockerContainer[] = response.data;

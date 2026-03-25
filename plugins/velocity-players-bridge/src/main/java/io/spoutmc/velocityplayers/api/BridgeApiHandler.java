@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class BridgeApiHandler implements HttpHandler {
@@ -34,6 +35,22 @@ public final class BridgeApiHandler implements HttpHandler {
     private final PlayerStateService playerStateService;
     private final ChatService chatService;
     private final Set<SseClient> sseClients = ConcurrentHashMap.newKeySet();
+
+    private static boolean looksLikeUUID(String value) {
+        if (value == null) {
+            return false;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        try {
+            UUID.fromString(trimmed);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
 
     public BridgeApiHandler(
             Logger logger,
@@ -193,6 +210,8 @@ public final class BridgeApiHandler implements HttpHandler {
             }
             String sender = getJsonString(body, "sender");
             String role = getJsonString(body, "role");
+            boolean newConversation = body.has("newConversation") && !body.get("newConversation").isJsonNull()
+                    && body.get("newConversation").getAsBoolean();
 
             Optional<Player> player = playerStateService.findOnlinePlayer(playerName);
             if (player.isEmpty()) {
@@ -200,7 +219,7 @@ public final class BridgeApiHandler implements HttpHandler {
                 return;
             }
 
-            chatService.sendStaffMessage(player.get(), staffUserId, sender, role, message);
+            chatService.sendStaffMessage(player.get(), staffUserId, sender, role, message, newConversation);
             sendJson(exchange, 202, "{\"status\":\"message sent\"}");
             return;
         }
@@ -239,7 +258,8 @@ public final class BridgeApiHandler implements HttpHandler {
                 playerStateService.markPlayerDisconnected(player.get());
             } else {
                 PlayerRecord record = playerStateService.ensurePlayerRecord(playerName);
-                if (record.name == null || record.name.isBlank()) {
+                // If the ban was triggered by UUID, we won't have a display name here.
+                if (!looksLikeUUID(playerName) && (record.name == null || record.name.isBlank())) {
                     record.name = playerName;
                 }
                 record.currentServer = "";
@@ -258,7 +278,7 @@ public final class BridgeApiHandler implements HttpHandler {
             }
 
             PlayerRecord record = playerStateService.ensurePlayerRecord(playerName);
-            if (record.name == null || record.name.isBlank()) {
+            if (!looksLikeUUID(playerName) && (record.name == null || record.name.isBlank())) {
                 record.name = playerName;
             }
 

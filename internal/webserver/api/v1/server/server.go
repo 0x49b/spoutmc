@@ -82,6 +82,7 @@ func getServerStats(c echo.Context) error {
 			if err != nil {
 				return err
 			}
+
 			if err := sseutil.WriteJSON(c, stats); err != nil {
 				return err
 			}
@@ -471,7 +472,6 @@ func getServerEnvHandler(c echo.Context) error {
 			}
 		}
 	}
-
 	return c.JSON(http.StatusOK, envVars)
 }
 

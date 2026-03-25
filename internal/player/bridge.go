@@ -18,6 +18,7 @@ import (
 
 type PlayerState struct {
 	Name            string  `json:"name"`
+	UUID            string  `json:"uuid"`
 	AvatarDataURL   string  `json:"avatarDataUrl,omitempty"`
 	LastLoggedInAt  *string `json:"lastLoggedInAt,omitempty"`
 	LastLoggedOutAt *string `json:"lastLoggedOutAt,omitempty"`
@@ -28,25 +29,28 @@ type PlayerState struct {
 }
 
 type PlayerCommand struct {
-	Message     string `json:"message,omitempty"`
-	Reason      string `json:"reason,omitempty"`
-	Sender      string `json:"sender,omitempty"`
-	Role        string `json:"role,omitempty"`
-	StaffUserID uint   `json:"staffUserId"` // must be present for velocity bridge (do not omitempty)
+	Message         string `json:"message,omitempty"`
+	Reason          string `json:"reason,omitempty"`
+	Sender          string `json:"sender,omitempty"`
+	Role            string `json:"role,omitempty"`
+	StaffUserID     uint   `json:"staffUserId"` // must be present for velocity bridge (do not omitempty)
+	NewConversation bool   `json:"newConversation,omitempty"`
 }
 
 type PlayerChatMessage struct {
-	Direction   string `json:"direction"`
-	Player      string `json:"player"`
-	StaffUserID uint   `json:"staffUserId"`
-	Sender      string `json:"sender,omitempty"`
-	Role        string `json:"role,omitempty"`
-	Message     string `json:"message"`
-	Timestamp   string `json:"timestamp"`
+	Direction      string `json:"direction"`
+	Player         string `json:"player"`
+	StaffUserID    uint   `json:"staffUserId"`
+	ConversationID uint   `json:"conversationId,omitempty"`
+	Sender         string `json:"sender,omitempty"`
+	Role           string `json:"role,omitempty"`
+	Message        string `json:"message"`
+	Timestamp      string `json:"timestamp"`
 }
 
 type bridgePlayer struct {
 	Name            string  `json:"name"`
+	UUID            string  `json:"uuid"`
 	AvatarURL       string  `json:"avatarUrl,omitempty"`
 	AvatarDataURL   string  `json:"avatarDataUrl,omitempty"`
 	LastLoggedInAt  *string `json:"lastLoggedInAt,omitempty"`
@@ -80,20 +84,16 @@ func (c *BridgeClient) baseURL(ctx context.Context) string {
 	if v := strings.TrimSpace(c.envURL); v != "" {
 		return strings.TrimRight(v, "/")
 	}
+
 	c.mu.Lock()
 	cached := c.resolvedURL
 	c.mu.Unlock()
 	if cached != "" {
 		return cached
 	}
-	u := docker.ResolvePlayersBridgeBaseURL(ctx)
-	if u != "" {
-		u = strings.TrimRight(u, "/")
-		c.mu.Lock()
-		c.resolvedURL = u
-		c.mu.Unlock()
-		return u
-	}
+
+	// SpoutMC talks to the bridge from the host process; the proxy container exposes
+	// the bridge API on host loopback for this reason.
 	return "http://127.0.0.1:" + docker.DefaultPlayersBridgePort
 }
 
@@ -147,6 +147,7 @@ func (c *BridgeClient) ListPlayers(ctx context.Context) ([]PlayerState, error) {
 
 		result = append(result, PlayerState{
 			Name:            p.Name,
+			UUID:            p.UUID,
 			AvatarDataURL:   avatar,
 			LastLoggedInAt:  p.LastLoggedInAt,
 			LastLoggedOutAt: p.LastLoggedOutAt,
@@ -192,12 +193,13 @@ func (c *BridgeClient) MessagePlayer(ctx context.Context, playerName string, mes
 	return c.postPlayerAction(ctx, playerName, "message", body)
 }
 
-func (c *BridgeClient) MessagePlayerWithMeta(ctx context.Context, playerName, message, sender, role string, staffUserID uint) error {
+func (c *BridgeClient) MessagePlayerWithMeta(ctx context.Context, playerName, message, sender, role string, staffUserID uint, newConversation bool) error {
 	body, err := json.Marshal(PlayerCommand{
-		Message:     message,
-		Sender:      sender,
-		Role:        role,
-		StaffUserID: staffUserID,
+		Message:         message,
+		Sender:          sender,
+		Role:            role,
+		StaffUserID:     staffUserID,
+		NewConversation: newConversation,
 	})
 	if err != nil {
 		return err

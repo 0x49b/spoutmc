@@ -149,6 +149,7 @@ export const deleteRole = (id: string) => api.delete(`/role/${id}`);
 // Players API
 export interface PlayerDTO {
   name: string;
+  uuid?: string;
   avatarDataUrl?: string;
   lastLoggedInAt?: string;
   lastLoggedOutAt?: string;
@@ -162,22 +163,112 @@ export interface PlayerChatMessageDTO {
   direction: 'incoming' | 'outgoing' | string;
   player: string;
   staffUserId?: number;
+  conversationId?: number;
   sender?: string;
   role?: string;
   message: string;
   timestamp: string;
 }
 
+export interface PlayerSummaryDTO {
+  minecraftUuid: string;
+  minecraftName?: string;
+  avatarDataUrl?: string;
+  status?: string;
+  currentServer?: string;
+  lastLoggedInAt?: string;
+  lastLoggedOutAt?: string;
+  banned: boolean;
+  banReason?: string;
+  banUntilAt?: string;
+}
+
+export interface PlayerConversationDTO {
+  id: number;
+  staffUserId: number;
+  staffDisplayName: string;
+  lastMessage: string;
+  lastOccurredAt: string;
+  closed: boolean;
+  closedAt?: string;
+}
+
+export interface PlayerConversationListDTO {
+  conversations: PlayerConversationDTO[];
+  hasOtherConversations: boolean;
+}
+
+export interface PlayerBanHistoryDTO {
+  staffUserId: number;
+  staffDisplayName: string;
+  reason: string;
+  createdAt: string;
+  untilAt?: string;
+  liftedAt?: string;
+  permanent: boolean;
+}
+
+export interface PlayerKickHistoryDTO {
+  staffUserId: number;
+  staffDisplayName: string;
+  reason: string;
+  occurredAt: string;
+}
+
+export interface BanDurationOptionDTO {
+  key: string;
+  label: string;
+  durationSeconds: number;
+}
+
+export interface BanDurationsResponseDTO {
+  options: BanDurationOptionDTO[];
+}
+
 export const getPlayers = () => api.get<PlayerDTO[]>('/player');
-export const sendPlayerMessage = (name: string, message: string) =>
-  api.post(`/player/${encodeURIComponent(name)}/message`, { message });
+export const sendPlayerMessage = (
+  name: string,
+  message: string,
+  opts?: { newConversation?: boolean; conversationId?: number }
+) =>
+  api.post<{ status: string; conversationId?: number }>(`/player/${encodeURIComponent(name)}/message`, {
+    message,
+    ...(opts?.newConversation ? { newConversation: true } : {}),
+    ...(opts?.conversationId != null ? { conversationId: opts.conversationId } : {})
+  });
 export const getPlayerChat = (name: string, scope?: 'all') =>
   api.get<PlayerChatMessageDTO[]>(`/player/${encodeURIComponent(name)}/chat`, {
     params: scope ? { scope } : undefined
   });
 export const kickPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/kick`, { reason });
-export const banPlayer = (name: string, reason: string) => api.post(`/player/${encodeURIComponent(name)}/ban`, { reason });
+export const banPlayer = (
+  name: string,
+  reason: string,
+  opts?: { untilAt?: string; permanent?: boolean }
+) =>
+  api.post(`/player/${encodeURIComponent(name)}/ban`, {
+    reason,
+    ...(opts?.untilAt ? { untilAt: opts.untilAt } : {}),
+    ...(opts?.permanent !== undefined ? { permanent: opts.permanent } : {})
+  });
 export const unbanPlayer = (name: string) => api.post(`/player/${encodeURIComponent(name)}/unban`);
+
+// Player detail / moderation APIs (UUID-keyed)
+export const getPlayerSummary = (playerUuid: string) => api.get<PlayerSummaryDTO>(`/player/${encodeURIComponent(playerUuid)}`);
+export const getPlayerConversations = (playerUuid: string) =>
+  api.get<PlayerConversationListDTO>(`/player/${encodeURIComponent(playerUuid)}/conversations`);
+export const getConversationMessages = (playerUuid: string, conversationId: number) =>
+  api.get<PlayerChatMessageDTO[]>(`/player/${encodeURIComponent(playerUuid)}/conversations/${conversationId}/messages`);
+
+export const closePlayerConversation = (playerUuid: string, conversationId: number) =>
+  api.post<{ status: string }>(`/player/${encodeURIComponent(playerUuid)}/conversations/${conversationId}/close`, {});
+export const getPlayerBans = (playerUuid: string) =>
+  api.get<PlayerBanHistoryDTO[]>(`/player/${encodeURIComponent(playerUuid)}/bans`);
+export const getPlayerKicks = (playerUuid: string) =>
+  api.get<PlayerKickHistoryDTO[]>(`/player/${encodeURIComponent(playerUuid)}/kicks`);
+export const getPlayerAliases = (playerUuid: string) =>
+  api.get<{ aliases: string[] }>(`/player/${encodeURIComponent(playerUuid)}/aliases`);
+export const getBanDurations = () => api.get<BanDurationsResponseDTO>(`/player/ban-durations`);
 
 // Setup API functions
 export const completeSetup = (setupData: {

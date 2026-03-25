@@ -10,6 +10,7 @@ import (
 	"spoutmc/internal/git"
 	"spoutmc/internal/global"
 	"spoutmc/internal/log"
+	playerpkg "spoutmc/internal/player"
 	"spoutmc/internal/storage"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
@@ -105,6 +106,7 @@ func getStartupOperations() map[string]operation {
 		"watchdog":        startWatchdogOp,
 		"fileWatcher":     startFileWatcherOp,
 		"database":        startDatabaseOp,
+		"playerBanCron":   startPlayerBanCronOp,
 		"webserver":       startWebserverOp,
 	}
 }
@@ -118,7 +120,8 @@ func getStartupOrder() []string {
 		"spoutmc",         // Then start containers with loaded config
 		"watchdog",
 		"fileWatcher",
-		"database", // Connect to DB and run migrations (after infrastructure)
+		"database",      // Connect to DB and run migrations (after infrastructure)
+		"playerBanCron", // Start periodic unban scheduler (after DB is ready)
 		"webserver",
 	}
 }
@@ -243,6 +246,10 @@ func startDatabaseOp(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func startPlayerBanCronOp(ctx context.Context) error {
+	return playerpkg.StartPlayerUnbanCron(ctx)
 }
 
 // startWebserverOp starts the web server
