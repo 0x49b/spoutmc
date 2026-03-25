@@ -47,3 +47,5 @@ routes.json
 /docs/routes.json
 /config/spoutmc.yaml
 /data/spoutmc.db
+/plugins/velocity-players-bridge/bin/
+/plugins/velocity-players-bridge/build/

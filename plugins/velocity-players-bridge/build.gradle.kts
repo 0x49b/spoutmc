@@ -32,6 +32,8 @@ tasks {
     shadowJar {
         archiveClassifier.set("")
     }
+
+
 }
 
 publishing {

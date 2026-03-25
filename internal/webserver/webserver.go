@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"path"
 	"spoutmc/internal/infrastructureapp"
 	"spoutmc/internal/log"
@@ -57,7 +56,6 @@ func serveEmbeddedFiles(fsys fs.FS) echo.HandlerFunc {
 }
 
 func Start() (*echo.Echo, error) {
-
 	e := echo.New()
 
 	e.HideBanner = true
@@ -133,20 +131,7 @@ func Start() (*echo.Echo, error) {
 		}
 	}
 
-	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
-	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := e.Shutdown(ctx); err != nil {
-		logger.Error("Error during webserver shutdown", zap.Error(err))
-	} else {
-		logger.Info("Webserver shutdown complete")
-	}
-
+	// Non-blocking: server shutdown is handled by the main process.
 	return e, nil
 }
 
