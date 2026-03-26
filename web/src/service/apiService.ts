@@ -219,6 +219,13 @@ export interface PlayerKickHistoryDTO {
   occurredAt: string;
 }
 
+export interface PlayerJournalEntryDTO {
+  staffUserId: number;
+  staffDisplayName: string;
+  entry: string;
+  occurredAt: string;
+}
+
 export interface BanDurationOptionDTO {
   key: string;
   label: string;
@@ -272,6 +279,10 @@ export const getPlayerKicks = (playerUuid: string) =>
   api.get<PlayerKickHistoryDTO[]>(`/player/${encodeURIComponent(playerUuid)}/kicks`);
 export const getPlayerAliases = (playerUuid: string) =>
   api.get<{ aliases: string[] }>(`/player/${encodeURIComponent(playerUuid)}/aliases`);
+export const getPlayerJournal = (playerUuid: string) =>
+  api.get<PlayerJournalEntryDTO[]>(`/player/${encodeURIComponent(playerUuid)}/journal`);
+export const addPlayerJournalEntry = (playerUuid: string, entry: string) =>
+  api.post<PlayerJournalEntryDTO>(`/player/${encodeURIComponent(playerUuid)}/journal`, { entry });
 export const getBanDurations = () => api.get<BanDurationsResponseDTO>(`/player/ban-durations`);
 
 // Setup API functions

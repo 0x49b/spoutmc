@@ -41,6 +41,7 @@ func InitDB(ctx context.Context) error {
 		&models.PlayerSupportChatMessage{},
 		&models.PlayerBan{},
 		&models.PlayerKick{},
+		&models.PlayerJournalEntry{},
 		&models.UserPlugin{},
 		&models.UserPluginServer{},
 		&models.SystemNotification{},

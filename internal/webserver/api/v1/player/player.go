@@ -31,6 +31,8 @@ func RegisterPlayerRoutes(g *echo.Group) {
 	playerGroup.GET("/:uuid", getPlayerSummary)
 	playerGroup.GET("/:uuid/bans", listPlayerBanHistory)
 	playerGroup.GET("/:uuid/kicks", listPlayerKickHistory)
+	playerGroup.GET("/:uuid/journal", listPlayerJournalEntries)
+	playerGroup.POST("/:uuid/journal", addPlayerJournalEntry)
 	playerGroup.GET("/:uuid/aliases", listPlayerAliases)
 	playerGroup.GET("/:uuid/conversations", listPlayerConversations)
 	playerGroup.GET("/:uuid/conversations/:conversationId/messages", getConversationMessages)

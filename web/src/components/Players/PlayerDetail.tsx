@@ -25,6 +25,7 @@ import {
     PlayerBanHistoryDTO,
     PlayerChatMessageDTO,
     PlayerConversationDTO,
+    PlayerJournalEntryDTO,
     PlayerKickHistoryDTO,
     PlayerSummaryDTO
 } from '../../service/apiService';
@@ -34,11 +35,17 @@ import './PlayerDetail.css';
 import PlayerDetailMessagesTab from './PlayerDetailMessagesTab';
 import PlayerDetailModerationTab from './PlayerDetailModerationTab';
 import PlayerDetailOverviewTab from './PlayerDetailOverviewTab';
+import PlayerDetailJournalTab from './PlayerDetailJournalTab';
+
+type TabKey = 'overview' | 'moderation' | 'messages' | 'journal';
 
 const PlayerDetail: React.FC = () => {
-    const {playerUuid} = useParams<{ playerUuid: string }>();
+
     const navigate = useNavigate();
+    const {playerUuid} = useParams<{ playerUuid: string }>();
     const currentUser = useAuthStore((s) => s.user);
+    const hasViewAllConversations = useAuthStore((s) => s.hasPermission('player.conversations.view_all'));
+
 
     const currentStaffUserID = useMemo(() => {
         if (!currentUser) return null;
@@ -46,27 +53,18 @@ const PlayerDetail: React.FC = () => {
         return Number.isFinite(n) ? n : null;
     }, [currentUser]);
 
-    // Effective UUID avoids repeatedly resolving name->UUID on every poll tick.
-    const [effectivePlayerUuid, setEffectivePlayerUuid] = useState<string>(playerUuid ?? '');
 
+    const [effectivePlayerUuid, setEffectivePlayerUuid] = useState<string>(playerUuid ?? '');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
     const [summary, setSummary] = useState<PlayerSummaryDTO | null>(null);
     const [aliases, setAliases] = useState<string[]>([]);
     const [conversations, setConversations] = useState<PlayerConversationDTO[]>([]);
     const [hasOtherConversations, setHasOtherConversations] = useState(false);
-
-    const hasViewAllConversations = useAuthStore((s) => s.hasPermission('player.conversations.view_all'));
-
     const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
     const [messages, setMessages] = useState<PlayerChatMessageDTO[]>([]);
-    /** Draft thread: empty view until first send; first message notifies the player in-game. */
     const [pendingNewConversation, setPendingNewConversation] = useState(false);
-
-    type TabKey = 'overview' | 'moderation' | 'messages';
     const [activeTab, setActiveTab] = useState<TabKey>('overview');
-
     const [banDurations, setBanDurations] = useState<BanDurationOptionDTO[]>([]);
     const [banReason, setBanReason] = useState('');
     const [banPermanent, setBanPermanent] = useState(false);
@@ -74,17 +72,16 @@ const PlayerDetail: React.FC = () => {
     const [useCustomUntil, setUseCustomUntil] = useState(false);
     const [customDate, setCustomDate] = useState<string>('');
     const [customTime, setCustomTime] = useState<string>('');
-
     const [kickReason, setKickReason] = useState('');
-
     const [bansHistory, setBansHistory] = useState<PlayerBanHistoryDTO[]>([]);
     const [kicksHistory, setKicksHistory] = useState<PlayerKickHistoryDTO[]>([]);
-
+    const [journalEntries, setJournalEntries] = useState<PlayerJournalEntryDTO[]>([]);
     const [confirmBanOpen, setConfirmBanOpen] = useState(false);
     const [confirmUnbanOpen, setConfirmUnbanOpen] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const lastKnownMinecraftNameRef = useRef<string | null>(null);
+
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({behavior: 'smooth', block: 'end'});
@@ -108,11 +105,12 @@ const PlayerDetail: React.FC = () => {
             setEffectivePlayerUuid(resolvedUuid);
         }
 
-        const [conversationsRes, bansRes, kicksRes, aliasesRes] = await Promise.all([
+        const [conversationsRes, bansRes, kicksRes, aliasesRes, journalRes] = await Promise.all([
             api.getPlayerConversations(resolvedUuid),
             api.getPlayerBans(resolvedUuid),
             api.getPlayerKicks(resolvedUuid),
-            api.getPlayerAliases(resolvedUuid)
+            api.getPlayerAliases(resolvedUuid),
+            api.getPlayerJournal(resolvedUuid)
         ]);
 
         setSummary(summaryRes.data);
@@ -122,6 +120,7 @@ const PlayerDetail: React.FC = () => {
         setHasOtherConversations(conversationsRes.data.hasOtherConversations);
         setBansHistory(bansRes.data);
         setKicksHistory(kicksRes.data);
+        setJournalEntries(journalRes.data);
     };
 
     const loadMessages = async (conversationId: number) => {
@@ -207,11 +206,11 @@ const PlayerDetail: React.FC = () => {
         };
 
         void poll();
-        const intervalId = window.setInterval(() => void poll(), pollMs);
+        const intervalId = globalThis.setInterval(() => void poll(), pollMs);
 
         return () => {
             cancelled = true;
-            window.clearInterval(intervalId);
+            globalThis.clearInterval(intervalId);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [effectivePlayerUuid, selectedConversationId, pendingNewConversation]);
@@ -243,6 +242,7 @@ const PlayerDetail: React.FC = () => {
     }, [selectedConversation, currentStaffUserID, hasViewAllConversations]);
 
     const [composerText, setComposerText] = useState('');
+    const [journalEntryText, setJournalEntryText] = useState('');
     const sendMessage = async () => {
         if (!effectivePlayerUuid) return;
         const text = composerText.trim();
@@ -271,6 +271,16 @@ const PlayerDetail: React.FC = () => {
         setSelectedConversationId(null);
         setMessages([]);
         setComposerText('');
+    };
+
+    const saveJournalEntry = async () => {
+        if (!effectivePlayerUuid) return;
+        const entry = journalEntryText.trim();
+        if (!entry) return;
+        await api.addPlayerJournalEntry(effectivePlayerUuid, entry);
+        setJournalEntryText('');
+        const journalRes = await api.getPlayerJournal(effectivePlayerUuid);
+        setJournalEntries(journalRes.data);
     };
 
     const closeConversation = async () => {
@@ -384,7 +394,8 @@ const PlayerDetail: React.FC = () => {
                     if (typeof tabKey === 'number') {
                         if (tabKey === 0) setActiveTab('overview');
                         else if (tabKey === 1) setActiveTab('moderation');
-                        else setActiveTab('messages');
+                        else if (tabKey === 2) setActiveTab('messages');
+                        else setActiveTab('journal');
                         return;
                     }
                     setActiveTab(tabKey as TabKey);
@@ -402,7 +413,6 @@ const PlayerDetail: React.FC = () => {
                 <Tab eventKey="moderation" title={<TabTitleText>Moderation</TabTitleText>}>
                     <PlayerDetailModerationTab
                         activeBan={activeBan}
-
                         banDurations={banDurations}
                         banReason={banReason}
                         banPermanent={banPermanent}
@@ -411,10 +421,8 @@ const PlayerDetail: React.FC = () => {
                         customDate={customDate}
                         customTime={customTime}
                         kickReason={kickReason}
-
                         bansHistory={bansHistory}
                         kicksHistory={kicksHistory}
-
                         onBanReasonChange={setBanReason}
                         onBanPermanentChange={(checked) => {
                             setBanPermanent(checked);
@@ -425,7 +433,6 @@ const PlayerDetail: React.FC = () => {
                         onCustomDateChange={setCustomDate}
                         onCustomTimeChange={setCustomTime}
                         onKickReasonChange={setKickReason}
-
                         onRequestConfirmBanOpen={() => setConfirmBanOpen(true)}
                         onRequestConfirmUnbanOpen={() => setConfirmUnbanOpen(true)}
                         onKick={submitKick}
@@ -435,23 +442,17 @@ const PlayerDetail: React.FC = () => {
                 <Tab eventKey="messages" title={<TabTitleText>Messages</TabTitleText>}>
                     <PlayerDetailMessagesTab
                         currentStaffUserID={currentStaffUserID}
-
                         hasOtherConversations={hasOtherConversations}
                         conversations={conversations}
                         selectedConversationId={selectedConversationId}
                         selectedConversation={selectedConversation}
-
                         pendingNewConversation={pendingNewConversation}
                         messages={messages}
-
                         composerText={composerText}
                         onComposerTextChange={setComposerText}
-
                         canUseMessageComposer={canUseMessageComposer}
                         canCloseSelectedConversation={canCloseSelectedConversation}
-
                         messagesEndRef={messagesEndRef}
-
                         onStartNewConversation={startNewConversation}
                         onSelectConversation={(conversationId) => {
                             setPendingNewConversation(false);
@@ -461,11 +462,20 @@ const PlayerDetail: React.FC = () => {
                         onSendMessage={sendMessage}
                     />
                 </Tab>
+
+                <Tab eventKey="journal" title={<TabTitleText>Journal</TabTitleText>}>
+                    <PlayerDetailJournalTab
+                        entries={journalEntries}
+                        entryText={journalEntryText}
+                        onEntryTextChange={setJournalEntryText}
+                        onSaveEntry={saveJournalEntry}
+                    />
+                </Tab>
             </Tabs>
 
             <Modal
                 variant={ModalVariant.small}
-                title={`Confirm ban${banReason ? `: ${banReason}` : ''}`}
+                title={`Confirm ban ${banReason ? `: ${banReason}` : ''}`}
                 isOpen={confirmBanOpen}
                 onClose={() => setConfirmBanOpen(false)}
             >
@@ -486,8 +496,7 @@ const PlayerDetail: React.FC = () => {
                         variant="danger"
                         onClick={() => {
                             void submitBan().finally(() => setConfirmBanOpen(false));
-                        }}
-                    >
+                        }}>
                         Confirm Ban
                     </Button>
                     <Button key="cancel-ban" variant="link"

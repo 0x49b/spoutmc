@@ -67,6 +67,13 @@ type PlayerKickHistoryDTO struct {
 	OccurredAt       time.Time `json:"occurredAt"`
 }
 
+type PlayerJournalEntryDTO struct {
+	StaffUserID      uint      `json:"staffUserId"`
+	StaffDisplayName string    `json:"staffDisplayName"`
+	Entry            string    `json:"entry"`
+	OccurredAt       time.Time `json:"occurredAt"`
+}
+
 func getPlayerUUIDAndNameOrError(c echo.Context) (uuid.UUID, string, error) {
 	identifier := strings.TrimSpace(c.Param("uuid"))
 	if identifier == "" {
@@ -529,6 +536,112 @@ func listPlayerKickHistory(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, out)
+}
+
+func listPlayerJournalEntries(c echo.Context) error {
+	db := storage.GetDB()
+	if db == nil {
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "database unavailable"})
+	}
+
+	playerUUID, _, err := getPlayerUUIDAndNameOrError(c)
+	if err != nil {
+		return err
+	}
+
+	var entries []models.PlayerJournalEntry
+	if err := db.Where("minecraft_uuid = ?", playerUUID).Order("occurred_at desc").Find(&entries).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	staffIDs := make(map[uint]struct{}, len(entries))
+	for _, e := range entries {
+		staffIDs[e.StaffUserID] = struct{}{}
+	}
+	ids := make([]uint, 0, len(staffIDs))
+	for id := range staffIDs {
+		ids = append(ids, id)
+	}
+
+	staffUsers := make([]models.User, 0, len(ids))
+	if len(ids) > 0 {
+		if err := db.Where("id IN ?", ids).Find(&staffUsers).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+	}
+	staffByID := make(map[uint]models.User, len(staffUsers))
+	for _, u := range staffUsers {
+		staffByID[u.ID] = u
+	}
+
+	out := make([]PlayerJournalEntryDTO, 0, len(entries))
+	for _, e := range entries {
+		staffLabel := "Staff"
+		if u, ok := staffByID[e.StaffUserID]; ok && u.ID != 0 {
+			staffLabel = playerpkg.StaffChatSenderLabel(u)
+		}
+		out = append(out, PlayerJournalEntryDTO{
+			StaffUserID:      e.StaffUserID,
+			StaffDisplayName: staffLabel,
+			Entry:            e.Entry,
+			OccurredAt:       e.OccurredAt.UTC(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, out)
+}
+
+func addPlayerJournalEntry(c echo.Context) error {
+	cl := middleware.GetClaims(c)
+	if cl == nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
+
+	db := storage.GetDB()
+	if db == nil {
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "database unavailable"})
+	}
+
+	playerUUID, _, err := getPlayerUUIDAndNameOrError(c)
+	if err != nil {
+		return err
+	}
+
+	type addJournalBody struct {
+		Entry string `json:"entry"`
+	}
+	var body addJournalBody
+	if err := c.Bind(&body); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	entry := strings.TrimSpace(body.Entry)
+	if entry == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "entry is required"})
+	}
+
+	occurredAt := time.Now().UTC()
+	row := models.PlayerJournalEntry{
+		MinecraftUUID: playerUUID,
+		StaffUserID:   cl.UserID,
+		Entry:         entry,
+		OccurredAt:    occurredAt,
+	}
+	if err := db.Create(&row).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to persist journal entry"})
+	}
+
+	staffLabel := "Staff"
+	if user, err := playerpkg.LoadUserWithRoles(cl.UserID); err == nil {
+		staffLabel = playerpkg.StaffChatSenderLabel(user)
+	}
+
+	return c.JSON(http.StatusCreated, PlayerJournalEntryDTO{
+		StaffUserID:      cl.UserID,
+		StaffDisplayName: staffLabel,
+		Entry:            entry,
+		OccurredAt:       occurredAt,
+	})
 }
 
 func listPlayerAliases(c echo.Context) error {
