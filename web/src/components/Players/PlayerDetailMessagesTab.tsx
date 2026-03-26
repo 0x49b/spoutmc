@@ -46,6 +46,19 @@ interface PlayerDetailMessagesTabProps {
     onSendMessage: () => Promise<void>;
 }
 
+const sortConversations = (convs: PlayerConversationDTO[]): PlayerConversationDTO[] => {
+    const open   = convs.filter((c) => !c.closed);
+    const closed = convs.filter((c) => c.closed);
+
+    const byLastOccurredDesc = (a: PlayerConversationDTO, b: PlayerConversationDTO) =>
+        new Date(b.lastOccurredAt).getTime() - new Date(a.lastOccurredAt).getTime();
+
+    open.sort(byLastOccurredDesc);
+    closed.sort(byLastOccurredDesc);
+
+    return [...open, ...closed];
+};
+
 const formatLocalDateTime = (timestamp?: string | null): string => {
     if (!timestamp) return '';
 
@@ -121,9 +134,7 @@ const PlayerDetailMessagesTab: React.FC<PlayerDetailMessagesTabProps> = ({
                                       selectedDataListItemId={selectedDataListItemId}
                                       onSelectDataListItem={onSelectDataListItem}
                             >
-
-
-                                {conversations.map((conv) => (
+                                {sortConversations(conversations).map((conv) => (
 
                                     <DataListItem aria-labelledby="simple-item1"
                                                   id={conv.id.toString()}
