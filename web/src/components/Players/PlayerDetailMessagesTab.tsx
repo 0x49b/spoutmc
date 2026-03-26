@@ -4,22 +4,18 @@ import {
     Card,
     CardBody,
     CardHeader,
-    DataList,
-    DataListCell,
-    DataListItem,
-    DataListItemCells,
-    DataListItemRow,
     EmptyState,
     EmptyStateVariant,
     FormGroup,
     Grid,
-    GridItem,
+    GridItem, Label,
     TextInput,
     Title
 } from '@patternfly/react-core';
 
 import type {PlayerChatMessageDTO, PlayerConversationDTO} from '../../service/apiService';
 import {LockIcon} from "@patternfly/react-icons";
+import {Table, Tbody, Td, Th, Thead, Tr} from "@patternfly/react-table";
 
 interface PlayerDetailMessagesTabProps {
     currentStaffUserID: number | null;
@@ -41,13 +37,13 @@ interface PlayerDetailMessagesTabProps {
     messagesEndRef: React.RefObject<HTMLDivElement | null>;
 
     onStartNewConversation: () => void;
-    onSelectConversation: (conversationId: string) => void;
+    onSelectConversation: (conversationId: number) => void;
     onCloseConversation: () => Promise<void>;
     onSendMessage: () => Promise<void>;
 }
 
 const sortConversations = (convs: PlayerConversationDTO[]): PlayerConversationDTO[] => {
-    const open   = convs.filter((c) => !c.closed);
+    const open = convs.filter((c) => !c.closed);
     const closed = convs.filter((c) => c.closed);
 
     const byLastOccurredDesc = (a: PlayerConversationDTO, b: PlayerConversationDTO) =>
@@ -88,8 +84,9 @@ const PlayerDetailMessagesTab: React.FC<PlayerDetailMessagesTabProps> = ({
                                                                              onCloseConversation,
                                                                              onSendMessage
                                                                          }) => {
-    const [selectedDataListItemId, setSelectedDataListItemId] = useState('');
-    const onSelectDataListItem = (_event: React.MouseEvent | React.KeyboardEvent, id: string) => {
+    const [selectedDataListItemId, setSelectedDataListItemId] = useState<number>();
+
+    const onSelectRow = (id: number) => {
         setSelectedDataListItemId(id);
         onSelectConversation(id)
     };
@@ -130,35 +127,28 @@ const PlayerDetailMessagesTab: React.FC<PlayerDetailMessagesTabProps> = ({
                         ) : (
 
 
-                            <DataList aria-label="Simple data list example"
-                                      selectedDataListItemId={selectedDataListItemId}
-                                      onSelectDataListItem={onSelectDataListItem}
-                            >
-                                {sortConversations(conversations).map((conv) => (
+                            <Table variant="compact">
+                                <Thead>
+                                    <Tr>
+                                        <Th>Staff Member</Th>
+                                        <Th>Last Message</Th>
+                                        <Th></Th>
+                                    </Tr>
+                                </Thead>
+                                <Tbody>
+                                    {sortConversations(conversations).map((conv) => (
 
-                                    <DataListItem aria-labelledby="simple-item1"
-                                                  id={conv.id.toString()}
-                                                  key={conv.id}>
-                                        <DataListItemRow>
-                                            <DataListItemCells
-                                                dataListCells={[
-                                                    <DataListCell key="primary content">
-                                                        <span
-                                                            id="simple-item1">{conv.staffDisplayName}</span>
-                                                    </DataListCell>,
-                                                    <DataListCell>
-                                                        {formatLocalDateTime(conv.lastOccurredAt)}
-                                                    </DataListCell>,
-                                                    <DataListCell key="teriary content">
-                                                        {conv.closed ? <LockIcon/> : null}
-                                                    </DataListCell>
-                                                ]}
-                                            />
-                                        </DataListItemRow>
-                                    </DataListItem>
+                                        <Tr onRowClick={() => onSelectRow(conv.id)} key={conv.id}
+                                            isSelectable isClickable
+                                            isRowSelected={conv.id === selectedDataListItemId}>
+                                            <Td>{conv.staffDisplayName}</Td>
+                                            <Td>{formatLocalDateTime(conv.lastOccurredAt)}</Td>
+                                            <Td>{conv.closed ? <LockIcon/> : null}</Td>
+                                        </Tr>
+                                    ))}
 
-                                ))}
-                            </DataList>
+                                </Tbody>
+                            </Table>
                         )}
                     </CardBody>
                 </Card>
@@ -180,22 +170,18 @@ const PlayerDetailMessagesTab: React.FC<PlayerDetailMessagesTabProps> = ({
                                         onClick={() => void onCloseConversation()}>
                                     Close conversation
                                 </Button>
-                            ) : null}
+                            ) : messages.length === 0 ? null : <Label color={"red"}>Conversation is closed</Label> }
                         </div>
                     </CardHeader>
                     <CardBody>
                         {pendingNewConversation ? (
                             <div className="pf-v6-u-font-size-sm pf-v6-u-mb-md"
                                  style={{opacity: 0.85}}>
-                                You are starting a new conversation with this player. Your first
-                                message will show them the support-chat notice in-game, then deliver
+                                You are starting a new conversation with this player. Your
+                                first
+                                message will show them the support-chat notice in-game, then
+                                deliver
                                 your text.
-                            </div>
-                        ) : null}
-                        {selectedConversation?.closed ? (
-                            <div className="pf-v6-u-font-size-sm pf-v6-u-mb-md"
-                                 style={{opacity: 0.85}}>
-                                This conversation is closed. No more messages can be sent here.
                             </div>
                         ) : null}
 
@@ -209,12 +195,13 @@ const PlayerDetailMessagesTab: React.FC<PlayerDetailMessagesTabProps> = ({
                                             : 'playerDetail__bubble playerDetail__bubble--outgoing'}
                                     >
                                         <div className="playerDetail__bubbleMeta">
-                                            {m.direction === 'outgoing' && m.role ? `${m.role} ` : ''}
+                                            {m.direction === 'outgoing' && m.role ? `[${m.role}] ` : ''}
                                             {m.direction === 'outgoing' && m.sender ? m.sender : null}
                                             <span
                                                 className="playerDetail__bubbleTime">{new Date(m.timestamp).toLocaleTimeString()}</span>
                                         </div>
-                                        <div className="playerDetail__bubbleText">{m.message}</div>
+                                        <div
+                                            className="playerDetail__bubbleText">{m.message}</div>
                                     </div>
                                 ))
                             ) : (
@@ -226,6 +213,8 @@ const PlayerDetailMessagesTab: React.FC<PlayerDetailMessagesTabProps> = ({
                             <div ref={messagesEndRef}/>
                         </div>
 
+
+                        {canUseMessageComposer ?
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault();
@@ -255,6 +244,9 @@ const PlayerDetailMessagesTab: React.FC<PlayerDetailMessagesTabProps> = ({
                                 Send
                             </Button>
                         </form>
+                            : null}
+
+
                     </CardBody>
                 </Card>
             </GridItem>

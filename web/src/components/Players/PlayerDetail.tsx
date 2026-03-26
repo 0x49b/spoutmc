@@ -455,7 +455,7 @@ const PlayerDetail: React.FC = () => {
                         onStartNewConversation={startNewConversation}
                         onSelectConversation={(conversationId) => {
                             setPendingNewConversation(false);
-                            setSelectedConversationId(Number.parseInt(conversationId));
+                            setSelectedConversationId(conversationId);
                         }}
                         onCloseConversation={closeConversation}
                         onSendMessage={sendMessage}
