@@ -194,6 +194,28 @@ func ValidateServerConfig(server *models.SpoutServer) error {
 		}
 	}
 
+	if server.RestartPolicy != nil && server.RestartPolicy.Container != nil {
+		containerPolicy := server.RestartPolicy.Container
+		switch containerPolicy.Policy {
+		case models.DockerRestartPolicyNo,
+			models.DockerRestartPolicyOnFailure,
+			models.DockerRestartPolicyAlways,
+			models.DockerRestartPolicyUnlessStopped:
+		default:
+			return fmt.Errorf("server %s: restartPolicy.container.policy must be one of: no, on-failure, always, unless-stopped", server.Name)
+		}
+
+		if containerPolicy.Policy != models.DockerRestartPolicyOnFailure && containerPolicy.MaxRetries != nil {
+			return fmt.Errorf("server %s: restartPolicy.container.maxRetries is only supported when policy is on-failure", server.Name)
+		}
+
+		if containerPolicy.Policy == models.DockerRestartPolicyOnFailure &&
+			containerPolicy.MaxRetries != nil &&
+			*containerPolicy.MaxRetries < 1 {
+			return fmt.Errorf("server %s: restartPolicy.container.maxRetries must be at least 1 when policy is on-failure", server.Name)
+		}
+	}
+
 	return nil
 }
 

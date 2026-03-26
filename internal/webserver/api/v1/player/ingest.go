@@ -2,8 +2,11 @@ package player
 
 import (
 	"crypto/subtle"
+	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"spoutmc/internal/config"
 	"strings"
 	"time"
 
@@ -19,7 +22,10 @@ func RegisterPlayerChatIngestRoute(g *echo.Group) {
 }
 
 func ingestPlayerChatReply(c echo.Context) error {
-	secret := strings.TrimSpace(os.Getenv("SPOUT_PLAYER_CHAT_INGEST_SECRET"))
+	secret, err := resolveVelocityForwardingSecret()
+	if err != nil {
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "chat ingest is not configured"})
+	}
 	got := strings.TrimSpace(c.Request().Header.Get("X-Spout-Chat-Ingest"))
 
 	configured := secret != ""
@@ -79,4 +85,35 @@ func ingestPlayerChatReply(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, map[string]string{"status": "ingested"})
+}
+
+func resolveVelocityForwardingSecret() (string, error) {
+	cfg := config.All()
+	if cfg.Storage == nil || strings.TrimSpace(cfg.Storage.DataPath) == "" {
+		return "", fmt.Errorf("storage.data_path is not configured")
+	}
+
+	proxyName := ""
+	for i := range cfg.Servers {
+		if cfg.Servers[i].Proxy {
+			proxyName = strings.TrimSpace(cfg.Servers[i].Name)
+			break
+		}
+	}
+	if proxyName == "" {
+		return "", fmt.Errorf("proxy server is not configured")
+	}
+
+	secretPath := filepath.Join(cfg.Storage.DataPath, proxyName, "server", "forwarding.secret")
+	secretBytes, err := os.ReadFile(secretPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read forwarding secret: %w", err)
+	}
+
+	secret := strings.TrimSpace(string(secretBytes))
+	if secret == "" {
+		return "", fmt.Errorf("forwarding secret is empty")
+	}
+
+	return secret, nil
 }

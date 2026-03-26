@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -187,6 +188,26 @@ public final class PlayerStateService {
         onDisconnect(player);
     }
 
+    public void onClientBrand(Player player, String brand) {
+        String uuid = player.getUniqueId().toString();
+        String normalized = PluginUtils.normalizeName(player.getUsername());
+        PlayerRecord record = playersByUUID.computeIfAbsent(uuid, ignored -> new PlayerRecord());
+        record.uuid = uuid;
+        record.name = player.getUsername();
+        record.clientBrand = brand == null ? "" : brand.trim();
+        uuidByNormalizedName.put(normalized, uuid);
+    }
+
+    public void onClientMods(Player player, List<String> mods) {
+        String uuid = player.getUniqueId().toString();
+        String normalized = PluginUtils.normalizeName(player.getUsername());
+        PlayerRecord record = playersByUUID.computeIfAbsent(uuid, ignored -> new PlayerRecord());
+        record.uuid = uuid;
+        record.name = player.getUsername();
+        record.clientMods = mods == null ? new ArrayList<>() : new ArrayList<>(mods);
+        uuidByNormalizedName.put(normalized, uuid);
+    }
+
     public List<PlayerView> snapshotPlayers() {
         refreshFromOnlinePlayers();
 
@@ -205,6 +226,8 @@ public final class PlayerStateService {
             view.currentServer = record.currentServer;
             view.banned = ban != null;
             view.banReason = ban == null ? "" : ban.reason;
+            view.clientBrand = record.clientBrand == null ? "" : record.clientBrand;
+            view.clientMods = record.clientMods == null ? Collections.emptyList() : new ArrayList<>(record.clientMods);
             if (view.banned) {
                 view.status = "banned";
             } else if (view.currentServer != null && !view.currentServer.isBlank()) {

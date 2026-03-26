@@ -236,8 +236,9 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 			ExposedPorts: exposedPorts,
 			Labels:       containerLabels,
 		}, &container.HostConfig{
-			Mounts:       mounts,
-			PortBindings: containerPortBinding,
+			Mounts:        mounts,
+			PortBindings:  containerPortBinding,
+			RestartPolicy: mapServerRestartPolicy(s),
 		}, &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{spoutNetwork.ID: {NetworkID: spoutNetwork.ID}}},
 			nil, s.Name)
@@ -285,6 +286,27 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 	}
 
 	return nil
+}
+
+func mapServerRestartPolicy(server models.SpoutServer) container.RestartPolicy {
+	if server.RestartPolicy == nil || server.RestartPolicy.Container == nil {
+		return container.RestartPolicy{}
+	}
+
+	policy := server.RestartPolicy.Container
+	if policy.Policy == "" {
+		return container.RestartPolicy{}
+	}
+
+	restartPolicy := container.RestartPolicy{
+		Name: container.RestartPolicyMode(policy.Policy),
+	}
+
+	if policy.Policy == models.DockerRestartPolicyOnFailure && policy.MaxRetries != nil {
+		restartPolicy.MaximumRetryCount = int(*policy.MaxRetries)
+	}
+
+	return restartPolicy
 }
 
 func ShutdownContainers(ctx context.Context) error {

@@ -2,18 +2,9 @@ import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {
   Button,
-  Card,
-  CardBody,
-  CardHeader,
-  Checkbox,
   EmptyState,
   EmptyStateBody,
   EmptyStateVariant,
-  FormGroup,
-  FormSelect,
-  FormSelectOption,
-  Grid,
-  GridItem,
   Modal,
   ModalBody,
   ModalFooter,
@@ -22,13 +13,10 @@ import {
   Tab,
   TabTitleText,
   Tabs,
-  TextInput,
   Title,
   Toolbar,
   ToolbarContent,
-  ToolbarItem,
-  DatePicker,
-  TimePicker
+  ToolbarItem
 } from '@patternfly/react-core';
 
 import * as api from '../../service/apiService';
@@ -43,6 +31,9 @@ import {
 } from '../../service/apiService';
 
 import './PlayerDetail.css';
+import PlayerDetailMessagesTab from './PlayerDetailMessagesTab';
+import PlayerDetailModerationTab from './PlayerDetailModerationTab';
+import PlayerDetailOverviewTab from './PlayerDetailOverviewTab';
 
 const PlayerDetail: React.FC = () => {
   const {playerUuid} = useParams<{playerUuid: string}>();
@@ -395,391 +386,75 @@ const PlayerDetail: React.FC = () => {
         }}
         isBox
       >
-        <Tab
-          eventKey="overview"
-          title={<TabTitleText>Overview</TabTitleText>}
-        >
-          <Card className="pf-v6-u-mt-md">
-            <CardBody>
-              <Grid hasGutter>
-                <GridItem span={4}>
-                  <Card>
-                    <CardHeader>
-                      <Title headingLevel="h2" size="md">Skin</Title>
-                    </CardHeader>
-                    <CardBody>
-                      {summary?.avatarDataUrl ? (
-                        <img
-                          src={summary.avatarDataUrl}
-                          alt={`${summary.minecraftName || 'player'} skin`}
-                          style={{width: '100%', maxWidth: 160, borderRadius: 10}}
-                        />
-                      ) : (
-                        <EmptyState variant={EmptyStateVariant.sm} titleText="No avatar available" />
-                      )}
-                    </CardBody>
-                  </Card>
-                </GridItem>
-
-                <GridItem span={8}>
-                  <Card>
-                    <CardHeader>
-                      <Title headingLevel="h2" size="md">Player</Title>
-                    </CardHeader>
-                    <CardBody>
-                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12}}>
-                        <div>
-                          <div className="pf-v6-u-font-size-sm" style={{opacity: 0.8}}>Current username</div>
-                          <div className="pf-v6-u-font-size-xl pf-v6-u-font-weight-bold pf-v6-u-mt-xs">
-                            {summary?.minecraftName || effectivePlayerUuid}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="pf-v6-u-font-size-sm" style={{opacity: 0.8}}>Online</div>
-                          <div className="pf-v6-u-font-size-xl pf-v6-u-font-weight-bold pf-v6-u-mt-xs" style={{color: summary?.status === 'online' ? 'var(--pf-v6-global--success-color--100)' : undefined}}>
-                            {summary?.status === 'online' ? 'Online' : summary?.status === 'banned' ? 'Banned' : 'Offline'}
-                          </div>
-                        </div>
-
-                        <div style={{gridColumn: '1 / -1'}}>
-                          <div className="pf-v6-u-font-size-sm" style={{opacity: 0.8}}>Aliases</div>
-                          {aliasList.length ? (
-                            <div style={{marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8}}>
-                              {aliasList.map((a) => (
-                                <span key={a} className="pf-v6-u-mt-xs pf-v6-u-px-md pf-v6-u-py-xs" style={{background: 'var(--pf-v6-global--BackgroundColor--100)', borderRadius: 999}}>
-                                  {a}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <div style={{marginTop: 8, opacity: 0.8}}>No previous names recorded.</div>
-                          )}
-                        </div>
-
-                        <div>
-                          <div className="pf-v6-u-font-size-sm" style={{opacity: 0.8}}>Last logged in</div>
-                          <div className="pf-v6-u-font-size-lg pf-v6-u-font-weight-bold pf-v6-u-mt-xs">
-                            {summary?.lastLoggedInAt ? new Date(summary.lastLoggedInAt).toLocaleString() : '-'}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="pf-v6-u-font-size-sm" style={{opacity: 0.8}}>Last logged out</div>
-                          <div className="pf-v6-u-font-size-lg pf-v6-u-font-weight-bold pf-v6-u-mt-xs">
-                            {summary?.lastLoggedOutAt ? new Date(summary.lastLoggedOutAt).toLocaleString() : '-'}
-                          </div>
-                        </div>
-
-                        <div style={{gridColumn: '1 / -1'}}>
-                          <div className="pf-v6-u-font-size-sm" style={{opacity: 0.8}}>Current server</div>
-                          <div className="pf-v6-u-font-size-lg pf-v6-u-font-weight-bold pf-v6-u-mt-xs">
-                            {summary?.currentServer ? summary.currentServer : '-'}
-                          </div>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
-                </GridItem>
-              </Grid>
-            </CardBody>
-          </Card>
+        <Tab eventKey="overview" title={<TabTitleText>Overview</TabTitleText>}>
+          <PlayerDetailOverviewTab
+            summary={summary}
+            effectivePlayerUuid={effectivePlayerUuid}
+            aliasList={aliasList}
+          />
         </Tab>
 
-        <Tab
-          eventKey="moderation"
-          title={<TabTitleText>Moderation</TabTitleText>}
-        >
-          <Grid hasGutter className="pf-v6-u-mt-md">
-            <GridItem span={6}>
-              <Card isCompact>
-                <CardHeader>
-                  <Title headingLevel="h2" size="lg">Ban / Kick</Title>
-                </CardHeader>
-                <CardBody>
-                  <FormGroup label="Ban reason" fieldId="ban-reason">
-                    <TextInput id="ban-reason" value={banReason} onChange={(_ev, value) => setBanReason(value)} />
-                  </FormGroup>
+        <Tab eventKey="moderation" title={<TabTitleText>Moderation</TabTitleText>}>
+          <PlayerDetailModerationTab
+            activeBan={activeBan}
 
-                  <Checkbox
-                    label="Permanent ban"
-                    id="ban-permanent"
-                    isChecked={banPermanent}
-                    onChange={(_ev, checked) => {
-                      setBanPermanent(checked);
-                      if (checked) setUseCustomUntil(false);
-                    }}
-                  />
+            banDurations={banDurations}
+            banReason={banReason}
+            banPermanent={banPermanent}
+            banDurationKey={banDurationKey}
+            useCustomUntil={useCustomUntil}
+            customDate={customDate}
+            customTime={customTime}
+            kickReason={kickReason}
 
-                  <div style={{height: 12}} />
+            bansHistory={bansHistory}
+            kicksHistory={kicksHistory}
 
-                  <FormGroup label="Predefined duration" fieldId="ban-duration">
-                    <FormSelect
-                      value={banDurationKey}
-                      isDisabled={banPermanent}
-                      onChange={(_ev, value) => setBanDurationKey(value as string)}
-                    >
-                      {banDurations.map((opt) => (
-                        <FormSelectOption key={opt.key} value={opt.key} label={opt.label} />
-                      ))}
-                    </FormSelect>
-                  </FormGroup>
+            onBanReasonChange={setBanReason}
+            onBanPermanentChange={(checked) => {
+              setBanPermanent(checked);
+              if (checked) setUseCustomUntil(false);
+            }}
+            onBanDurationKeyChange={setBanDurationKey}
+            onUseCustomUntilChange={setUseCustomUntil}
+            onCustomDateChange={setCustomDate}
+            onCustomTimeChange={setCustomTime}
+            onKickReasonChange={setKickReason}
 
-                  <div style={{height: 12}} />
-
-                  <Checkbox
-                    label="Custom until"
-                    id="ban-custom-until"
-                    isDisabled={banPermanent}
-                    isChecked={useCustomUntil}
-                    onChange={(_ev, checked) => setUseCustomUntil(checked)}
-                  />
-
-                  {useCustomUntil && !banPermanent ? (
-                    <div style={{marginTop: 12}}>
-                      <FormGroup label="Until date" fieldId="ban-until-date">
-                        <DatePicker
-                          aria-label="Until date"
-                          value={customDate}
-                          placeholder="YYYY-MM-DD"
-                          onChange={(_ev, value) => setCustomDate(value)}
-                        />
-                      </FormGroup>
-                      <FormGroup label="Until time" fieldId="ban-until-time">
-                        <TimePicker
-                          aria-label="Until time"
-                          time={customTime}
-                          placeholder="hh:mm"
-                          onChange={(_ev, value) => setCustomTime(value)}
-                        />
-                      </FormGroup>
-                    </div>
-                  ) : null}
-
-                  <div style={{marginTop: 12, display: 'flex', gap: 8}}>
-                    <Button
-                      variant="danger"
-                      onClick={() => setConfirmBanOpen(true)}
-                      isDisabled={!banReason.trim()}
-                    >
-                      Ban
-                    </Button>
-                    {activeBan ? (
-                      <Button variant="secondary" onClick={() => setConfirmUnbanOpen(true)}>
-                        Unban
-                      </Button>
-                    ) : null}
-                  </div>
-
-                  <div style={{height: 20}} />
-
-                  <div>
-                    <Title headingLevel="h3" size="md" style={{marginBottom: 8}}>Kick</Title>
-                    <FormGroup label="Kick reason" fieldId="kick-reason">
-                      <TextInput
-                        id="kick-reason"
-                        value={kickReason}
-                        onChange={(_ev, value) => setKickReason(value)}
-                      />
-                    </FormGroup>
-                    <Button
-                      variant="warning"
-                      onClick={() => void submitKick()}
-                      isDisabled={!kickReason.trim()}
-                    >
-                      Kick
-                    </Button>
-                  </div>
-                </CardBody>
-              </Card>
-            </GridItem>
-
-            <GridItem span={6}>
-              <Card isCompact>
-                <CardHeader>
-                  <Title headingLevel="h2" size="lg">History</Title>
-                </CardHeader>
-                <CardBody>
-                  <div>
-                    <Title headingLevel="h3" size="md">Bans</Title>
-                    <div className="playerDetail__historyList">
-                      {bansHistory.length ? bansHistory.map((b, i) => (
-                        <div key={`${b.staffUserId}-${i}`} className="playerDetail__historyRow">
-                          <div className="playerDetail__historyMain">
-                            <strong>{b.staffDisplayName}</strong>: {b.reason}
-                          </div>
-                          <div className="playerDetail__historySub">
-                            {b.permanent ? 'Permanent' : `Until: ${b.untilAt ?? '-'}`} {b.liftedAt ? `(lifted: ${new Date(b.liftedAt).toLocaleString()})` : ''}
-                          </div>
-                        </div>
-                      )) : <div style={{opacity: 0.8}}>No bans yet.</div>}
-                    </div>
-                  </div>
-
-                  <div style={{height: 12}} />
-
-                  <div>
-                    <Title headingLevel="h3" size="md">Kicks</Title>
-                    <div className="playerDetail__historyList">
-                      {kicksHistory.length ? kicksHistory.map((k, i) => (
-                        <div key={`${k.staffUserId}-${i}`} className="playerDetail__historyRow">
-                          <div className="playerDetail__historyMain">
-                            <strong>{k.staffDisplayName}</strong>: {k.reason}
-                          </div>
-                          <div className="playerDetail__historySub">
-                            {new Date(k.occurredAt).toLocaleString()}
-                          </div>
-                        </div>
-                      )) : <div style={{opacity: 0.8}}>No kicks yet.</div>}
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
-            </GridItem>
-          </Grid>
+            onRequestConfirmBanOpen={() => setConfirmBanOpen(true)}
+            onRequestConfirmUnbanOpen={() => setConfirmUnbanOpen(true)}
+            onKick={submitKick}
+          />
         </Tab>
 
-        <Tab
-          eventKey="messages"
-          title={<TabTitleText>Messages</TabTitleText>}
-        >
-          <Grid hasGutter className="pf-v6-u-mt-md">
-            <GridItem span={4}>
-              <Card>
-                <CardHeader>
-                  <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8}}>
-                    <div>
-                      <Title headingLevel="h2" size="lg">Conversations</Title>
-                      {hasOtherConversations ? (
-                        <div style={{fontSize: 12, opacity: 0.8, marginTop: 4}}>
-                          Other conversations are hidden (insufficient permission).
-                        </div>
-                      ) : null}
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      isDisabled={currentStaffUserID == null}
-                      onClick={() => startNewConversation()}
-                    >
-                      Start new conversation
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardBody>
-                  {!conversations.length ? (
-                    <EmptyState variant={EmptyStateVariant.sm} titleText="No conversations yet" />
-                  ) : (
-                    <div className="playerDetail__conversationList">
-                      {conversations.map((conv) => (
-                        <Button
-                          key={conv.id}
-                          variant={conv.id === selectedConversationId ? 'primary' : 'link'}
-                          isInline
-                          className="playerDetail__conversationButton"
-                          onClick={() => {
-                            setPendingNewConversation(false);
-                            setSelectedConversationId(conv.id);
-                          }}
-                        >
-                          <div style={{textAlign: 'left'}}>
-                            <div className="playerDetail__conversationName">
-                              {conv.staffDisplayName}
-                              {conv.closed ? (
-                                <span style={{marginLeft: 8, fontSize: 11, opacity: 0.75}}>(closed)</span>
-                              ) : null}
-                            </div>
-                            <div className="playerDetail__conversationPreview">
-                              {conv.lastMessage ? conv.lastMessage.slice(0, 60) : ''}
-                            </div>
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </CardBody>
-              </Card>
-            </GridItem>
+        <Tab eventKey="messages" title={<TabTitleText>Messages</TabTitleText>}>
+          <PlayerDetailMessagesTab
+            currentStaffUserID={currentStaffUserID}
 
-            <GridItem span={8}>
-              <Card>
-                <CardHeader>
-                  <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8}}>
-                    <Title headingLevel="h2" size="lg">Messages</Title>
-                    {canCloseSelectedConversation ? (
-                      <Button variant="secondary" size="sm" onClick={() => void closeConversation()}>
-                        Close conversation
-                      </Button>
-                    ) : null}
-                  </div>
-                </CardHeader>
-                <CardBody>
-                  {pendingNewConversation ? (
-                    <div className="pf-v6-u-font-size-sm pf-v6-u-mb-md" style={{opacity: 0.85}}>
-                      You are starting a new conversation with this player. Your first message will show them the support-chat notice in-game, then deliver your text.
-                    </div>
-                  ) : null}
-                  {selectedConversation?.closed ? (
-                    <div className="pf-v6-u-font-size-sm pf-v6-u-mb-md" style={{opacity: 0.85}}>
-                      This conversation is closed. No more messages can be sent here.
-                    </div>
-                  ) : null}
-                  <div className="playerDetail__messages">
-                    {messages.length ? (
-                      messages.map((m, idx) => (
-                        <div
-                          key={`${m.timestamp}-${idx}`}
-                          className={m.direction === 'incoming' ? 'playerDetail__bubble playerDetail__bubble--incoming' : 'playerDetail__bubble playerDetail__bubble--outgoing'}
-                        >
-                          <div className="playerDetail__bubbleMeta">
-                            {m.direction === 'outgoing' && m.role ? `${m.role} ` : ''}
-                            {m.direction === 'outgoing' && m.sender ? m.sender : null}
-                            <span className="playerDetail__bubbleTime">{new Date(m.timestamp).toLocaleTimeString()}</span>
-                          </div>
-                          <div className="playerDetail__bubbleText">{m.message}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <EmptyState
-                        variant={EmptyStateVariant.sm}
-                        titleText={pendingNewConversation ? 'New conversation' : 'No messages yet'}
-                      />
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
+            hasOtherConversations={hasOtherConversations}
+            conversations={conversations}
+            selectedConversationId={selectedConversationId}
+            selectedConversation={selectedConversation}
 
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void sendMessage();
-                    }}
-                    style={{marginTop: 12, display: 'flex', gap: 8}}
-                  >
-                    <FormGroup style={{flex: 1, marginBottom: 0}}>
-                      <TextInput
-                        aria-label="Message"
-                        placeholder={
-                          !canUseMessageComposer
-                            ? (selectedConversation?.closed
-                              ? 'This conversation is closed'
-                              : 'Select your own open conversation to send')
-                            : pendingNewConversation
-                              ? 'Write your first message…'
-                              : 'Write a message…'
-                        }
-                        isDisabled={!canUseMessageComposer}
-                        value={composerText}
-                        onChange={(_ev, value) => setComposerText(value)}
-                      />
-                    </FormGroup>
-                    <Button isDisabled={!canUseMessageComposer} type="submit" variant="primary">
-                      Send
-                    </Button>
-                  </form>
-                </CardBody>
-              </Card>
-            </GridItem>
-          </Grid>
+            pendingNewConversation={pendingNewConversation}
+            messages={messages}
+
+            composerText={composerText}
+            onComposerTextChange={setComposerText}
+
+            canUseMessageComposer={canUseMessageComposer}
+            canCloseSelectedConversation={canCloseSelectedConversation}
+
+            messagesEndRef={messagesEndRef}
+
+            onStartNewConversation={startNewConversation}
+            onSelectConversation={(conversationId) => {
+              setPendingNewConversation(false);
+              setSelectedConversationId(conversationId);
+            }}
+            onCloseConversation={closeConversation}
+            onSendMessage={sendMessage}
+          />
         </Tab>
       </Tabs>
 

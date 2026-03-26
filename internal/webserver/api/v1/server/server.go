@@ -153,13 +153,24 @@ type EnrichedContainer = serverapp.EnrichedContainer
 type ContainerWithStats = serverapp.ContainerWithStats
 
 // AddServerRequest represents the request body for adding a new server
+type ServerContainerRestartPolicyRequest struct {
+	Policy     string `json:"policy,omitempty"`
+	MaxRetries *uint  `json:"maxRetries,omitempty"`
+}
+
+type ServerRestartPolicyRequest struct {
+	Container               *ServerContainerRestartPolicyRequest `json:"container,omitempty"`
+	AutoStartOnSpoutmcStart *bool                                `json:"autoStartOnSpoutmcStart,omitempty"`
+}
+
 type AddServerRequest struct {
-	Name  string            `json:"name" binding:"required"`
-	Image string            `json:"image" binding:"required"`
-	Port  int               `json:"port,omitempty"` // Optional - required for proxy, auto-assigned for lobby/game
-	Proxy bool              `json:"proxy,omitempty"`
-	Lobby bool              `json:"lobby,omitempty"`
-	Env   map[string]string `json:"env"`
+	Name          string                      `json:"name" binding:"required"`
+	Image         string                      `json:"image" binding:"required"`
+	Port          int                         `json:"port,omitempty"` // Optional - required for proxy, auto-assigned for lobby/game
+	Proxy         bool                        `json:"proxy,omitempty"`
+	Lobby         bool                        `json:"lobby,omitempty"`
+	Env           map[string]string           `json:"env"`
+	RestartPolicy *ServerRestartPolicyRequest `json:"restartPolicy,omitempty"`
 }
 
 func addServerHandler(c echo.Context) error {
@@ -238,11 +249,12 @@ func addServerHandler(c echo.Context) error {
 
 	// Create new server model
 	newServer := models.SpoutServer{
-		Name:  req.Name,
-		Image: req.Image,
-		Proxy: req.Proxy,
-		Lobby: req.Lobby,
-		Env:   mergedEnv,
+		Name:          req.Name,
+		Image:         req.Image,
+		Proxy:         req.Proxy,
+		Lobby:         req.Lobby,
+		Env:           mergedEnv,
+		RestartPolicy: mapRestartPolicyRequest(req.RestartPolicy),
 		Ports: []models.SpoutServerPorts{
 			{
 				HostPort:      fmt.Sprintf("%d", assignedPort),
@@ -425,8 +437,38 @@ func executeCommandHandler(c echo.Context) error {
 
 // UpdateServerRequest represents the request body for updating a server
 type UpdateServerRequest struct {
-	Name string            `json:"name,omitempty"`
-	Env  map[string]string `json:"env,omitempty"`
+	Name          string                      `json:"name,omitempty"`
+	Env           map[string]string           `json:"env,omitempty"`
+	RestartPolicy *ServerRestartPolicyRequest `json:"restartPolicy,omitempty"`
+}
+
+func mapRestartPolicyRequest(req *ServerRestartPolicyRequest) *models.SpoutServerRestartPolicy {
+	if req == nil {
+		return nil
+	}
+
+	policy := &models.SpoutServerRestartPolicy{}
+	if req.AutoStartOnSpoutmcStart != nil {
+		autoStart := *req.AutoStartOnSpoutmcStart
+		policy.AutoStartOnSpoutmcStart = &autoStart
+	}
+
+	if req.Container != nil {
+		containerPolicy := &models.SpoutServerContainerRestartPolicy{
+			Policy: models.DockerRestartPolicyName(req.Container.Policy),
+		}
+
+		if req.Container.MaxRetries != nil {
+			maxRetries := *req.Container.MaxRetries
+			containerPolicy.MaxRetries = &maxRetries
+		}
+		policy.Container = containerPolicy
+	}
+
+	if policy.AutoStartOnSpoutmcStart == nil && policy.Container == nil {
+		return nil
+	}
+	return policy
 }
 
 func getServerEnvHandler(c echo.Context) error {
@@ -538,6 +580,9 @@ func updateServerHandler(c echo.Context) error {
 		for k, v := range req.Env {
 			serverConfig.Env[k] = v
 		}
+	}
+	if req.RestartPolicy != nil {
+		serverConfig.RestartPolicy = mapRestartPolicyRequest(req.RestartPolicy)
 	}
 
 	// Stop and remove old container

@@ -17,15 +17,17 @@ import (
 )
 
 type PlayerState struct {
-	Name            string  `json:"name"`
-	UUID            string  `json:"uuid"`
-	AvatarDataURL   string  `json:"avatarDataUrl,omitempty"`
-	LastLoggedInAt  *string `json:"lastLoggedInAt,omitempty"`
-	LastLoggedOutAt *string `json:"lastLoggedOutAt,omitempty"`
-	CurrentServer   string  `json:"currentServer,omitempty"`
-	Banned          bool    `json:"banned"`
-	BanReason       string  `json:"banReason,omitempty"`
-	Status          string  `json:"status"`
+	Name            string   `json:"name"`
+	UUID            string   `json:"uuid"`
+	AvatarDataURL   string   `json:"avatarDataUrl,omitempty"`
+	LastLoggedInAt  *string  `json:"lastLoggedInAt,omitempty"`
+	LastLoggedOutAt *string  `json:"lastLoggedOutAt,omitempty"`
+	CurrentServer   string   `json:"currentServer,omitempty"`
+	Banned          bool     `json:"banned"`
+	BanReason       string   `json:"banReason,omitempty"`
+	Status          string   `json:"status"`
+	ClientBrand     string   `json:"clientBrand,omitempty"`
+	ClientMods      []string `json:"clientMods,omitempty"`
 }
 
 type PlayerCommand struct {
@@ -49,16 +51,18 @@ type PlayerChatMessage struct {
 }
 
 type bridgePlayer struct {
-	Name            string  `json:"name"`
-	UUID            string  `json:"uuid"`
-	AvatarURL       string  `json:"avatarUrl,omitempty"`
-	AvatarDataURL   string  `json:"avatarDataUrl,omitempty"`
-	LastLoggedInAt  *string `json:"lastLoggedInAt,omitempty"`
-	LastLoggedOutAt *string `json:"lastLoggedOutAt,omitempty"`
-	CurrentServer   string  `json:"currentServer,omitempty"`
-	Banned          bool    `json:"banned"`
-	BanReason       string  `json:"banReason,omitempty"`
-	Status          string  `json:"status"`
+	Name            string   `json:"name"`
+	UUID            string   `json:"uuid"`
+	AvatarURL       string   `json:"avatarUrl,omitempty"`
+	AvatarDataURL   string   `json:"avatarDataUrl,omitempty"`
+	LastLoggedInAt  *string  `json:"lastLoggedInAt,omitempty"`
+	LastLoggedOutAt *string  `json:"lastLoggedOutAt,omitempty"`
+	CurrentServer   string   `json:"currentServer,omitempty"`
+	Banned          bool     `json:"banned"`
+	BanReason       string   `json:"banReason,omitempty"`
+	Status          string   `json:"status"`
+	ClientBrand     string   `json:"clientBrand,omitempty"`
+	ClientMods      []string `json:"clientMods,omitempty"`
 }
 
 // BridgeClient talks to the velocity-players-bridge HTTP API inside the proxy container.
@@ -155,6 +159,8 @@ func (c *BridgeClient) ListPlayers(ctx context.Context) ([]PlayerState, error) {
 			Banned:          p.Banned,
 			BanReason:       p.BanReason,
 			Status:          status,
+			ClientBrand:     p.ClientBrand,
+			ClientMods:      p.ClientMods,
 		})
 	}
 

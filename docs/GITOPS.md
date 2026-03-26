@@ -89,6 +89,10 @@ spec:
   name: lobby
   image: itzg/minecraft-server
   lobby: true
+  restartPolicy:
+    container:
+      policy: unless-stopped
+    autoStartOnSpoutmcStart: true
   env:
     EULA: "TRUE"
     TYPE: PAPER
@@ -97,6 +101,39 @@ spec:
   volumes:
     - containerpath: "/data"
 ```
+
+### Restart Policy Fields
+
+`spec.restartPolicy` controls two independent restart behaviors:
+
+- Docker restart policy (`spec.restartPolicy.container`)
+- SpoutMC startup behavior (`spec.restartPolicy.autoStartOnSpoutmcStart`)
+
+Example:
+
+```yaml
+spec:
+  name: skyblock
+  image: itzg/minecraft-server
+  restartPolicy:
+    container:
+      policy: on-failure
+      maxRetries: 3
+    autoStartOnSpoutmcStart: true
+```
+
+Docker policy values:
+
+- `no`
+- `on-failure` (supports optional `maxRetries`, must be >= 1 when provided)
+- `always`
+- `unless-stopped`
+- omitted `container`/`policy`: Docker default behavior (`no` restart policy)
+
+Startup behavior:
+
+- `autoStartOnSpoutmcStart: true` (or omitted): server is started/recreated during SpoutMC startup.
+- `autoStartOnSpoutmcStart: false`: server is skipped during SpoutMC startup.
 
 ### Infrastructure
 

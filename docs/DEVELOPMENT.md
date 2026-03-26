@@ -760,6 +760,18 @@ air init
 
 This feature persists player moderation/chat data using the canonical Minecraft UUID (stable across gamertag changes).
 
+### Chat ingest secret source
+
+Player chat ingest now reuses Velocity's forwarding secret from `forwarding.secret`.
+
+- Backend ingest auth (`/api/v1/player/chat-ingest`) reads `{storage.data_path}/{proxyName}/server/forwarding.secret`.
+- Velocity players bridge reads `forwarding-secret-file` from `velocity.toml` and resolves that secret file (fallback: `forwarding.secret` in the proxy runtime directory).
+- No additional chat-ingest secret setup is required.
+
+Migration note:
+- `SPOUT_PLAYER_CHAT_INGEST_SECRET` is no longer used for player chat ingest auth.
+- `spoutmcChatIngestSecret` in the bridge `config.properties` is no longer used.
+
 ### 1) Required `spoutmc.yaml` additions
 
 Add the predefined timed-ban options for the frontend ban dropdown:

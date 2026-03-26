@@ -27,7 +27,6 @@ public final class ConfigService {
             properties.setProperty("port", "29132");
             properties.setProperty("token", "");
             properties.setProperty("spoutmcChatIngestUrl", "http://host.docker.internal:3000/api/v1/player/chat-ingest");
-            properties.setProperty("spoutmcChatIngestSecret", "");
             try (OutputStream out = Files.newOutputStream(configPath)) {
                 properties.store(out, "SpoutMC Players Bridge config");
             }
@@ -42,7 +41,6 @@ public final class ConfigService {
         loaded.port = Integer.parseInt(properties.getProperty("port", "29132"));
         loaded.token = properties.getProperty("token", "").trim();
         loaded.spoutmcChatIngestUrl = properties.getProperty("spoutmcChatIngestUrl", "").trim();
-        loaded.spoutmcChatIngestSecret = properties.getProperty("spoutmcChatIngestSecret", "").trim();
         return loaded;
     }
 }

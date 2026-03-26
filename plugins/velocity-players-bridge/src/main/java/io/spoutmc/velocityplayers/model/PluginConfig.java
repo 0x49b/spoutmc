@@ -11,6 +11,4 @@ public final class PluginConfig {
      * (Docker Desktop; on Linux add {@code extra_hosts: host.docker.internal:host-gateway}).
      */
     public String spoutmcChatIngestUrl;
-    /** Same value as SPOUT_PLAYER_CHAT_INGEST_SECRET on the SpoutMC API */
-    public String spoutmcChatIngestSecret;
 }

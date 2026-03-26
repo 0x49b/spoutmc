@@ -24,6 +24,24 @@ dependencies {
 }
 
 tasks {
+    val proxyPluginsDir = providers.gradleProperty("proxyPluginsDir").orElse("REPLACE_WITH_PROXY_PLUGINS_PATH")
+    val shadowJarTask = named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar")
+
+    val copyShadowJarToProxyPlugins = register("copyShadowJarToProxyPlugins", org.gradle.api.tasks.Copy::class) {
+        dependsOn(shadowJarTask)
+        from(shadowJarTask.flatMap { it.archiveFile })
+        into(proxyPluginsDir.map { file(it) })
+
+        doFirst {
+            val configuredDestination = proxyPluginsDir.get()
+            if (configuredDestination == "REPLACE_WITH_PROXY_PLUGINS_PATH") {
+                throw org.gradle.api.GradleException(
+                    "Set `proxyPluginsDir` in build.gradle.kts or pass -PproxyPluginsDir=/path/to/proxy/plugins before running shadowJar.",
+                )
+            }
+        }
+    }
+
     compileJava {
         // Allow using newer installed JDKs while producing Java 17 bytecode.
         options.release.set(17)
@@ -31,6 +49,7 @@ tasks {
 
     shadowJar {
         archiveClassifier.set("")
+        finalizedBy(copyShadowJarToProxyPlugins)
     }
 
 

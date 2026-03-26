@@ -5,6 +5,11 @@ metadata:
 spec:
   name: skyblock
   image: itzg/minecraft-server
+  restartPolicy:
+    container:
+      policy: on-failure
+      maxRetries: 5
+    autoStartOnSpoutmcStart: true
   env:
     EULA: "TRUE"
     TYPE: PAPER

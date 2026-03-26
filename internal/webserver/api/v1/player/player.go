@@ -69,6 +69,8 @@ func listPlayers(c echo.Context) error {
 						MinecraftName: p.Name,
 						AvatarDataURL: p.AvatarDataURL,
 						CurrentServer: p.CurrentServer,
+						ClientBrand:   p.ClientBrand,
+						ClientMods:    models.StringSlice(p.ClientMods),
 					}).Error
 				}
 				continue
@@ -78,6 +80,8 @@ func listPlayers(c echo.Context) error {
 				"minecraft_name":  p.Name,
 				"avatar_data_url": p.AvatarDataURL,
 				"current_server":  p.CurrentServer,
+				"client_brand":    p.ClientBrand,
+				"client_mods":     models.StringSlice(p.ClientMods),
 			}
 			if p.LastLoggedInAt != nil && strings.TrimSpace(*p.LastLoggedInAt) != "" {
 				if t, err2 := time.Parse(time.RFC3339Nano, strings.TrimSpace(*p.LastLoggedInAt)); err2 == nil {
@@ -193,22 +197,20 @@ func messagePlayer(c echo.Context) error {
 		if playerUUID, username, skinURL, err2 := minecraft.GetPlayerProfile(playerIdentifier); err2 == nil {
 			_ = skinURL
 			mcPlayerName = username
-			if db != nil {
-				var p models.Player
-				if err3 := db.Where("minecraft_uuid = ?", playerUUID).First(&p).Error; err3 != nil {
-					if errors.Is(err3, gorm.ErrRecordNotFound) {
-						_ = db.Create(&models.Player{
-							MinecraftUUID: playerUUID,
-							MinecraftName: username,
-							AvatarDataURL: skinURL,
-						}).Error
-					}
-				} else if strings.TrimSpace(p.MinecraftName) == "" && strings.TrimSpace(username) != "" {
-					_ = db.Model(&p).Updates(map[string]any{
-						"minecraft_name":  username,
-						"avatar_data_url": skinURL,
+			var p models.Player
+			if err3 := db.Where("minecraft_uuid = ?", playerUUID).First(&p).Error; err3 != nil {
+				if errors.Is(err3, gorm.ErrRecordNotFound) {
+					_ = db.Create(&models.Player{
+						MinecraftUUID: playerUUID,
+						MinecraftName: username,
+						AvatarDataURL: skinURL,
 					}).Error
 				}
+			} else if strings.TrimSpace(p.MinecraftName) == "" && strings.TrimSpace(username) != "" {
+				_ = db.Model(&p).Updates(map[string]any{
+					"minecraft_name":  username,
+					"avatar_data_url": skinURL,
+				}).Error
 			}
 		}
 	} else {
@@ -218,7 +220,7 @@ func messagePlayer(c echo.Context) error {
 		}
 		playerUUIDParsed = &resolvedUUID
 		mcPlayerName = name
-		if db != nil && strings.TrimSpace(name) != "" {
+		if strings.TrimSpace(name) != "" {
 			var p models.Player
 			if err3 := db.Where("minecraft_uuid = ?", resolvedUUID).First(&p).Error; err3 != nil {
 				if errors.Is(err3, gorm.ErrRecordNotFound) {

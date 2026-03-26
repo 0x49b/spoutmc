@@ -10,13 +10,17 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.slf4j.Logger;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -24,9 +28,11 @@ import java.util.regex.Pattern;
 
 public final class ChatService {
     private static final Pattern PRIVATE_MESSAGE_COMMAND_PATTERN = Pattern.compile("^(msg|tell|w|whisper|m)\\s+(\\S+)\\s+(.+)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern FORWARDING_SECRET_FILE_PATTERN = Pattern.compile("^\\s*forwarding-secret-file\\s*=\\s*\"([^\"]+)\"\\s*$");
 
     private final Logger logger;
     private final PluginConfig config;
+    private final String chatIngestSecret;
     private final Gson gson = new Gson();
 
     private final Map<String, List<ChatMessageRecord>> chatByThread = new ConcurrentHashMap<>();
@@ -34,9 +40,10 @@ public final class ChatService {
     private final Map<String, Long> lastStaffByPlayer = new ConcurrentHashMap<>();
     private final Set<String> webReplyHandles = Set.of("admin", "mod", "moderator", "editor", "staff");
 
-    public ChatService(Logger logger, PluginConfig config) {
+    public ChatService(Logger logger, PluginConfig config, Path dataDirectory) {
         this.logger = logger;
         this.config = config;
+        this.chatIngestSecret = resolveForwardingSecret(dataDirectory);
     }
 
     private static String threadKey(String normalizedPlayer, long staffUserId) {
@@ -161,7 +168,7 @@ public final class ChatService {
 
     private void ingestIncomingReply(String mcPlayerName, String mcPlayerUuid, long staffUserId, String message, String timestampIso) {
         String urlStr = config.spoutmcChatIngestUrl;
-        String secret = config.spoutmcChatIngestSecret;
+        String secret = chatIngestSecret;
         if (urlStr == null || urlStr.isBlank() || secret == null || secret.isBlank()) {
             return;
         }
@@ -181,7 +188,7 @@ public final class ChatService {
             body.addProperty("timestamp", timestampIso);
 
             byte[] bytes = gson.toJson(body).getBytes(StandardCharsets.UTF_8);
-            URL url = new URL(urlStr);
+            java.net.URL url = java.net.URI.create(urlStr).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(5000);
@@ -220,5 +227,84 @@ public final class ChatService {
             return;
         }
         chatMessages.subList(0, chatMessages.size() - maxMessages).clear();
+    }
+
+    private String resolveForwardingSecret(Path dataDirectory) {
+        LinkedHashSet<Path> proxyRootCandidates = new LinkedHashSet<>();
+        if (dataDirectory != null) {
+            Path pluginsDir = dataDirectory.getParent();
+            Path proxyRoot = pluginsDir == null ? null : pluginsDir.getParent();
+            if (proxyRoot != null) {
+                proxyRootCandidates.add(proxyRoot);
+            }
+        }
+
+        String userDir = System.getProperty("user.dir");
+        if (userDir != null && !userDir.isBlank()) {
+            proxyRootCandidates.add(Paths.get(userDir));
+        }
+
+        for (Path proxyRoot : proxyRootCandidates) {
+            String secret = readSecretFromVelocityToml(proxyRoot);
+            if (secret != null && !secret.isBlank()) {
+                logger.info("[SpoutPlayers] Using forwarding secret from velocity.toml path {}", proxyRoot.resolve("velocity.toml"));
+                return secret;
+            }
+        }
+
+        for (Path proxyRoot : proxyRootCandidates) {
+            String secret = readSecretFile(proxyRoot.resolve("forwarding.secret"));
+            if (secret != null && !secret.isBlank()) {
+                logger.info("[SpoutPlayers] Using forwarding secret from fallback path {}", proxyRoot.resolve("forwarding.secret"));
+                return secret;
+            }
+        }
+
+        logger.warn("[SpoutPlayers] Could not resolve forwarding.secret for chat ingest; incoming /reply messages will not be persisted to SpoutMC");
+        return "";
+    }
+
+    private String readSecretFromVelocityToml(Path proxyRoot) {
+        Path velocityToml = proxyRoot.resolve("velocity.toml");
+        if (!Files.exists(velocityToml)) {
+            return "";
+        }
+
+        try {
+            List<String> lines = Files.readAllLines(velocityToml, StandardCharsets.UTF_8);
+            for (String line : lines) {
+                Matcher matcher = FORWARDING_SECRET_FILE_PATTERN.matcher(line);
+                if (!matcher.matches()) {
+                    continue;
+                }
+                String configured = matcher.group(1).trim();
+                if (configured.isEmpty()) {
+                    continue;
+                }
+
+                Path configuredPath = Paths.get(configured);
+                Path secretPath = configuredPath.isAbsolute() ? configuredPath : proxyRoot.resolve(configuredPath);
+                String secret = readSecretFile(secretPath);
+                if (secret != null && !secret.isBlank()) {
+                    return secret;
+                }
+            }
+        } catch (IOException e) {
+            logger.warn("[SpoutPlayers] Failed reading velocity.toml for forwarding secret: {}", e.toString());
+        }
+
+        return "";
+    }
+
+    private String readSecretFile(Path path) {
+        try {
+            if (!Files.exists(path)) {
+                return "";
+            }
+            return Files.readString(path, StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            logger.warn("[SpoutPlayers] Failed reading forwarding secret file {}: {}", path, e.toString());
+            return "";
+        }
     }
 }

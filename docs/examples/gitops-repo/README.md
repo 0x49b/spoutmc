@@ -32,6 +32,10 @@ spec:
   name: lobby
   image: itzg/minecraft-server
   lobby: true
+  restartPolicy:
+    container:
+      policy: unless-stopped
+    autoStartOnSpoutmcStart: true
   env:
     EULA: "TRUE"
     TYPE: PAPER
@@ -49,6 +53,10 @@ SpoutMC uses SQLite for its database. MySQL/MariaDB infrastructure containers ar
 - In server volumes, use `containerpath` only.
 - Host paths are generated automatically from SpoutMC `storage.data_path`.
 - `metadata.name` should match `spec.name`.
+- `spec.restartPolicy.container.policy` supports Docker values: `no`, `on-failure`, `always`, `unless-stopped`.
+- `spec.restartPolicy.container.maxRetries` is only valid when policy is `on-failure`.
+- `spec.restartPolicy.autoStartOnSpoutmcStart` defaults to `true` when omitted.
+- When `spec.restartPolicy.container.policy` is omitted, Docker uses its default (`no` restart policy).
 
 ## Applying Changes
 
@@ -71,6 +79,6 @@ curl http://your-spoutmc-host:3000/api/v1/git/status
 
 ## Related Docs
 
-- `../../docs/GITOPS.md`
-- `../../docs/GITOPS_QUICKSTART.md`
-- `../../docs/WEBHOOK_TEST.md`
+- `../../GITOPS.md`
+- `../../GITOPS_QUICKSTART.md`
+- `../../WEBHOOK_TEST.md`

@@ -40,6 +40,8 @@ const mapPlayer = (dto: api.PlayerDTO): Player => ({
   currentServer: dto.currentServer,
   lastLoggedInAt: dto.lastLoggedInAt,
   lastLoggedOutAt: dto.lastLoggedOutAt,
+  clientBrand: dto.clientBrand,
+  clientMods: dto.clientMods,
   status: dto.status === 'banned' ? 'banned' : dto.status === 'online' ? 'online' : 'offline',
   banned: dto.banned,
   banReason: dto.banReason

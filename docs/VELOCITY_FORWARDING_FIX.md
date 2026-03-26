@@ -46,6 +46,9 @@ There were TWO critical issues preventing Velocity player forwarding:
   - `player-info-forwarding-mode = "modern"`
   - `forwarding-secret-file = "forwarding.secret"`
   - `online-mode = true`
+- SpoutMC player chat ingest also uses this same secret via `X-Spout-Chat-Ingest`
+  - Backend reads from `{dataPath}/{proxyName}/server/forwarding.secret`
+  - Velocity players bridge resolves `forwarding-secret-file` from `velocity.toml`
 
 **Paper Servers (`itzg/minecraft-server`):**
 - Environment variables:

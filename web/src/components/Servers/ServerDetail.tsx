@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {
+    Alert,
     Button,
     Card,
     CardBody,
@@ -84,6 +85,7 @@ const ServerDetail: React.FC = () => {
     const [isRestartModalOpen, setIsRestartModalOpen] = useState(false);
     const [volumeFiles, setVolumeFiles] = useState<api.VolumeFiles[]>([]);
     const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+    const [fileNotice, setFileNotice] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<{
         path: string;
         fileName: string;
@@ -220,6 +222,20 @@ const ServerDetail: React.FC = () => {
 
     const handleFileClick = (filePath: string, volume?: string) => {
         const fileName = filePath.split('/').pop() || filePath;
+        const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
+
+        const nonEditableExts = new Set([
+            'jar', 'zip', '7z', 'gz', 'bz2', 'xz', 'tar',
+            'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico',
+            'mp3', 'mp4', 'wav', 'ogg',
+            'class', 'so', 'dll', 'dylib', 'exe'
+        ]);
+        if (ext && nonEditableExts.has(ext)) {
+            setFileNotice(`"${fileName}" looks like a binary file and is not editable in the UI.`);
+            return;
+        }
+
+        setFileNotice(null);
         setSelectedFile({path: filePath, fileName, volume});
     };
 
@@ -675,6 +691,16 @@ const ServerDetail: React.FC = () => {
                             <Card>
                                 <CardBody>
                                     <Title headingLevel="h3" size="lg">Server Files</Title>
+                                    {fileNotice ? (
+                                        <Alert
+                                            variant="info"
+                                            isInline
+                                            title="File not editable"
+                                            className="pf-v6-u-mt-md"
+                                        >
+                                            {fileNotice}
+                                        </Alert>
+                                    ) : null}
 
                                     {isLoadingFiles ? (
                                         <div style={{

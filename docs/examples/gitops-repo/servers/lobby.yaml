@@ -6,6 +6,10 @@ spec:
   name: lobby
   image: itzg/minecraft-server
   lobby: true
+  restartPolicy:
+    container:
+      policy: unless-stopped
+    autoStartOnSpoutmcStart: true
   env:
     EULA: "TRUE"
     TYPE: PAPER

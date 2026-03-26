@@ -154,6 +154,8 @@ export interface PlayerDTO {
   lastLoggedInAt?: string;
   lastLoggedOutAt?: string;
   currentServer?: string;
+  clientBrand?: string;
+  clientMods?: string[];
   banned: boolean;
   banReason?: string;
   status: 'online' | 'offline' | 'banned' | string;
@@ -178,6 +180,8 @@ export interface PlayerSummaryDTO {
   currentServer?: string;
   lastLoggedInAt?: string;
   lastLoggedOutAt?: string;
+  clientBrand?: string;
+  clientMods?: string[];
   banned: boolean;
   banReason?: string;
   banUntilAt?: string;

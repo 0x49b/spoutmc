@@ -11,6 +11,8 @@ import com.velocitypowered.api.event.command.CommandExecuteEvent;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
+import com.velocitypowered.api.event.player.PlayerClientBrandEvent;
+import com.velocitypowered.api.event.player.PlayerModInfoEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -33,6 +35,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 @Plugin(
         id = "spoutmc-players",
@@ -70,7 +73,7 @@ public final class SpoutPlayersPlugin {
         try {
             Files.createDirectories(dataDirectory);
             this.config = configService.loadConfig();
-            this.chatService = new ChatService(logger, config);
+            this.chatService = new ChatService(logger, config, dataDirectory);
             playerStateService.loadState();
             playerStateService.seedOnlinePlayers();
             this.apiHandler = new BridgeApiHandler(logger, gson, config, playerStateService, chatService);
@@ -121,6 +124,29 @@ public final class SpoutPlayersPlugin {
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
         playerStateService.onDisconnect(event.getPlayer());
+        playerStateService.saveState();
+        if (apiHandler != null) {
+            apiHandler.broadcastSnapshot();
+        }
+    }
+
+    @Subscribe
+    public void onPlayerClientBrand(PlayerClientBrandEvent event) {
+        playerStateService.onClientBrand(event.getPlayer(), event.getBrand());
+        playerStateService.saveState();
+        if (apiHandler != null) {
+            apiHandler.broadcastSnapshot();
+        }
+    }
+
+    @Subscribe
+    public void onPlayerModInfo(PlayerModInfoEvent event) {
+        playerStateService.onClientMods(
+                event.getPlayer(),
+                event.getModInfo().getMods().stream()
+                        .map(mod -> mod.getId() + ":" + mod.getVersion())
+                        .collect(Collectors.toList())
+        );
         playerStateService.saveState();
         if (apiHandler != null) {
             apiHandler.broadcastSnapshot();

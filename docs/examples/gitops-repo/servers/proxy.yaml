@@ -6,6 +6,10 @@ spec:
   name: spoutproxy
   image: itzg/mc-proxy
   proxy: true
+  restartPolicy:
+    container:
+      policy: always
+    autoStartOnSpoutmcStart: true
   ports:
     - hostPort: "25565"
       containerPort: "25565"

@@ -27,6 +27,8 @@ type PlayerSummaryDTO struct {
 	CurrentServer   string     `json:"currentServer,omitempty"`
 	LastLoggedInAt  *time.Time `json:"lastLoggedInAt,omitempty"`
 	LastLoggedOutAt *time.Time `json:"lastLoggedOutAt,omitempty"`
+	ClientBrand     string     `json:"clientBrand,omitempty"`
+	ClientMods      []string   `json:"clientMods,omitempty"`
 
 	Banned     bool       `json:"banned"`
 	BanReason  string     `json:"banReason,omitempty"`
@@ -158,6 +160,8 @@ func getPlayerSummary(c echo.Context) error {
 		CurrentServer:   p.CurrentServer,
 		LastLoggedInAt:  p.LastLoggedInAt,
 		LastLoggedOutAt: p.LastLoggedOutAt,
+		ClientBrand:     p.ClientBrand,
+		ClientMods:      []string(p.ClientMods),
 	}
 	if strings.TrimSpace(resp.MinecraftName) == "" && strings.TrimSpace(resolvedName) != "" {
 		resp.MinecraftName = resolvedName

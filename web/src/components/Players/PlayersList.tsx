@@ -206,10 +206,11 @@ const PlayersList: React.FC = () => {
               <Thead>
                 <Tr>
                   <Th>Player</Th>
+                  <Th>Client</Th>
+                  <Th>Mods</Th>
                   <Th>Last login</Th>
                   <Th>Last logout</Th>
                   <Th>Current server</Th>
-                  <Th>Banned</Th>
                   <Th>Status</Th>
                 </Tr>
               </Thead>
@@ -226,12 +227,11 @@ const PlayersList: React.FC = () => {
                         <span>{player.username}</span>
                       </div>
                     </Td>
+                    <Td dataLabel="Client">{player.clientBrand?.trim() ? player.clientBrand : '-'}</Td>
+                    <Td dataLabel="Mods">{player.clientMods?.length ?? 0}</Td>
                     <Td dataLabel="Last login">{formatDateTime(player.lastLoggedInAt)}</Td>
                     <Td dataLabel="Last logout">{formatDateTime(player.lastLoggedOutAt)}</Td>
                     <Td dataLabel="Current server">{player.currentServer || '-'}</Td>
-                    <Td dataLabel="Banned">
-                      <StatusBadge status={player.banned ? 'banned' : 'offline'} />
-                    </Td>
                     <Td dataLabel="Status">
                       <StatusBadge status={player.status} />
                     </Td>

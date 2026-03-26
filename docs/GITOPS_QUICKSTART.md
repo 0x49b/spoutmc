@@ -46,6 +46,10 @@ spec:
   name: spoutproxy
   image: itzg/mc-proxy
   proxy: true
+  restartPolicy:
+    container:
+      policy: always
+    autoStartOnSpoutmcStart: true
   ports:
     - hostPort: "25565"
       containerPort: "25565"
@@ -66,6 +70,10 @@ spec:
   name: lobby
   image: itzg/minecraft-server
   lobby: true
+  restartPolicy:
+    container:
+      policy: unless-stopped
+    autoStartOnSpoutmcStart: true
   env:
     EULA: "TRUE"
     TYPE: PAPER
@@ -77,6 +85,11 @@ spec:
 ```
 
 Note: only `containerpath` is needed in volume entries. SpoutMC generates host paths automatically using `storage.data_path`, server name, and container path.
+
+Restart policy notes:
+- `spec.restartPolicy.container.policy` supports `no`, `on-failure`, `always`, `unless-stopped`.
+- `spec.restartPolicy.container.maxRetries` is valid only with `on-failure`.
+- `spec.restartPolicy.autoStartOnSpoutmcStart` defaults to `true` when omitted.
 
 ## Step 3: Push to Git
 
@@ -158,6 +171,11 @@ Git poller started interval=30s
    spec:
      name: skyblock
      image: itzg/minecraft-server
+    restartPolicy:
+      container:
+        policy: on-failure
+        maxRetries: 3
+      autoStartOnSpoutmcStart: true
      env:
        EULA: "TRUE"
        TYPE: PAPER

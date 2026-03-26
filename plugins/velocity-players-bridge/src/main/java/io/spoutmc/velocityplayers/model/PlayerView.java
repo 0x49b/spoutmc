@@ -1,5 +1,7 @@
 package io.spoutmc.velocityplayers.model;
 
+import java.util.List;
+
 public final class PlayerView {
     public String name;
     /** Canonical Minecraft UUID (stable across gamertag changes). */
@@ -11,4 +13,6 @@ public final class PlayerView {
     public boolean banned;
     public String banReason;
     public String status;
+    public String clientBrand;
+    public List<String> clientMods;
 }

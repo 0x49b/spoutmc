@@ -5,6 +5,8 @@ export interface Player {
   currentServer?: string;
   lastLoggedInAt?: string;
   lastLoggedOutAt?: string;
+  clientBrand?: string;
+  clientMods?: string[];
   status: 'online' | 'offline' | 'banned';
   banned: boolean;
   banReason?: string;

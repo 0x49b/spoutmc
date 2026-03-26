@@ -331,6 +331,10 @@ func startNonProxyContainers(ctx context.Context) {
 			serverLogger.Info(fmt.Sprintf("Skipping proxy server %s (will start after velocity.toml is ready)", s.Name))
 			continue
 		}
+		if !s.ShouldAutoStartOnSpoutmcStart() {
+			serverLogger.Info(fmt.Sprintf("Skipping startup for server %s (restartPolicy.autoStartOnSpoutmcStart=false)", s.Name))
+			continue
+		}
 
 		err := docker.RecreateContainer(ctx, s, dataPath)
 		if err != nil {
@@ -379,6 +383,10 @@ func startProxyContainer(ctx context.Context) {
 	// Find and start the proxy server
 	for _, s := range cfg.Servers {
 		if !s.Proxy {
+			continue
+		}
+		if !s.ShouldAutoStartOnSpoutmcStart() {
+			serverLogger.Info(fmt.Sprintf("Skipping proxy startup for %s (restartPolicy.autoStartOnSpoutmcStart=false)", s.Name))
 			continue
 		}
 

@@ -18,7 +18,9 @@ type Player struct {
 	MinecraftName string `gorm:"index" json:"minecraftName"`
 	AvatarDataURL string `json:"avatarDataUrl,omitempty"`
 
-	LastLoggedInAt  *time.Time `json:"lastLoggedInAt,omitempty"`
-	LastLoggedOutAt *time.Time `json:"lastLoggedOutAt,omitempty"`
-	CurrentServer   string     `json:"currentServer,omitempty"`
+	LastLoggedInAt  *time.Time  `json:"lastLoggedInAt,omitempty"`
+	LastLoggedOutAt *time.Time  `json:"lastLoggedOutAt,omitempty"`
+	CurrentServer   string      `json:"currentServer,omitempty"`
+	ClientBrand     string      `json:"clientBrand,omitempty"`
+	ClientMods      StringSlice `gorm:"type:text" json:"clientMods,omitempty"`
 }
