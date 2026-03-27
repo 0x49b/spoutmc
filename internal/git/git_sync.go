@@ -44,10 +44,8 @@ func InitializeGitOps() error {
 
 	globalPoller = NewPoller(repo, gitConfig.PollInterval, nil)
 
-	if gitConfig.WebhookSecret != "" {
-		globalWebhook = NewWebhookHandler(globalPoller, gitConfig.WebhookSecret)
-		logger.Info("Webhook handler initialized")
-	}
+	globalWebhook = NewWebhookHandler(globalPoller, gitConfig.WebhookSecret)
+	logger.Info("Webhook handler initialized")
 
 	logger.Info("GitOps initialized successfully")
 	MarkSyncSuccess(repo.GetLastCommit(), repo.GetLastCommitMessage(), SyncSummary{})
