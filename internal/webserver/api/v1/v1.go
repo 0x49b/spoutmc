@@ -45,6 +45,7 @@ func RegisterV1WithModules(g *echo.Group, modules Modules) {
 	auth.RegisterAuthRoutes(v1)
 	setup.RegisterSetupRoutes(v1)
 	minime.RegisterMinimeRoutes(v1)
+	git.RegisterGitWebhookRoute(v1)
 
 	protected := v1.Group("", middleware.JWT)
 	serverService := modules.ServerService
