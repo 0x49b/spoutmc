@@ -12,6 +12,7 @@ import (
 	"spoutmc/internal/log"
 	playerpkg "spoutmc/internal/player"
 	"spoutmc/internal/storage"
+	"spoutmc/internal/update"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
 	"strings"
@@ -25,6 +26,7 @@ import (
 var logger = log.GetLogger(log.ModuleMain)
 var c *echo.Echo
 var wd *watchdog.Watchdog
+var Version = "dev"
 
 type operation func(ctx context.Context) error
 
@@ -107,6 +109,7 @@ func getStartupOperations() map[string]operation {
 		"fileWatcher":     startFileWatcherOp,
 		"database":        startDatabaseOp,
 		"playerBanCron":   startPlayerBanCronOp,
+		"updateScheduler": startUpdateSchedulerOp,
 		"webserver":       startWebserverOp,
 	}
 }
@@ -122,6 +125,7 @@ func getStartupOrder() []string {
 		"fileWatcher",
 		"database",      // Connect to DB and run migrations (after infrastructure)
 		"playerBanCron", // Start periodic unban scheduler (after DB is ready)
+		"updateScheduler",
 		"webserver",
 	}
 }
@@ -250,6 +254,11 @@ func startDatabaseOp(ctx context.Context) error {
 
 func startPlayerBanCronOp(ctx context.Context) error {
 	return playerpkg.StartPlayerUnbanCron(ctx)
+}
+
+func startUpdateSchedulerOp(ctx context.Context) error {
+	update.StartScheduler(ctx, Version)
+	return nil
 }
 
 // startWebserverOp starts the web server
@@ -428,6 +437,6 @@ func printBanner() {
 	fmt.Println(" `\\./  `=='        \\__ \\/ __ \\/ __ \\/ / / / __/ /|_/ / /     ")
 	fmt.Println("        |||       ___/ / /_/ / /_/ / /_/ / /_/ /  / / /___   ")
 	fmt.Println("        |||      /____/ .___/\\____/\\__,_/\\__/_/  /_/\\____/   ")
-	fmt.Println("        |||          /_/                            0.0.1    ")
+	fmt.Printf("        |||          /_/                            %s    \n", Version)
 	fmt.Println()
 }

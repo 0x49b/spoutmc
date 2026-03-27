@@ -17,6 +17,7 @@ import (
 	"spoutmc/internal/webserver/api/v1/role"
 	"spoutmc/internal/webserver/api/v1/server"
 	"spoutmc/internal/webserver/api/v1/setup"
+	"spoutmc/internal/webserver/api/v1/update"
 	"spoutmc/internal/webserver/api/v1/user"
 	wsapi "spoutmc/internal/webserver/api/v1/ws"
 	"spoutmc/internal/webserver/middleware"
@@ -72,5 +73,6 @@ func RegisterV1WithModules(g *echo.Group, modules Modules) {
 	git.RegisterGitRoutes(protected)
 	infrastructure.RegisterInfrastructureRoutesWithService(protected, infraService)
 	plugin.RegisterPluginRoutes(protected)
+	update.RegisterUpdateRoutes(protected)
 	wsapi.RegisterWSRoutesWithService(protected, wsService)
 }

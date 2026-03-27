@@ -49,3 +49,42 @@ All artifacts are attached to the same GitHub release tag.
 - Plugin build currently targets `plugins/velocity-players-bridge`.
 - Go builds run with `CGO_ENABLED=0`.
 - Release publication uses `softprops/action-gh-release`.
+
+## Runtime Self-Update (v1)
+
+SpoutMC can check GitHub Releases at runtime and install new binaries in place.
+
+### Required configuration
+
+- `SPOUTMC_UPDATE_REPO`: GitHub repository in `owner/repo` format.
+  - Example: `SPOUTMC_UPDATE_REPO=your-org/spoutmc`
+- Optional for private repositories: `SPOUTMC_GITHUB_TOKEN` (token with `contents:read`).
+- Optional scheduler override: `SPOUTMC_UPDATE_CHECK_INTERVAL` as Go duration.
+  - Default is `24h` (once per day).
+  - Example: `SPOUTMC_UPDATE_CHECK_INTERVAL=12h`
+
+### Runtime behavior
+
+- On startup, SpoutMC performs an initial release check shortly after boot.
+- A recurring scheduler checks GitHub Releases every 24h by default.
+- If a newer release is detected, admin users see an update banner in the UI.
+- Starting an update downloads:
+  - binary asset matching current OS/arch (`spoutmc-<os>-<arch>[.exe]`)
+  - corresponding checksum file (`.sha256`)
+- SpoutMC verifies SHA256 checksum before replacing the executable.
+
+### Restart and supervision expectations
+
+- After a successful install, SpoutMC requests graceful process termination.
+- Production deployments should run SpoutMC under a supervisor that restarts it automatically, for example:
+  - `systemd`
+  - Docker restart policy
+  - `launchd` (macOS)
+- During restart, managed server network connectivity is interrupted and players may disconnect.
+
+### Rollback path
+
+- The previous executable is kept as a backup at `<spoutmc-binary>.bak`.
+- If needed, stop SpoutMC and restore manually:
+  - move backup file back to the original binary path
+  - start SpoutMC again via your supervisor/service manager

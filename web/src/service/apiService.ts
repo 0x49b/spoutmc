@@ -408,6 +408,28 @@ export interface GitOpsStatus {
 export const getGitOpsStatus = () => api.get<GitOpsStatus>('/git/status');
 export const triggerGitOpsSync = () => api.post('/git/sync');
 
+// Self-update API
+export interface UpdateStatusDTO {
+  configured: boolean;
+  currentVersion: string;
+  latestVersion?: string;
+  releaseUrl?: string;
+  releaseNotes?: string;
+  updateAvailable: boolean;
+  migrationRequired: boolean;
+  state: 'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'restarting' | 'error' | string;
+  lastCheckedAt?: string;
+  lastError?: string;
+  lastInstalledAt?: string;
+  lastBackupPath?: string;
+  currentAssetName?: string;
+  checkIntervalHours?: number;
+}
+
+export const getUpdateStatus = () => api.get<UpdateStatusDTO>('/update/status');
+export const checkForUpdates = () => api.post<UpdateStatusDTO>('/update/check');
+export const startSelfUpdate = () => api.post<{ status: string; message: string }>('/update/start');
+
 // Notifications API
 export interface SystemNotification {
   id: number;

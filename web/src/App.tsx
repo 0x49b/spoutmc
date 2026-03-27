@@ -29,6 +29,7 @@ import ToastHost from './components/UI/ToastHost';
 import NotificationsDrawerPanel from './components/UI/NotificationsDrawerPanel';
 import {useNotificationStore} from './store/notificationStore';
 import BackendStatusBanner from './components/UI/BackendStatusBanner';
+import UpdateAvailableBanner from './components/UI/UpdateAvailableBanner';
 
 import {
     Avatar,
@@ -397,6 +398,7 @@ const PageLayout = () => {
                 >
                     <Page masthead={masthead} sidebar={sidebar} isManagedSidebar>
                         <BackendStatusBanner/>
+                        <UpdateAvailableBanner/>
                         <Outlet/>
                     </Page>
                 </DrawerContent>
