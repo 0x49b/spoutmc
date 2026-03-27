@@ -120,8 +120,12 @@ func Start() (*echo.Echo, error) {
 	return e, nil
 }
 
-func Shutdown(e *echo.Echo) error {
-	err := e.Shutdown(context.Background())
+func Shutdown(ctx context.Context, e *echo.Echo) error {
+	if e == nil {
+		return nil
+	}
+
+	err := e.Shutdown(ctx)
 	if err != nil {
 		return err
 	}

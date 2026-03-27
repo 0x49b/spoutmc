@@ -99,6 +99,9 @@ func EnsurePaperVelocityConfig(serverDataPath string, velocitySecret string) err
 	}
 
 	if err := os.WriteFile(configPath, output, 0644); err != nil {
+		if os.IsPermission(err) {
+			return fmt.Errorf("failed to write paper-global.yml at %s: permission denied (ensure the spoutmc service user can write to server data directories): %w", configPath, err)
+		}
 		return fmt.Errorf("failed to write paper-global.yml: %w", err)
 	}
 

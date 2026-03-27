@@ -136,7 +136,7 @@ func getShutdownOperations() map[string]operation {
 		"fileWatcher": func(ctx context.Context) error { return nil },
 		"watchdog":    func(ctx context.Context) error { return nil },
 		"containers":  func(ctx context.Context) error { return docker.ShutdownContainers(ctx) },
-		"webserver":   func(ctx context.Context) error { return webserver.Shutdown(c) },
+		"webserver":   func(ctx context.Context) error { return webserver.Shutdown(ctx, c) },
 	}
 }
 

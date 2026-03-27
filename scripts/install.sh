@@ -278,6 +278,27 @@ configure_firewall() {
   fi
 }
 
+configure_data_permissions() {
+  header "Configuring data directory permissions"
+
+  # Ensure the data root exists and is writable by the service user.
+  mkdir -p "${DATA_PATH}"
+  chown -R "${SERVICE_USER}:${SERVICE_USER}" "${DATA_PATH}"
+
+  # Keep permissions compatible with SpoutMC writes and container-created content.
+  find "${DATA_PATH}" -type d -exec chmod 775 {} \; 2>/dev/null || true
+  find "${DATA_PATH}" -type f -exec chmod 664 {} \; 2>/dev/null || true
+
+  # If ACL tools are available, keep write access even when files are created by other users.
+  if command -v setfacl &>/dev/null; then
+    setfacl -R -m "u:${SERVICE_USER}:rwx" "${DATA_PATH}" || true
+    setfacl -R -d -m "u:${SERVICE_USER}:rwx" "${DATA_PATH}" || true
+    info "Applied ACLs for '${SERVICE_USER}' on ${DATA_PATH}"
+  else
+    warn "setfacl not found; using owner/group permissions only for ${DATA_PATH}"
+  fi
+}
+
 # ─── Main installation ────────────────────────────────────────────────────────
 main() {
   echo
@@ -350,8 +371,8 @@ main() {
 
   # Set ownership
   chown -R "${SERVICE_USER}:${SERVICE_USER}" "$INSTALL_PATH"
-  # DATA_PATH may be outside INSTALL_PATH
-  chown -R "${SERVICE_USER}:${SERVICE_USER}" "$DATA_PATH"
+  # DATA_PATH may be outside INSTALL_PATH.
+  configure_data_permissions
 
   # ── Config file ──
   local config_file="${INSTALL_PATH}/config/spoutmc.yaml"
@@ -428,6 +449,8 @@ Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_USER}
 WorkingDirectory=${INSTALL_PATH}
+ExecStartPre=/usr/bin/mkdir -p ${DATA_PATH}
+ExecStartPre=/usr/bin/chown -R ${SERVICE_USER}:${SERVICE_USER} ${DATA_PATH}
 ExecStart=${INSTALL_PATH}/spoutmc
 Restart=on-failure
 RestartSec=10

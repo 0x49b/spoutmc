@@ -43,7 +43,6 @@ const SetupWizard: React.FC = () => {
         adminPassword: adminPassword || undefined,
         adminDisplayName: adminDisplayName || undefined
       });
-      localStorage.setItem('setupCompleted', 'true');
       navigate('/login');
     } catch (e: unknown) {
       setError((e as Error)?.message || 'Setup failed');

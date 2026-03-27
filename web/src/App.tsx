@@ -30,6 +30,7 @@ import NotificationsDrawerPanel from './components/UI/NotificationsDrawerPanel';
 import {useNotificationStore} from './store/notificationStore';
 import BackendStatusBanner from './components/UI/BackendStatusBanner';
 import UpdateAvailableBanner from './components/UI/UpdateAvailableBanner';
+import {getSetupStatus} from './service/apiService';
 
 import {
     Avatar,
@@ -410,17 +411,37 @@ const PageLayout = () => {
 
 function App() {
     const {checkAuth} = useAuthStore();
-    const [setupCompleted] = useState(
-        localStorage.getItem('setupCompleted') === 'true'
-    );
+    const [setupCompleted, setSetupCompleted] = useState<boolean | null>(null);
 
     useEffect(() => {
         checkAuth();
     }, [checkAuth]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const fetchSetupStatus = async () => {
+            try {
+                const response = await getSetupStatus();
+                if (!cancelled) {
+                    setSetupCompleted(response.data.completed);
+                }
+            } catch (error) {
+                console.error('Failed to fetch setup status:', error);
+                if (!cancelled) {
+                    setSetupCompleted(false);
+                }
+            }
+        };
+
+        fetchSetupStatus();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     // Create router with memoization based on setup status
     const router = useMemo(() => {
-        if (!setupCompleted) {
+        if (setupCompleted === null || !setupCompleted) {
             return createBrowserRouter([
                 {
                     path: '*',
@@ -561,6 +582,14 @@ function App() {
             }
         ]);
     }, [setupCompleted]);
+
+    if (setupCompleted === null) {
+        return (
+            <div style={{display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center'}}>
+                Checking setup status...
+            </div>
+        );
+    }
 
     return <RouterProvider router={router}/>;
 }

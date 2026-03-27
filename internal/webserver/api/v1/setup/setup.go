@@ -10,6 +10,7 @@ import (
 	"spoutmc/internal/log"
 	"spoutmc/internal/models"
 	"spoutmc/internal/storage"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,7 +23,11 @@ import (
 var lock = sync.Mutex{}
 var logger = log.GetLogger(log.ModuleSetup)
 
+const setupMarkerFileName = ".spoutmc_setup_complete"
+const defaultUnconfiguredDataPath = "/path/where/server/data/is/stored"
+
 func RegisterSetupRoutes(g *echo.Group) {
+	g.GET("/setup/status", getSetupStatus)
 	g.POST("/setup/complete", completeSetup)
 }
 
@@ -86,6 +91,13 @@ func completeSetup(c echo.Context) error {
 		})
 	}
 
+	if err := writeSetupMarker(req.DataPath); err != nil {
+		logger.Error("Failed to write setup marker", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("Failed to persist setup status: %v", err),
+		})
+	}
+
 	if req.AdminEmail != "" && req.AdminPassword != "" && len(req.AdminPassword) >= 6 {
 		db := storage.GetDB()
 		if db != nil {
@@ -128,6 +140,44 @@ func completeSetup(c echo.Context) error {
 		"status":  "success",
 		"message": "Setup completed successfully",
 	})
+}
+
+func getSetupStatus(c echo.Context) error {
+	cfg := config.All()
+	if cfg.EULA == nil || !cfg.EULA.Accepted {
+		return c.JSON(http.StatusOK, map[string]bool{"completed": false})
+	}
+	if cfg.Storage == nil {
+		return c.JSON(http.StatusOK, map[string]bool{"completed": false})
+	}
+	dataPath := strings.TrimSpace(cfg.Storage.DataPath)
+	if dataPath == "" || dataPath == defaultUnconfiguredDataPath {
+		return c.JSON(http.StatusOK, map[string]bool{"completed": false})
+	}
+
+	if markerExists(dataPath) {
+		return c.JSON(http.StatusOK, map[string]bool{"completed": true})
+	}
+
+	// Backward-compatible fallback for installs completed before marker support.
+	return c.JSON(http.StatusOK, map[string]bool{"completed": true})
+}
+
+func markerExists(dataPath string) bool {
+	markerPath := filepath.Join(dataPath, setupMarkerFileName)
+	_, err := os.Stat(markerPath)
+	return err == nil
+}
+
+func writeSetupMarker(dataPath string) error {
+	if err := os.MkdirAll(dataPath, 0755); err != nil {
+		return fmt.Errorf("failed to create setup data directory: %w", err)
+	}
+	markerPath := filepath.Join(dataPath, setupMarkerFileName)
+	if err := os.WriteFile(markerPath, []byte(time.Now().UTC().Format(time.RFC3339)), 0644); err != nil {
+		return fmt.Errorf("failed to write setup marker file: %w", err)
+	}
+	return nil
 }
 
 func saveConfigToFile(cfg models.SpoutConfiguration) error {

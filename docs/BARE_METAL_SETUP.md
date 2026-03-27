@@ -9,13 +9,13 @@ One-line installers are available for Linux and Windows. They automate all steps
 ### Linux (Ubuntu / Debian / RHEL / Fedora)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/0x49b/spoutmc/main/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/0x49b/spoutmc/master/scripts/install.sh | sudo bash
 ```
 
 Or download and review the script first:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/0x49b/spoutmc/main/scripts/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/0x49b/spoutmc/master/scripts/install.sh -o install.sh
 # review install.sh ...
 sudo bash install.sh
 ```
@@ -42,13 +42,13 @@ sudo bash install.sh --domain spoutmc.example.com --no-interactive
 ### Windows (PowerShell — run as Administrator)
 
 ```powershell
-irm https://raw.githubusercontent.com/0x49b/spoutmc/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/0x49b/spoutmc/master/scripts/install.ps1 | iex
 ```
 
 Or download and review first:
 
 ```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/0x49b/spoutmc/main/scripts/install.ps1 -OutFile install.ps1
+Invoke-WebRequest https://raw.githubusercontent.com/0x49b/spoutmc/master/scripts/install.ps1 -OutFile install.ps1
 # review install.ps1 ...
 .\install.ps1
 ```
@@ -473,6 +473,39 @@ groups spoutmc
 
 # If not, add it and restart the service
 sudo usermod -aG docker spoutmc
+sudo systemctl restart spoutmc
+```
+
+### permission denied updating paper-global.yml
+
+If logs show errors like:
+
+- `failed to write paper-global.yml: ... permission denied`
+- `Failed to create backup of paper-global.yml: ... permission denied`
+
+the `spoutmc` system user cannot write files under `/opt/spoutmc/data`.
+
+Fix ownership and permissions, then restart:
+
+```bash
+sudo chown -R spoutmc:spoutmc /opt/spoutmc/data
+sudo find /opt/spoutmc/data -type d -exec chmod 775 {} \;
+sudo find /opt/spoutmc/data -type f -exec chmod 664 {} \;
+sudo systemctl restart spoutmc
+```
+
+If shutdown still times out, increase systemd stop timeout:
+
+```ini
+# /etc/systemd/system/spoutmc.service
+[Service]
+TimeoutStopSec=120
+```
+
+Then apply and restart:
+
+```bash
+sudo systemctl daemon-reload
 sudo systemctl restart spoutmc
 ```
 

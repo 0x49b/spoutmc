@@ -294,6 +294,12 @@ export const completeSetup = (setupData: {
   adminDisplayName?: string;
 }) => api.post('/setup/complete', setupData);
 
+export interface SetupStatusDTO {
+  completed: boolean;
+}
+
+export const getSetupStatus = () => api.get<SetupStatusDTO>('/setup/status');
+
 // Server API functions
 export const getServers = () => api.get('/server');
 export const getServerById = (id: string) => api.get(`/server/${id}`);
