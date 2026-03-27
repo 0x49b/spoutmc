@@ -36,10 +36,16 @@ tasks {
             val configuredDestination = proxyPluginsDir.get()
             if (configuredDestination == "REPLACE_WITH_PROXY_PLUGINS_PATH") {
                 throw org.gradle.api.GradleException(
-                    "Set `proxyPluginsDir` in build.gradle.kts or pass -PproxyPluginsDir=/path/to/proxy/plugins before running shadowJar.",
+                    "Set `proxyPluginsDir` in build.gradle.kts or pass -PproxyPluginsDir=/path/to/proxy/plugins before running shadowJarCopy.",
                 )
             }
         }
+    }
+
+    register("shadowJarCopy") {
+        group = "build"
+        description = "Builds the shadow jar and copies it to proxyPluginsDir."
+        dependsOn(copyShadowJarToProxyPlugins)
     }
 
     compileJava {
@@ -49,7 +55,6 @@ tasks {
 
     shadowJar {
         archiveClassifier.set("")
-        finalizedBy(copyShadowJarToProxyPlugins)
     }
 
 
