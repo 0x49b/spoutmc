@@ -5,12 +5,8 @@ import (
 	"strings"
 )
 
-// DefaultPlayersBridgePort is the velocity-players-bridge HTTP port inside the proxy container.
 const DefaultPlayersBridgePort = "29132"
 
-// ResolvePlayersBridgeBaseURL returns http://<proxy-container-ip>:29132 on the Spout Docker network.
-// Use this when SPOUT_PLAYERS_BRIDGE_URL is unset: the bridge listens inside the Velocity container,
-// not on the host loopback.
 func ResolvePlayersBridgeBaseURL(ctx context.Context) string {
 	if cli == nil {
 		return ""

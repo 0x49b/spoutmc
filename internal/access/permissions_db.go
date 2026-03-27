@@ -7,8 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// AllKeysFromDB returns every permission key currently stored in the database (sorted).
-// This is the runtime source of truth for "all permissions" (e.g. admin effective set).
 func AllKeysFromDB(db *gorm.DB) ([]string, error) {
 	if db == nil {
 		return nil, nil
@@ -24,7 +22,6 @@ func AllKeysFromDB(db *gorm.DB) ([]string, error) {
 	return keys, nil
 }
 
-// AllKeysSorted returns sorted keys (copy).
 func AllKeysSorted(keys []string) []string {
 	out := append([]string(nil), keys...)
 	sort.Strings(out)

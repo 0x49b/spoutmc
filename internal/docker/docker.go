@@ -55,10 +55,8 @@ func GetNetworkContainers(ctx context.Context) ([]container.Summary, error) {
 		return []container.Summary{}, err
 	}
 
-	// Filter out infrastructure containers
 	serverContainers := make([]container.Summary, 0)
 	for _, c := range list {
-		// Skip if this is an infrastructure container
 		if value, exists := c.Labels["io.spout.infrastructure"]; exists && value == "true" {
 			continue
 		}
@@ -73,7 +71,6 @@ func containerExists(ctx context.Context, containerName string) bool {
 	return err == nil
 }
 
-// ContainerExists reports whether a container with this name exists (Spout server name).
 func ContainerExists(ctx context.Context, containerName string) bool {
 	return containerExists(ctx, containerName)
 }
@@ -142,15 +139,11 @@ func getHostNetworkId(ctx context.Context) (network.Inspect, error) {
 func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) error {
 	normalizedDataPath := pathutil.NormalizeHostPath(dataPath)
 
-	// Check if image exists, if not pull it
 	_, err := cli.ImageInspect(ctx, s.Image)
 	if err != nil {
-		// Pull Image for Server
 		PullImage(ctx, s.Image)
 	}
 
-	// Pre-create volume directories with proper user ownership
-	// This prevents Docker from creating them as root on Linux
 	if err := ensureVolumeDirectoriesExist(s.Volumes, normalizedDataPath, s.Name); err != nil {
 		logger.Error("Failed to create volume directories", zap.Error(err))
 		return fmt.Errorf("failed to create volume directories: %w", err)
@@ -161,7 +154,6 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 		exposedPorts, containerPortBinding := nat.PortSet{}, nat.PortMap{}
 		if s.Proxy {
 			exposedPorts, containerPortBinding = MapExposedPorts(s.Ports)
-			// Expose the Velocity players-bridge API on localhost for the SpoutMC host process.
 			bridgePort := nat.Port(DefaultPlayersBridgePort + "/tcp")
 			exposedPorts[bridgePort] = struct{}{}
 			if _, exists := containerPortBinding[bridgePort]; !exists {
@@ -198,20 +190,14 @@ func StartContainer(ctx context.Context, s models.SpoutServer, dataPath string) 
 		envWithPlugins := plugins.MergePluginsEnv(storage.GetDB(), s)
 		envVars := MapEnvironmentVariables(envWithPlugins)
 
-		// Prepare volume bindings
 		mounts := MapVolumeBindings(s.Volumes, normalizedDataPath, s.Name)
 
-		// For proxy servers, mount the forwarding.secret file
-		// The itzg/mc-proxy image copies files from /config to /server on startup
 		if s.Proxy {
-			// Ensure the forwarding.secret file exists BEFORE mounting it
-			// If we try to mount a non-existent file, Docker creates it as a directory
 			secretSourcePath := filepath.Join(normalizedDataPath, s.Name, "server", "forwarding.secret")
 			if err := ensureForwardingSecret(secretSourcePath); err != nil {
 				logger.Warn("Failed to create forwarding.secret file before mounting",
 					zap.Error(err),
 					zap.String("path", secretSourcePath))
-				// Continue anyway - the file might be created by velocity.toml sync
 			}
 
 			secretTargetPath := "/config/forwarding.secret"
@@ -346,7 +332,6 @@ func RestartContainerById(ctx context.Context, containerId string) {
 	}
 }
 
-// RestartProxyContainer restarts the proxy container if present.
 func RestartProxyContainer(ctx context.Context) error {
 	proxyContainer, err := GetProxyContainer(ctx)
 	if err != nil {
@@ -416,9 +401,6 @@ func filterForContainerLabel(ctx context.Context, label string) (container.Summa
 	return container.Summary{}, fmt.Errorf("no Server found for label %s", label)
 }
 
-// FetchDockerLogs streams Docker container logs. When TTY is disabled (typical for Paper/Velocity),
-// Docker multiplexes stdout/stderr with framing bytes; those must be decoded with stdcopy before
-// line scanning — otherwise the console shows garbage or nothing useful.
 func FetchDockerLogs(ctx context.Context, id string) (<-chan string, error) {
 	info, err := cli.ContainerInspect(ctx, id)
 	if err != nil {
@@ -549,8 +531,6 @@ func StopAndRemoveContainerById(ctx context.Context, containerId string) error {
 	return RemoveContainerById(ctx, containerId, true)
 }
 
-// CreateOrRecreateInfrastructureContainer creates or recreates an infrastructure container.
-// Recreating ensures config changes (e.g. ports) are applied when the container already exists.
 func CreateOrRecreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, dataPath string) (string, error) {
 	if containerExists(ctx, s.Name) {
 		logger.Info("Recreating infrastructure container to apply config", zap.String("name", s.Name))
@@ -566,31 +546,24 @@ func CreateOrRecreateInfrastructureContainer(ctx context.Context, s models.Spout
 	return CreateInfrastructureContainer(ctx, s, dataPath)
 }
 
-// CreateInfrastructureContainer creates a container with infrastructure labels
 func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, dataPath string) (string, error) {
 	logger.Info("Creating infrastructure container", zap.String("name", s.Name))
 	normalizedDataPath := pathutil.NormalizeHostPath(dataPath)
 
-	// Check if image exists, if not pull it
 	_, err := cli.ImageInspect(ctx, s.Image)
 	if err != nil {
 		logger.Info("Pulling infrastructure image", zap.String("image", s.Image))
 		PullImage(ctx, s.Image)
 	}
 
-	// Pre-create volume directories with proper user ownership
-	// This prevents Docker from creating them as root on Linux
 	if err := ensureVolumeDirectoriesExist(s.Volumes, normalizedDataPath, s.Name); err != nil {
 		return "", fmt.Errorf("failed to create volume directories: %w", err)
 	}
 
-	// Map exposed ports and port bindings
 	exposedPorts, containerPortBinding := MapExposedPorts(s.Ports)
 
-	// Get spout network
 	spoutNetwork := GetSpoutNetwork(ctx)
 
-	// Create container labels
 	containerLabels := map[string]string{
 		"io.spout.servername":     s.Name,
 		"io.spout.network":        "true",
@@ -598,13 +571,10 @@ func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, da
 		"io.spout.database":       "true",
 	}
 
-	// Map environment variables
 	envVars := MapEnvironmentVariables(s.Env)
 
-	// Prepare volume bindings
 	mounts := MapVolumeBindings(s.Volumes, normalizedDataPath, s.Name)
 
-	// Create container
 	infraContainer, err := cli.ContainerCreate(ctx, &container.Config{
 		Tty:          true,
 		AttachStdout: true,
@@ -637,7 +607,6 @@ func CreateInfrastructureContainer(ctx context.Context, s models.SpoutServer, da
 	return infraContainer.ID, nil
 }
 
-// StartContainerByIdSimple starts a container by ID (simplified version for infrastructure)
 func StartContainerByIdSimple(ctx context.Context, containerId string) error {
 	logger.Info("Starting container", zap.String("container_id", containerId[:12]))
 	if err := cli.ContainerStart(ctx, containerId, container.StartOptions{}); err != nil {
@@ -646,7 +615,6 @@ func StartContainerByIdSimple(ctx context.Context, containerId string) error {
 	return nil
 }
 
-// GetInfrastructureContainers returns all infrastructure containers
 func GetInfrastructureContainers(ctx context.Context) ([]container.Summary, error) {
 	containerFilter := filters.NewArgs()
 	containerFilter.Add("label", "io.spout.infrastructure=true")

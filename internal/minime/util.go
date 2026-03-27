@@ -5,8 +5,6 @@ import (
 	"image/color"
 )
 
-// findSuitablePixel returns the most suitable pixel for the provided coordinates. It first checks if there is a pixel
-// at the overlay coordinates, if not it will return the pixel at the normal coordinates.
 func findSuitablePixel(img image.Image, overlayX, overlayY, normalX, normalY int) color.Color {
 	r, g, b, a := img.At(overlayX, overlayY).RGBA()
 	if a == 0 {

@@ -16,7 +16,6 @@ import (
 var db *gorm.DB
 var logger = log.GetLogger(log.ModuleStorage)
 
-// InitDB connects to the SQLite database and runs GORM migrations. Call this during startup before the webserver.
 func InitDB(ctx context.Context) error {
 	sqlitePath := os.Getenv("SQLITE_DB_PATH")
 	if sqlitePath == "" {
@@ -31,7 +30,6 @@ func InitDB(ctx context.Context) error {
 	db = conn
 	access.SetDBProvider(GetDB)
 
-	// Run migrations for User, Role, Permission, and join tables
 	if err := db.AutoMigrate(
 		&models.User{},
 		&models.Role{},
@@ -54,7 +52,6 @@ func InitDB(ctx context.Context) error {
 		return err
 	}
 
-	// Backfill DisplayName and Slug for existing roles (migration from name-only schema)
 	var allRoles []models.Role
 	if db.Find(&allRoles).Error == nil {
 		for _, r := range allRoles {
@@ -71,7 +68,6 @@ func InitDB(ctx context.Context) error {
 		}
 	}
 
-	// Seed default roles if they don't exist
 	defaultRoles := []struct {
 		Name        string
 		DisplayName string
@@ -91,7 +87,6 @@ func InitDB(ctx context.Context) error {
 		}
 	}
 
-	// Seed default permission definitions only on empty table (first install). After that, the DB is authoritative.
 	keyToID := make(map[string]uint)
 	var permCount int64
 	db.Model(&models.Permission{}).Count(&permCount)
@@ -114,7 +109,6 @@ func InitDB(ctx context.Context) error {
 		}
 	}
 
-	// Insert missing permission definitions (new keys added in a Spout release).
 	for _, def := range access.Definitions {
 		var existing models.Permission
 		err := db.Where("key = ?", def.Key).First(&existing).Error
@@ -126,14 +120,12 @@ func InitDB(ctx context.Context) error {
 			}
 			keyToID[def.Key] = p.ID
 			logger.Info("Inserted new permission definition", zap.String("key", def.Key))
-			// Grant new keys to admin role
 			var adminRole models.Role
 			if err := db.Where("name = ?", "admin").First(&adminRole).Error; err == nil {
 				_ = db.Model(&adminRole).Association("Permissions").Append(&p)
 			}
 		}
 	}
-	// Refresh key map after inserts
 	var allPerms []models.Permission
 	if err := db.Find(&allPerms).Error; err == nil {
 		for _, p := range allPerms {
@@ -141,7 +133,6 @@ func InitDB(ctx context.Context) error {
 		}
 	}
 
-	// Ensure manager role has plugins.manage when that permission exists
 	if pid, ok := keyToID["plugins.manage"]; ok {
 		var manager models.Role
 		if err := db.Where("name = ?", "manager").First(&manager).Error; err == nil {
@@ -158,7 +149,6 @@ func InitDB(ctx context.Context) error {
 		}
 	}
 
-	// Ensure manager role has player.conversations.view_all when that permission exists
 	if pid, ok := keyToID["player.conversations.view_all"]; ok {
 		var manager models.Role
 		if err := db.Where("name = ?", "manager").First(&manager).Error; err == nil {
@@ -175,7 +165,6 @@ func InitDB(ctx context.Context) error {
 		}
 	}
 
-	// Attach default permissions to built-in roles only when they have none yet (avoid overwriting admin edits).
 	var rolesForPermSeed []models.Role
 	if db.Find(&rolesForPermSeed).Error == nil {
 		for _, role := range rolesForPermSeed {

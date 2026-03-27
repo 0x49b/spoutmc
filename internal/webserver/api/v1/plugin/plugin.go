@@ -25,7 +25,6 @@ import (
 
 var logger = log.GetLogger(log.ModuleAPI)
 
-// RegisterPluginRoutes registers plugin registry routes (JWT required).
 func RegisterPluginRoutes(g *echo.Group) {
 	g.GET("/plugin", listPlugins)
 	g.POST("/plugin", createPlugin)

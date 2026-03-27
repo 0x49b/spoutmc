@@ -22,12 +22,10 @@ import (
 var lock = sync.Mutex{}
 var logger = log.GetLogger(log.ModuleSetup)
 
-// RegisterSetupRoutes registers setup-related API endpoints.
 func RegisterSetupRoutes(g *echo.Group) {
 	g.POST("/setup/complete", completeSetup)
 }
 
-// SetupRequest represents the request body for completing setup
 type SetupRequest struct {
 	DataPath         string `json:"dataPath" binding:"required"`
 	AcceptEula       bool   `json:"acceptEula" binding:"required"`
@@ -63,21 +61,17 @@ func completeSetup(c echo.Context) error {
 		zap.String("dataPath", req.DataPath),
 		zap.Bool("eulaAccepted", req.AcceptEula))
 
-	// Get current configuration
 	currentConfig := config.All()
 
-	// Update storage configuration
 	currentConfig.Storage = &models.StorageConfig{
 		DataPath: req.DataPath,
 	}
 
-	// Update EULA configuration
 	currentConfig.EULA = &models.EULAConfig{
 		Accepted:   req.AcceptEula,
 		AcceptedOn: time.Now(),
 	}
 
-	// Save to config file
 	if err := saveConfigToFile(currentConfig); err != nil {
 		logger.Error("Failed to save configuration", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -85,7 +79,6 @@ func completeSetup(c echo.Context) error {
 		})
 	}
 
-	// Reload configuration
 	if err := config.ReadConfiguration(); err != nil {
 		logger.Error("Failed to reload configuration", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -93,7 +86,6 @@ func completeSetup(c echo.Context) error {
 		})
 	}
 
-	// Create initial admin user if credentials provided and no users exist
 	if req.AdminEmail != "" && req.AdminPassword != "" && len(req.AdminPassword) >= 6 {
 		db := storage.GetDB()
 		if db != nil {
@@ -138,16 +130,12 @@ func completeSetup(c echo.Context) error {
 	})
 }
 
-// saveConfigToFile saves only storage and eula configuration to config/spoutmc.yaml
-// This preserves existing git config, servers, and versions without overwriting them
 func saveConfigToFile(cfg models.SpoutConfiguration) error {
-	// Get working directory
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	// Try both .yaml and .yml
 	configPaths := []string{
 		filepath.Join(wd, "config", "spoutmc.yaml"),
 		filepath.Join(wd, "config", "spoutmc.yml"),
@@ -162,23 +150,19 @@ func saveConfigToFile(cfg models.SpoutConfiguration) error {
 	}
 
 	if configPath == "" {
-		// Default to .yaml if neither exists
 		configPath = configPaths[0]
 	}
 
-	// Read existing config file
 	existingData, err := os.ReadFile(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read existing config: %w", err)
 	}
 
-	// Parse existing config as a generic map to preserve structure and comments
 	var existingConfig map[string]interface{}
 	if err := yaml.Unmarshal(existingData, &existingConfig); err != nil {
 		return fmt.Errorf("failed to parse existing config: %w", err)
 	}
 
-	// Update only storage and eula sections
 	if cfg.Storage != nil {
 		existingConfig["storage"] = map[string]interface{}{
 			"data_path": cfg.Storage.DataPath,
@@ -192,13 +176,11 @@ func saveConfigToFile(cfg models.SpoutConfiguration) error {
 		}
 	}
 
-	// Marshal back to YAML
 	yamlData, err := yaml.Marshal(existingConfig)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	// Write to file
 	if err := os.WriteFile(configPath, yamlData, 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}

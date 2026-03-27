@@ -27,9 +27,7 @@ var (
 	defaultServerService = serverapp.NewService()
 )
 
-// RegisterServerRoutes registers container/server-related API endpoints.
 func RegisterServerRoutes(g *echo.Group) {
-	// REST
 	g.GET("/server", getServers)
 	g.POST("/server", addServerHandler)
 	g.GET("/server/:id", getServer)
@@ -38,23 +36,19 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server/:id/stats", getServerStats)
 	g.DELETE("/server/:id", deleteServerHandler)
 
-	// Server Actions
 	g.POST("/server/:id/start", startServerHandler)
 	g.POST("/server/:id/stop", stopServerHandler)
 	g.POST("/server/:id/restart", restartServerHandler)
 	g.POST("/server/:id/command", executeCommandHandler)
 
-	// Config Files
 	g.GET("/server/:id/config/files", listConfigFilesHandler)
 	g.GET("/server/:id/config/:filename", getConfigFileHandler)
 	g.PUT("/server/:id/config/:filename", updateConfigFileHandler)
 
-	// File Browser
 	g.GET("/server/:id/files", listServerFilesHandler)
 	g.GET("/server/:id/file", getServerFileHandler)
 	g.PUT("/server/:id/file", updateServerFileHandler)
 
-	//SSE
 	g.GET("/server/stream", streamServers)
 	g.GET("/server/:id/logs", getServerLogs)
 }
@@ -146,13 +140,10 @@ func getServers(c echo.Context) error {
 	return c.JSON(http.StatusOK, containers)
 }
 
-// EnrichedContainer combines container summary with additional runtime info
 type EnrichedContainer = serverapp.EnrichedContainer
 
-// ContainerWithStats combines container info with real-time stats
 type ContainerWithStats = serverapp.ContainerWithStats
 
-// AddServerRequest represents the request body for adding a new server
 type ServerContainerRestartPolicyRequest struct {
 	Policy     string `json:"policy,omitempty"`
 	MaxRetries *uint  `json:"maxRetries,omitempty"`
@@ -193,14 +184,12 @@ func addServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Port is required for proxy servers
 	if req.Proxy && req.Port == 0 {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Port is required for proxy servers",
 		})
 	}
 
-	// Validate proxy/lobby constraints - only one of each allowed
 	if req.Proxy {
 		if err := serverpkg.ValidateProxyConstraint(); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
@@ -217,7 +206,6 @@ func addServerHandler(c echo.Context) error {
 		}
 	}
 
-	// Assign port dynamically if not provided (lobby/game servers)
 	assignedPort := req.Port
 	if assignedPort == 0 {
 		assignedPort = serverpkg.FindNextAvailablePort()
@@ -226,7 +214,6 @@ func addServerHandler(c echo.Context) error {
 			zap.Int("port", assignedPort))
 	}
 
-	// Merge system-managed environment variables with user-provided ones
 	defaultEnvVars := serverpkg.GetDefaultEnvVars(req.Proxy, req.Lobby)
 	mergedEnv := serverpkg.MergeEnvVars(defaultEnvVars, req.Env)
 
@@ -238,16 +225,13 @@ func addServerHandler(c echo.Context) error {
 		zap.Bool("lobby", req.Lobby),
 		zap.Any("env", mergedEnv))
 
-	// Determine default containerpath based on server type
 	containerPath := "/data" // Default for lobby/game servers
 	if req.Proxy {
 		containerPath = "/server" // Proxy servers use /server
 	}
 
-	// Configure port mapping
 	containerPort := "25565" // All Minecraft/Velocity servers use 25565 internally
 
-	// Create new server model
 	newServer := models.SpoutServer{
 		Name:          req.Name,
 		Image:         req.Image,
@@ -268,7 +252,6 @@ func addServerHandler(c echo.Context) error {
 		},
 	}
 
-	// Check if GitOps is enabled
 	if config.IsGitOpsEnabled() {
 		logger.Info("GitOps enabled, adding server to git repository")
 		if err := servercfg.AddServerToGit(newServer); err != nil {
@@ -287,14 +270,12 @@ func addServerHandler(c echo.Context) error {
 		}
 	}
 
-	// Get data path from configuration
 	dataPath := ""
 	existingConfig := config.All()
 	if existingConfig.Storage != nil {
 		dataPath = existingConfig.Storage.DataPath
 	}
 
-	// Start the new container
 	if err := docker.StartContainer(c.Request().Context(), newServer, dataPath); err != nil {
 		logger.Error("Failed to start container", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -302,13 +283,10 @@ func addServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Update velocity.toml if this is not a proxy server
 	if !req.Proxy {
-		// Reload config to get the updated state
 		updatedConfig := config.All()
 		if err := docker.SyncVelocityTomlAndRestartProxy(c.Request().Context(), &updatedConfig); err != nil {
 			logger.Error("Failed to sync velocity.toml and restart proxy", zap.Error(err))
-			// Don't fail the entire operation, just log the error
 		}
 	}
 
@@ -328,7 +306,6 @@ func startServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Use shared container action
 	if err := docker.StartContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to start container",
@@ -351,7 +328,6 @@ func stopServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Use shared container action
 	if err := docker.StopContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to stop container",
@@ -374,7 +350,6 @@ func restartServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Use shared container action
 	if err := docker.RestartContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to restart container",
@@ -388,7 +363,6 @@ func restartServerHandler(c echo.Context) error {
 	})
 }
 
-// ExecuteCommandRequest represents the request body for executing a command
 type ExecuteCommandRequest struct {
 	Command string `json:"command" binding:"required"`
 }
@@ -414,7 +388,6 @@ func executeCommandHandler(c echo.Context) error {
 		})
 	}
 
-	// Execute the command in the container
 	if err := docker.ExecuteCommand(c.Request().Context(), containerID, req.Command); err != nil {
 		logger.Error("Failed to execute command",
 			zap.String("container", containerID[:12]),
@@ -435,7 +408,6 @@ func executeCommandHandler(c echo.Context) error {
 	})
 }
 
-// UpdateServerRequest represents the request body for updating a server
 type UpdateServerRequest struct {
 	Name          string                      `json:"name,omitempty"`
 	Env           map[string]string           `json:"env,omitempty"`
@@ -479,7 +451,6 @@ func getServerEnvHandler(c echo.Context) error {
 		})
 	}
 
-	// Get container info
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -488,7 +459,6 @@ func getServerEnvHandler(c echo.Context) error {
 		})
 	}
 
-	// Determine if this is a proxy or lobby/game server
 	isProxy := false
 	for _, env := range containerInfo.Config.Env {
 		if len(env) > 5 && env[:5] == "TYPE=" && env[5:] == "VELOCITY" {
@@ -497,10 +467,8 @@ func getServerEnvHandler(c echo.Context) error {
 		}
 	}
 
-	// Get system-managed env vars for this server type
 	systemEnvVars := serverpkg.GetDefaultEnvVars(isProxy, false)
 
-	// Extract env vars from container
 	envVars := make(map[string]string)
 	for _, envStr := range containerInfo.Config.Env {
 		parts := strings.SplitN(envStr, "=", 2)
@@ -508,7 +476,6 @@ func getServerEnvHandler(c echo.Context) error {
 			key := parts[0]
 			value := parts[1]
 
-			// Skip system-managed env vars
 			if _, isSystemManaged := systemEnvVars[key]; !isSystemManaged {
 				envVars[key] = value
 			}
@@ -532,7 +499,6 @@ func updateServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Get container info to find current server name
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -541,7 +507,6 @@ func updateServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Get server name
 	currentName := containerInfo.Name
 	if len(currentName) > 0 && currentName[0] == '/' {
 		currentName = currentName[1:] // Remove leading slash
@@ -552,7 +517,6 @@ func updateServerHandler(c echo.Context) error {
 		newName = req.Name
 	}
 
-	// Get current configuration
 	cfg := config.All()
 	var serverConfig *models.SpoutServer
 	for i, server := range cfg.Servers {
@@ -568,12 +532,10 @@ func updateServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Update server configuration
 	if req.Name != "" && req.Name != currentName {
 		serverConfig.Name = req.Name
 	}
 	if req.Env != nil {
-		// Merge with existing env vars
 		if serverConfig.Env == nil {
 			serverConfig.Env = make(map[string]string)
 		}
@@ -585,7 +547,6 @@ func updateServerHandler(c echo.Context) error {
 		serverConfig.RestartPolicy = mapRestartPolicyRequest(req.RestartPolicy)
 	}
 
-	// Stop and remove old container
 	logger.Info("Stopping and removing old container", zap.String("name", currentName))
 	if err := docker.StopAndRemoveContainerById(c.Request().Context(), containerID); err != nil {
 		logger.Error("Failed to stop and remove container", zap.Error(err))
@@ -594,7 +555,6 @@ func updateServerHandler(c echo.Context) error {
 		})
 	}
 
-	// If name changed, rename data directory
 	if newName != currentName {
 		dataPath := ""
 		if cfg.Storage != nil {
@@ -614,7 +574,6 @@ func updateServerHandler(c echo.Context) error {
 		}
 	}
 
-	// Update configuration file (GitOps or local)
 	if config.IsGitOpsEnabled() {
 		logger.Info("GitOps enabled, updating server in git repository")
 		if err := servercfg.UpdateServerInGit(currentName, *serverConfig); err != nil {
@@ -633,14 +592,12 @@ func updateServerHandler(c echo.Context) error {
 		}
 	}
 
-	// Get data path from configuration
 	dataPath := ""
 	cfg = config.All()
 	if cfg.Storage != nil {
 		dataPath = cfg.Storage.DataPath
 	}
 
-	// Start the updated container
 	if err := docker.StartContainer(c.Request().Context(), *serverConfig, dataPath); err != nil {
 		logger.Error("Failed to start updated container", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -670,7 +627,6 @@ func deleteServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Get removeData query parameter (default: true)
 	removeData := true
 	if removeDataParam := c.QueryParam("removeData"); removeDataParam == "false" {
 		removeData = false
@@ -680,7 +636,6 @@ func deleteServerHandler(c echo.Context) error {
 		zap.String("id", containerID[:12]),
 		zap.Bool("removeData", removeData))
 
-	// Get container details to find server name
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -689,13 +644,11 @@ func deleteServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Get server name from container
 	serverName := containerInfo.Name
 	if len(serverName) > 0 && serverName[0] == '/' {
 		serverName = serverName[1:] // Remove leading slash
 	}
 
-	// Check if this is a proxy server
 	isProxy := false
 	for _, env := range containerInfo.Config.Env {
 		if len(env) > 5 && env[:5] == "TYPE=" && env[5:] == "VELOCITY" {
@@ -704,13 +657,10 @@ func deleteServerHandler(c echo.Context) error {
 		}
 	}
 
-	// Stop the container (this also excludes from watchdog)
 	if err := docker.StopContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		logger.Error("Failed to stop container", zap.Error(err))
-		// Continue with removal even if stop fails
 	}
 
-	// Remove container (without removing volumes - handled separately below)
 	logger.Info("Removing container", zap.String("name", serverName))
 	if err := docker.RemoveContainerById(c.Request().Context(), containerID, false); err != nil {
 		logger.Error("Failed to remove container", zap.Error(err))
@@ -719,7 +669,6 @@ func deleteServerHandler(c echo.Context) error {
 		})
 	}
 
-	// Remove data directory if requested
 	if removeData {
 		cfg := config.All()
 		dataPath := ""
@@ -736,12 +685,10 @@ func deleteServerHandler(c echo.Context) error {
 				logger.Warn("Failed to remove server data directory",
 					zap.String("path", serverDataPath),
 					zap.Error(err))
-				// Don't fail the entire operation if data removal fails
 			}
 		}
 	}
 
-	// Remove from configuration (GitOps or local)
 	if config.IsGitOpsEnabled() {
 		logger.Info("GitOps enabled, removing server from git repository")
 		if err := servercfg.RemoveServerFromGit(serverName); err != nil {
@@ -760,12 +707,10 @@ func deleteServerHandler(c echo.Context) error {
 		}
 	}
 
-	// Update velocity.toml and restart proxy if this is not a proxy server
 	if !isProxy {
 		cfg := config.All()
 		if err := docker.SyncVelocityTomlAndRestartProxy(c.Request().Context(), &cfg); err != nil {
 			logger.Error("Failed to sync velocity.toml and restart proxy", zap.Error(err))
-			// Don't fail the entire operation, just log the error
 		}
 	}
 
@@ -779,7 +724,7 @@ func deleteServerHandler(c echo.Context) error {
 }
 
 func streamServers(c echo.Context) error {
-	logger.Info("SSE Client connected to server stream", zap.String("ip", c.RealIP()))
+	logger.Debug("SSE Client connected to server stream", zap.String("ip", c.RealIP()))
 	sseutil.SetupResponse(c)
 
 	ticker := time.NewTicker(2 * time.Second)
@@ -788,7 +733,7 @@ func streamServers(c echo.Context) error {
 	for {
 		select {
 		case <-c.Request().Context().Done():
-			logger.Info("SSE client disconnected from server stream", zap.String("ip", c.RealIP()))
+			logger.Debug("SSE client disconnected from server stream", zap.String("ip", c.RealIP()))
 			return nil
 		case <-ticker.C:
 			snapshot, err := defaultServerService.StreamSnapshot(c.Request().Context())
@@ -815,7 +760,6 @@ func listConfigFilesHandler(c echo.Context) error {
 		})
 	}
 
-	// Get container info to find server name and type
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -824,13 +768,11 @@ func listConfigFilesHandler(c echo.Context) error {
 		})
 	}
 
-	// Get server name
 	serverName := containerInfo.Name
 	if len(serverName) > 0 && serverName[0] == '/' {
 		serverName = serverName[1:] // Remove leading slash
 	}
 
-	// Get server type from environment variables
 	serverType := ""
 	for _, env := range containerInfo.Config.Env {
 		if len(env) > 5 && env[:5] == "TYPE=" {
@@ -839,14 +781,12 @@ func listConfigFilesHandler(c echo.Context) error {
 		}
 	}
 
-	// Only PAPER and VELOCITY servers have editable config files
 	if serverType != "PAPER" && serverType != "VELOCITY" {
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"files": []string{},
 		})
 	}
 
-	// Get data path from configuration
 	cfg := config.All()
 	dataPath := ""
 	if cfg.Storage != nil {
@@ -863,21 +803,17 @@ func listConfigFilesHandler(c echo.Context) error {
 		dataPath = wd
 	}
 
-	// Build path to server data directory based on server type
 	var serverDataPath string
 	var configFiles []string
 
 	if serverType == "PAPER" {
-		// PAPER servers mount at /data
 		serverDataPath = filepath.Join(dataPath, serverName, "data")
 		configFiles = []string{"server.properties", "spigot.yml"}
 	} else if serverType == "VELOCITY" {
-		// VELOCITY proxy servers mount at /server
 		serverDataPath = filepath.Join(dataPath, serverName, "server")
 		configFiles = []string{"velocity.toml"}
 	}
 
-	// Check which config files exist
 	availableFiles := []string{}
 	for _, filename := range configFiles {
 		filePath := filepath.Join(serverDataPath, filename)
@@ -901,14 +837,12 @@ func getConfigFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Validate filename
 	if filename != "server.properties" && filename != "spigot.yml" && filename != "velocity.toml" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid config file. Only server.properties, spigot.yml, and velocity.toml are supported",
 		})
 	}
 
-	// Get container info to find server name and type
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -917,13 +851,11 @@ func getConfigFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Get server name
 	serverName := containerInfo.Name
 	if len(serverName) > 0 && serverName[0] == '/' {
 		serverName = serverName[1:] // Remove leading slash
 	}
 
-	// Get server type from environment variables
 	serverType := ""
 	for _, env := range containerInfo.Config.Env {
 		if len(env) > 5 && env[:5] == "TYPE=" {
@@ -932,7 +864,6 @@ func getConfigFileHandler(c echo.Context) error {
 		}
 	}
 
-	// Get data path from configuration
 	cfg := config.All()
 	dataPath := ""
 	if cfg.Storage != nil {
@@ -949,18 +880,14 @@ func getConfigFileHandler(c echo.Context) error {
 		dataPath = wd
 	}
 
-	// Build path to config file based on server type
 	var serverDataPath string
 	if serverType == "VELOCITY" {
-		// VELOCITY proxy servers mount at /server
 		serverDataPath = filepath.Join(dataPath, serverName, "server")
 	} else {
-		// PAPER servers mount at /data
 		serverDataPath = filepath.Join(dataPath, serverName, "data")
 	}
 	filePath := filepath.Join(serverDataPath, filename)
 
-	// Read file content
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		logger.Error("Failed to read config file",
@@ -987,14 +914,12 @@ func updateConfigFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Validate filename
 	if filename != "server.properties" && filename != "spigot.yml" && filename != "velocity.toml" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid config file. Only server.properties, spigot.yml, and velocity.toml are supported",
 		})
 	}
 
-	// Parse request body
 	var reqBody struct {
 		Content string `json:"content"`
 	}
@@ -1011,7 +936,6 @@ func updateConfigFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Get container info to find server name and type
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -1020,13 +944,11 @@ func updateConfigFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Get server name
 	serverName := containerInfo.Name
 	if len(serverName) > 0 && serverName[0] == '/' {
 		serverName = serverName[1:] // Remove leading slash
 	}
 
-	// Get server type from environment variables
 	serverType := ""
 	for _, env := range containerInfo.Config.Env {
 		if len(env) > 5 && env[:5] == "TYPE=" {
@@ -1035,7 +957,6 @@ func updateConfigFileHandler(c echo.Context) error {
 		}
 	}
 
-	// Get data path from configuration
 	cfg := config.All()
 	dataPath := ""
 	if cfg.Storage != nil {
@@ -1052,18 +973,14 @@ func updateConfigFileHandler(c echo.Context) error {
 		dataPath = wd
 	}
 
-	// Build path to config file based on server type
 	var serverDataPath string
 	if serverType == "VELOCITY" {
-		// VELOCITY proxy servers mount at /server
 		serverDataPath = filepath.Join(dataPath, serverName, "server")
 	} else {
-		// PAPER servers mount at /data
 		serverDataPath = filepath.Join(dataPath, serverName, "data")
 	}
 	filePath := filepath.Join(serverDataPath, filename)
 
-	// Create backup of existing file
 	backupPath := filePath + ".backup"
 	if _, err := os.Stat(filePath); err == nil {
 		if err := os.Rename(filePath, backupPath); err != nil {
@@ -1076,13 +993,11 @@ func updateConfigFileHandler(c echo.Context) error {
 		}
 	}
 
-	// Write new content
 	if err := os.WriteFile(filePath, []byte(reqBody.Content), 0644); err != nil {
 		logger.Error("Failed to write config file",
 			zap.String("file", filePath),
 			zap.Error(err))
 
-		// Restore backup if write failed
 		if _, statErr := os.Stat(backupPath); statErr == nil {
 			os.Rename(backupPath, filePath)
 		}
@@ -1092,7 +1007,6 @@ func updateConfigFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Remove backup after successful write
 	os.Remove(backupPath)
 
 	logger.Info("Config file updated successfully",
@@ -1113,7 +1027,6 @@ func listServerFilesHandler(c echo.Context) error {
 		})
 	}
 
-	// Get container info to find server name
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -1122,13 +1035,11 @@ func listServerFilesHandler(c echo.Context) error {
 		})
 	}
 
-	// Get server name
 	serverName := containerInfo.Name
 	if len(serverName) > 0 && serverName[0] == '/' {
 		serverName = serverName[1:] // Remove leading slash
 	}
 
-	// Get data path from configuration
 	cfg := config.All()
 	dataPath := ""
 	if cfg.Storage != nil {
@@ -1145,7 +1056,6 @@ func listServerFilesHandler(c echo.Context) error {
 		dataPath = wd
 	}
 
-	// Get server volumes from configuration
 	var serverVolumes []models.SpoutServerVolumes
 	for _, server := range cfg.Servers {
 		if server.Name == serverName {
@@ -1154,12 +1064,10 @@ func listServerFilesHandler(c echo.Context) error {
 		}
 	}
 
-	// Build file tree for each volume
 	volumes := make([]map[string]interface{}, 0)
 	for _, volume := range serverVolumes {
 		volumePath := filepath.Join(dataPath, serverName, volume.Containerpath)
 
-		// Check if path exists
 		if _, err := os.Stat(volumePath); os.IsNotExist(err) {
 			continue
 		}
@@ -1199,7 +1107,6 @@ func getServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Get container info to find server name
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -1208,13 +1115,11 @@ func getServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Get server name
 	serverName := containerInfo.Name
 	if len(serverName) > 0 && serverName[0] == '/' {
 		serverName = serverName[1:] // Remove leading slash
 	}
 
-	// Get data path from configuration
 	cfg := config.All()
 	dataPath := ""
 	if cfg.Storage != nil {
@@ -1231,15 +1136,12 @@ func getServerFileHandler(c echo.Context) error {
 		dataPath = wd
 	}
 
-	// Get server configuration to find volumes
 	var containerPath string
 	for _, server := range cfg.Servers {
 		if server.Name == serverName {
 			if volumePath != "" {
-				// Use specified volume
 				containerPath = volumePath
 			} else if len(server.Volumes) > 0 {
-				// Use first volume
 				containerPath = server.Volumes[0].Containerpath
 			}
 			break
@@ -1252,10 +1154,8 @@ func getServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Build full file path
 	fullPath := filepath.Join(dataPath, serverName, containerPath, filePath)
 
-	// Security check: ensure path is within server directory
 	serverDir := filepath.Join(dataPath, serverName)
 	rel, err := filepath.Rel(serverDir, fullPath)
 	if err != nil || strings.HasPrefix(rel, "..") {
@@ -1264,7 +1164,6 @@ func getServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Read file content
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		logger.Error("Failed to read file",
@@ -1298,7 +1197,6 @@ func updateServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Parse request body
 	var reqBody struct {
 		Content string `json:"content"`
 	}
@@ -1309,7 +1207,6 @@ func updateServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Get container info to find server name
 	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
 	if err != nil {
 		logger.Error("Failed to get container info", zap.Error(err))
@@ -1318,13 +1215,11 @@ func updateServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Get server name
 	serverName := containerInfo.Name
 	if len(serverName) > 0 && serverName[0] == '/' {
 		serverName = serverName[1:] // Remove leading slash
 	}
 
-	// Get data path from configuration
 	cfg := config.All()
 	dataPath := ""
 	if cfg.Storage != nil {
@@ -1341,15 +1236,12 @@ func updateServerFileHandler(c echo.Context) error {
 		dataPath = wd
 	}
 
-	// Get server configuration to find volumes
 	var containerPath string
 	for _, server := range cfg.Servers {
 		if server.Name == serverName {
 			if volumePath != "" {
-				// Use specified volume
 				containerPath = volumePath
 			} else if len(server.Volumes) > 0 {
-				// Use first volume
 				containerPath = server.Volumes[0].Containerpath
 			}
 			break
@@ -1362,10 +1254,8 @@ func updateServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Build full file path
 	fullPath := filepath.Join(dataPath, serverName, containerPath, filePath)
 
-	// Security check: ensure path is within server directory
 	serverDir := filepath.Join(dataPath, serverName)
 	rel, err := filepath.Rel(serverDir, fullPath)
 	if err != nil || strings.HasPrefix(rel, "..") {
@@ -1374,7 +1264,6 @@ func updateServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Create backup of existing file
 	backupPath := fullPath + ".backup"
 	if _, err := os.Stat(fullPath); err == nil {
 		if err := os.Rename(fullPath, backupPath); err != nil {
@@ -1387,13 +1276,11 @@ func updateServerFileHandler(c echo.Context) error {
 		}
 	}
 
-	// Write new content
 	if err := os.WriteFile(fullPath, []byte(reqBody.Content), 0644); err != nil {
 		logger.Error("Failed to write file",
 			zap.String("file", fullPath),
 			zap.Error(err))
 
-		// Restore backup if write failed
 		if _, statErr := os.Stat(backupPath); statErr == nil {
 			os.Rename(backupPath, fullPath)
 		}
@@ -1403,7 +1290,6 @@ func updateServerFileHandler(c echo.Context) error {
 		})
 	}
 
-	// Remove backup after successful write
 	os.Remove(backupPath)
 
 	logger.Info("File updated successfully",

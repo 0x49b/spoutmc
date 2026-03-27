@@ -16,7 +16,6 @@ import (
 
 var logger = log.GetLogger(log.ModuleUser)
 
-// RegisterPermissionRoutes registers permission list and admin CRUD.
 func RegisterPermissionRoutes(g *echo.Group) {
 	g.GET("/permission", listPermissions)
 	g.POST("/permission", createPermission)

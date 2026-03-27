@@ -13,8 +13,6 @@ func normalizeMcPlayerName(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
 }
 
-// BackfillPlayerSupportConversations groups legacy chat rows without conversation_id into
-// one PlayerSupportConversation per (player identity, staff).
 func BackfillPlayerSupportConversations(db *gorm.DB) error {
 	if db == nil {
 		return nil

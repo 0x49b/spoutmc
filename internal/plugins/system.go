@@ -1,6 +1,5 @@
 package plugins
 
-// ServerKind matches Spout server topology (proxy / lobby / game).
 type ServerKind string
 
 const (
@@ -9,8 +8,6 @@ const (
 	ServerKindGame  ServerKind = "game"
 )
 
-// SystemPluginEntry is a compile-time, Spout-managed plugin JAR URL.
-// Edit this list when shipping a new SpoutMC release; URLs should be stable HTTPS links to .jar files.
 type SystemPluginEntry struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
@@ -19,7 +16,6 @@ type SystemPluginEntry struct {
 	Kinds       []ServerKind `json:"kinds"`
 }
 
-// SystemPlugins lists plugins Spout applies automatically (shown as system-managed in the UI).
 var SystemPlugins = []SystemPluginEntry{
 	/*{
 		ID:          "spoutmc-bridge",
@@ -30,7 +26,6 @@ var SystemPlugins = []SystemPluginEntry{
 	},*/
 }
 
-// SystemURLsForKind returns download URLs for built-in plugins applicable to kind.
 func SystemURLsForKind(kind ServerKind) []string {
 	var out []string
 	for _, e := range SystemPlugins {
@@ -46,7 +41,6 @@ func SystemURLsForKind(kind ServerKind) []string {
 	return out
 }
 
-// KindFromSpoutServer maps SpoutServer flags to ServerKind.
 func KindFromSpoutServer(proxy, lobby bool) ServerKind {
 	if proxy {
 		return ServerKindProxy

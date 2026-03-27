@@ -7,8 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// PlayerSupportConversation is one staff↔player support thread. Multiple rows per (player, staff) are allowed;
-// at most one should be open at a time for ingest routing (enforced when creating / closing).
 type PlayerSupportConversation struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"createdAt"`

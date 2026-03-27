@@ -7,15 +7,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// PlayerSupportChatMessage is one line in a staff↔player support thread (keyed by MC player + staff user id).
 type PlayerSupportChatMessage struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	// MinecraftUUID is stable across gamertag changes.
-	// It is optional for backward compatibility with older rows.
 	McPlayerUUID *uuid.UUID `gorm:"index:idx_mc_uuid_staff_time,priority:1" json:"mcPlayerUuid,omitempty"`
 
 	McPlayerName string `gorm:"not null;index:idx_mc_staff_time,priority:1" json:"mcPlayerName"`

@@ -14,7 +14,6 @@ import (
 
 var logEmoji = "🗄️"
 
-// LoadServersFromRepository reads all YAML files from the repository and merges them into a SpoutConfiguration
 func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, error) {
 	logger.Info(logEmoji+" Loading server configurations from Git repository", zap.String("path", repoPath))
 
@@ -22,7 +21,6 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 		Servers: make([]models.SpoutServer, 0),
 	}
 
-	// Track server names to detect duplicates
 	serverNames := make(map[string]bool)
 
 	serversPath := filepath.Join(repoPath, "servers")
@@ -34,34 +32,28 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			zap.String("path", repoPath))
 	}
 
-	// Walk through all server YAML files
 	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip directories
 		if info.IsDir() {
 			return nil
 		}
 
-		// Skip .git directory
 		if strings.Contains(path, ".git") {
 			return nil
 		}
 
-		// Skip infrastructure directory (handled separately)
 		if strings.Contains(path, "infrastructure") {
 			return nil
 		}
 
-		// Only process YAML files
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext != ".yaml" && ext != ".yml" {
 			return nil
 		}
 
-		// Read the file
 		data, err := os.ReadFile(path)
 		if err != nil {
 			logger.Warn(logEmoji+" Failed to read YAML file, skipping",
@@ -70,7 +62,6 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			return nil // Continue processing other files
 		}
 
-		// Parse as either manifest format or legacy server format
 		server, err := ParseServerYAML(data)
 		if err != nil {
 			logger.Warn(logEmoji+" Failed to parse server YAML file, skipping",
@@ -86,7 +77,6 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			return nil // Continue processing other files
 		}
 
-		// Validate server name is present
 		if server.Name == "" {
 			logger.Warn(logEmoji+" Server configuration missing 'name' field, skipping",
 				zap.String("file", path))
@@ -100,7 +90,6 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			return nil
 		}
 
-		// Validate server image is present
 		if server.Image == "" {
 			logger.Warn(logEmoji+" Server configuration missing 'image' field, skipping",
 				zap.String("file", path),
@@ -129,7 +118,6 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			return nil
 		}
 
-		// Check for duplicate server names
 		if serverNames[server.Name] {
 			logger.Warn(logEmoji+" Duplicate server name found, skipping",
 				zap.String("file", path),
@@ -144,7 +132,6 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 			return nil
 		}
 
-		// Add server to configuration
 		serverNames[server.Name] = true
 		config.Servers = append(config.Servers, server)
 
@@ -170,7 +157,6 @@ func LoadServersFromRepository(repoPath string) (*models.SpoutConfiguration, err
 	return config, nil
 }
 
-// ValidateServerConfig validates a server configuration
 func ValidateServerConfig(server *models.SpoutServer) error {
 	if server.Name == "" {
 		return fmt.Errorf("server name is required")
@@ -180,14 +166,12 @@ func ValidateServerConfig(server *models.SpoutServer) error {
 		return fmt.Errorf("server image is required")
 	}
 
-	// Validate port mappings if present
 	for i, port := range server.Ports {
 		if port.HostPort == "" || port.ContainerPort == "" {
 			return fmt.Errorf("server %s: port mapping %d has empty host or container port", server.Name, i)
 		}
 	}
 
-	// Validate volume mappings if present
 	for i, volume := range server.Volumes {
 		if volume.Containerpath == "" {
 			return fmt.Errorf("server %s: volume mapping %d has empty container path", server.Name, i)
@@ -219,13 +203,11 @@ func ValidateServerConfig(server *models.SpoutServer) error {
 	return nil
 }
 
-// LoadInfrastructureFromRepository reads infrastructure YAML files from the infrastructure directory
 func LoadInfrastructureFromRepository(repoPath string) ([]infrastructure.InfrastructureContainer, error) {
 	logger.Info(logEmoji+" Loading infrastructure configurations from Git repository", zap.String("path", repoPath))
 
 	infrastructurePath := filepath.Join(repoPath, "infrastructure")
 
-	// Check if infrastructure directory exists
 	if _, err := os.Stat(infrastructurePath); os.IsNotExist(err) {
 		logger.Info(logEmoji + " No infrastructure directory found, skipping")
 		return []infrastructure.InfrastructureContainer{}, nil
@@ -233,24 +215,20 @@ func LoadInfrastructureFromRepository(repoPath string) ([]infrastructure.Infrast
 
 	containers := make([]infrastructure.InfrastructureContainer, 0)
 
-	// Walk through infrastructure directory
 	err := filepath.Walk(infrastructurePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip directories
 		if info.IsDir() {
 			return nil
 		}
 
-		// Only process YAML files
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext != ".yaml" && ext != ".yml" {
 			return nil
 		}
 
-		// Read the file
 		data, err := os.ReadFile(path)
 		if err != nil {
 			logger.Warn(logEmoji+" Failed to read infrastructure YAML file, skipping",
@@ -259,7 +237,6 @@ func LoadInfrastructureFromRepository(repoPath string) ([]infrastructure.Infrast
 			return nil
 		}
 
-		// Parse as either manifest format or legacy infrastructure format
 		container, err := ParseInfrastructureYAML(data)
 		if err != nil {
 			logger.Warn(logEmoji+" Failed to parse infrastructure YAML file, skipping",
@@ -268,14 +245,12 @@ func LoadInfrastructureFromRepository(repoPath string) ([]infrastructure.Infrast
 			return nil
 		}
 
-		// Validate container name is present
 		if container.Name == "" {
 			logger.Warn(logEmoji+" Infrastructure configuration missing 'name' field, skipping",
 				zap.String("file", path))
 			return nil
 		}
 
-		// Validate container image is present
 		if container.Image == "" {
 			logger.Warn(logEmoji+" Infrastructure configuration missing 'image' field, skipping",
 				zap.String("file", path),

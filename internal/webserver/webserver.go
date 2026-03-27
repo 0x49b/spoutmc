@@ -27,28 +27,21 @@ import (
 
 var logger = log.GetLogger(log.ModuleWebserver)
 
-// WriteRoutesOnStart controls whether docs/routes.json is written at startup.
-// Default is true for local development and can be overridden at build-time.
-// Example: -X spoutmc/internal/webserver.WriteRoutesOnStart=false
 var WriteRoutesOnStart = "true"
 
-// serveEmbeddedFiles serves embedded frontend files with SPA fallback
 func serveEmbeddedFiles(fsys fs.FS) echo.HandlerFunc {
 	fileServer := http.FileServer(http.FS(fsys))
 
 	return func(c echo.Context) error {
 		path := c.Request().URL.Path
 
-		// Try to open the requested file
 		f, err := fsys.Open(strings.TrimPrefix(path, "/"))
 		if err == nil {
 			f.Close()
-			// File exists, serve it
 			fileServer.ServeHTTP(c.Response(), c.Request())
 			return nil
 		}
 
-		// File doesn't exist, serve index.html for SPA routing
 		c.Request().URL.Path = "/"
 		fileServer.ServeHTTP(c.Response(), c.Request())
 		return nil
@@ -62,7 +55,6 @@ func Start() (*echo.Echo, error) {
 	e.HidePort = true
 	e.Pre(middleware.RemoveTrailingSlash())
 
-	//e.Use(log.CreateZapLoggerMiddleware(logger))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
@@ -70,8 +62,6 @@ func Start() (*echo.Echo, error) {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 	e.Use(middleware.Secure())
-	//e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Level: 5}))
-	// Rate limit: 100 req/sec, burst 100. Default 20 was too low for SPA with multiple API calls on navigation.
 	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
 		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
 			Rate:      100,
@@ -89,22 +79,18 @@ func Start() (*echo.Echo, error) {
 		},
 	}))
 
-	// Serve embedded frontend
 	if distFS, err := static.GetDistFS(); err == nil {
 		logger.Info("🎨 Serving embedded frontend from binary")
 
-		// Serve static assets (JS, CSS, images)
 		e.GET("/assets/*", echo.WrapHandler(
 			http.FileServer(http.FS(distFS)),
 		))
 
-		// Catch-all route for SPA routing (serves index.html for non-existent paths)
 		e.GET("/*", serveEmbeddedFiles(distFS))
 	} else {
 		logger.Warn("⚠️ Frontend assets not embedded, running in API-only mode", zap.Error(err))
 	}
 
-	// Register API routes (these take precedence due to Echo's router priority)
 	modules := v1.Modules{
 		ServerService: serverapp.NewService(),
 		InfraService:  infrastructureapp.NewService(),
@@ -131,7 +117,6 @@ func Start() (*echo.Echo, error) {
 		}
 	}
 
-	// Non-blocking: server shutdown is handled by the main process.
 	return e, nil
 }
 
@@ -162,8 +147,6 @@ func writeRoutes(e *echo.Echo) error {
 }
 
 func shouldWriteRoutes() bool {
-	// Runtime override for local debugging:
-	// SPOUTMC_WRITE_ROUTES=true|false
 	if envValue := os.Getenv("SPOUTMC_WRITE_ROUTES"); envValue != "" {
 		parsed, err := strconv.ParseBool(strings.TrimSpace(envValue))
 		if err == nil {

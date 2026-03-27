@@ -19,19 +19,14 @@ var (
 	once    sync.Once
 )
 
-// createDockerClient creates the Docker Client as singleton
 func createDockerClient() (*client.Client, error) {
 	once.Do(func() {
-		// Set DOCKER_HOST for rootless/Podman if we can detect the unix socket,
-		// but never use brittle `podman version`/`docker version` exec-based detection.
 		if os.Getenv("DOCKER_HOST") == "" {
 			uid := os.Getuid()
 			xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR")
 
 			candidates := []string{
-				// rootless default
 				fmt.Sprintf("/run/user/%d/podman/podman.sock", uid),
-				// rootful default
 				"/run/podman/podman.sock",
 			}
 			if xdgRuntimeDir != "" {
@@ -49,7 +44,6 @@ func createDockerClient() (*client.Client, error) {
 		cli, initErr = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 
 		if initErr != nil || cli == nil {
-			// NewClientWithOpts failed; bail out early.
 			if initErr == nil {
 				initErr = errors.New("docker client is nil after initialization")
 			}
@@ -57,11 +51,8 @@ func createDockerClient() (*client.Client, error) {
 			os.Exit(1)
 		}
 
-		// Ping can fail if Podman/Docker is still warming up.
-		// Retry for a bounded time window without sleep.
 		start := time.Now()
 		for attempt := 0; time.Since(start) < 25*time.Second; attempt++ {
-			// Avoid changing pingCtx reuse across loop: create per-attempt ctx.
 			attemptCtx, attemptCancel := context.WithTimeout(context.Background(), 3*time.Second)
 			_, pingErr := cli.Ping(attemptCtx)
 			attemptCancel()
@@ -91,7 +82,6 @@ func GetDockerClient() *client.Client {
 	return dockerClient
 }
 
-// Create cli client on start of application
 func init() {
 	_, err := createDockerClient()
 	if err != nil {

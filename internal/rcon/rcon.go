@@ -76,7 +76,6 @@ func (c *Connection) readPkg() (pkg, error) {
 	const bufSize = 4096
 	b := make([]byte, bufSize)
 
-	// Doesn't handle split messages correctly.
 	read, err := c.conn.Read(b)
 	if err != nil {
 		return pkg{}, err

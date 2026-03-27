@@ -27,7 +27,6 @@ func RegisterPlayerRoutes(g *echo.Group) {
 	playerGroup.GET("", listPlayers)
 	playerGroup.GET("/stream", streamPlayers)
 	playerGroup.GET("/ban-durations", getBanDurations)
-	// Player detail / conversations (UUID-keyed).
 	playerGroup.GET("/:uuid", getPlayerSummary)
 	playerGroup.GET("/:uuid/bans", listPlayerBanHistory)
 	playerGroup.GET("/:uuid/kicks", listPlayerKickHistory)
@@ -52,8 +51,6 @@ func listPlayers(c echo.Context) error {
 		return c.JSON(http.StatusBadGateway, map[string]string{"error": err.Error()})
 	}
 
-	// Persist the bridge snapshot into SQLite so the player detail page can load.
-	// This is "best effort": if a field can't be parsed, we still store what we can.
 	db := storage.GetDB()
 	if db != nil {
 		for _, p := range players {
@@ -366,7 +363,6 @@ func kickPlayer(c echo.Context) error {
 	var mcPlayerName string
 	var skinURL string
 	if err != nil {
-		// Fallback for legacy clients passing a username instead of a UUID.
 		var resolvedUUID uuid.UUID
 		resolvedUUID, mcPlayerName, skinURL, err = minecraft.GetPlayerProfile(playerIdentifier)
 		if err != nil {
@@ -374,7 +370,6 @@ func kickPlayer(c echo.Context) error {
 		}
 		playerUUID = resolvedUUID
 	} else {
-		// Best-effort: also store the player name/avatar for UUID interactions.
 		if _, username, resolvedSkinURL, err2 := minecraft.GetPlayerProfile(playerIdentifier); err2 == nil {
 			mcPlayerName = username
 			skinURL = resolvedSkinURL
@@ -383,7 +378,6 @@ func kickPlayer(c echo.Context) error {
 
 	now := time.Now().UTC()
 
-	// Upsert player metadata so the detail page can resolve names.
 	if mcPlayerName != "" {
 		var p models.Player
 		if err3 := db.Where("minecraft_uuid = ?", playerUUID).First(&p).Error; err3 != nil {
@@ -404,7 +398,6 @@ func kickPlayer(c echo.Context) error {
 		}
 	}
 
-	// Record the kick for staff audit/history.
 	if err := db.Create(&models.PlayerKick{
 		MinecraftUUID: playerUUID,
 		Reason:        cmd.Reason,
@@ -449,7 +442,6 @@ func banPlayer(c echo.Context) error {
 	var mcPlayerName string
 	var skinURL string
 	if err != nil {
-		// Fallback for legacy clients passing a username instead of a UUID.
 		var resolvedUUID uuid.UUID
 		resolvedUUID, mcPlayerName, skinURL, err = minecraft.GetPlayerProfile(playerIdentifier)
 		if err != nil {
@@ -457,7 +449,6 @@ func banPlayer(c echo.Context) error {
 		}
 		playerUUID = resolvedUUID
 	} else {
-		// Best-effort: also store the player name/avatar for UUID interactions.
 		if _, username, resolvedSkinURL, err2 := minecraft.GetPlayerProfile(playerIdentifier); err2 == nil {
 			mcPlayerName = username
 			skinURL = resolvedSkinURL
@@ -476,18 +467,15 @@ func banPlayer(c echo.Context) error {
 		}
 		untilAt = &t
 	} else {
-		// Default: permanent ban (matches current UI which only sends a reason).
 		untilAt = nil
 	}
 
-	// Replace: lift any currently-active bans before creating a new one.
 	if err := db.Model(&models.PlayerBan{}).
 		Where("minecraft_uuid = ? AND lifted_at IS NULL", playerUUID).
 		Update("lifted_at", now).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update existing ban state"})
 	}
 
-	// Upsert player metadata so the detail page has something even if no chat exists.
 	if mcPlayerName != "" {
 		var p models.Player
 		if err3 := db.Where("minecraft_uuid = ?", playerUUID).First(&p).Error; err3 != nil {
@@ -513,7 +501,6 @@ func banPlayer(c echo.Context) error {
 		Reason:        body.Reason,
 		UntilAt:       untilAt,
 		StaffUserID:   cl.UserID,
-		// LiftedAt defaults to NULL
 	}).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to persist ban"})
 	}
@@ -540,7 +527,6 @@ func unbanPlayer(c echo.Context) error {
 
 	playerUUID, err := uuid.Parse(playerIdentifier)
 	if err != nil {
-		// Fallback for legacy clients passing a username instead of a UUID.
 		var mcPlayerName string
 		var skinURL string
 		playerUUID, mcPlayerName, skinURL, err = minecraft.GetPlayerProfile(playerIdentifier)
@@ -548,7 +534,6 @@ func unbanPlayer(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 		}
 
-		// Upsert player metadata if we resolved a name.
 		if mcPlayerName != "" {
 			var p models.Player
 			if err3 := db.Where("minecraft_uuid = ?", playerUUID).First(&p).Error; err3 != nil {
@@ -567,7 +552,6 @@ func unbanPlayer(c echo.Context) error {
 			}
 		}
 	} else {
-		// If UUID is provided, best-effort enrich.
 		if _, username, skinURL, err2 := minecraft.GetPlayerProfile(playerIdentifier); err2 == nil {
 			if strings.TrimSpace(username) != "" {
 				var p models.Player

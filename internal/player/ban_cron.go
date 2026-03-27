@@ -13,8 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// StartPlayerUnbanCron starts a scheduler that unbans timed bans when their UntilAt is reached.
-// Permanent bans (UntilAt == NULL) are ignored.
 func StartPlayerUnbanCron(ctx context.Context) error {
 	db := storage.GetDB()
 	if db == nil {
@@ -30,9 +28,7 @@ func StartPlayerUnbanCron(ctx context.Context) error {
 
 	var mu sync.Mutex
 
-	// Runs hourly.
 	if _, err := c.AddFunc("* * * * *", func() {
-		// Ensure only one execution runs at a time.
 		mu.Lock()
 		defer mu.Unlock()
 
@@ -63,7 +59,6 @@ func StartPlayerUnbanCron(ctx context.Context) error {
 			}
 
 			liftedAt := now
-			// Mark as lifted so we don't repeatedly unban every hour.
 			if err := db.Model(&models.PlayerBan{}).Where("id = ?", ban.ID).Update("lifted_at", liftedAt).Error; err != nil {
 				logger.Warn(
 					"Failed to mark ban as lifted",

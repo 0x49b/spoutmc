@@ -16,8 +16,6 @@ import (
 	"github.com/twistedasylummc/minime"
 )
 
-// DefaultAvatarSize is the edge length (px) of the square avatar after upscaling the minime.
-// Pixel-art upscales stay sharp with NearestNeighbor; 512 gives a crisp header/profile image.
 const DefaultAvatarSize = 512
 
 func LoadImage(input string, isURL bool) (image.Image, error) {
@@ -50,7 +48,6 @@ func ProcessSkin(input string, isURL bool, slim bool, size int) (image.Image, er
 		return nil, fmt.Errorf("input must be 64x64 or 128x128, got %dx%d", bounds.Dx(), bounds.Dy())
 	}
 
-	// resize.Resize(160, 0, original_image, resize.Lanczos3)
 	var skinImage image.Image
 
 	if bounds.Dx() == 64 {
@@ -59,8 +56,6 @@ func ProcessSkin(input string, isURL bool, slim bool, size int) (image.Image, er
 		skinImage = minime.Skin128(src, slim)
 	}
 
-	// Minime output is very small (e.g. 18×28); Bicubic blurs pixel edges and thickens outlines.
-	// Nearest-neighbor preserves hard edges for Minecraft-style sprites.
 	return resize.Resize(uint(size), uint(size), skinImage, resize.NearestNeighbor), nil
 }
 

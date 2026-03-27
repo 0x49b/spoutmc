@@ -14,25 +14,20 @@ import (
 
 var logger = log.GetLogger(log.ModuleUser)
 
-// LoginRequest is the request body for login
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-// LoginResponse is the response for successful login
 type LoginResponse struct {
 	Token string              `json:"token"`
 	User  models.UserResponse `json:"user"`
 }
 
-// RegisterAuthRoutes registers auth-related API routes
 func RegisterAuthRoutes(g *echo.Group) {
 	g.POST("/auth/login", login)
-	// Verify requires JWT - register on a group with middleware
 }
 
-// RegisterAuthVerifyRoute registers the verify endpoint on a protected group
 func RegisterAuthVerifyRoute(g *echo.Group) {
 	g.GET("/auth/verify", verify)
 }

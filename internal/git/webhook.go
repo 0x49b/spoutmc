@@ -14,30 +14,31 @@ import (
 	"go.uber.org/zap"
 )
 
-// WebhookHandler handles Git webhook requests
 type WebhookHandler struct {
 	poller *Poller
 	secret string
 }
 
-// NewWebhookHandler creates a new webhook handler
 func NewWebhookHandler(poller *Poller, secret string) *WebhookHandler {
+	if strings.TrimSpace(secret) == "" {
+		logger.Warn("Webhook secret is empty; signature verification is disabled. Do not use this in production.")
+	}
+
 	return &WebhookHandler{
 		poller: poller,
 		secret: secret,
 	}
 }
 
-// HandleWebhook processes incoming webhook requests
 func (h *WebhookHandler) HandleWebhook(c echo.Context) error {
-	// Determine webhook type from headers
 	webhookType := h.detectWebhookType(c)
+	eventName := h.extractEventName(c, webhookType)
 
 	logger.Info("Received webhook request",
 		zap.String("type", webhookType),
+		zap.String("event", eventName),
 		zap.String("remote_addr", c.RealIP()))
 
-	// Verify webhook signature if secret is configured
 	if h.secret != "" {
 		if err := h.verifySignature(c, webhookType); err != nil {
 			logger.Warn("Webhook signature verification failed", zap.Error(err))
@@ -45,9 +46,20 @@ func (h *WebhookHandler) HandleWebhook(c echo.Context) error {
 				"error": "Invalid signature",
 			})
 		}
+	} else {
+		logger.Warn("Processing webhook without signature verification because webhook secret is not configured")
 	}
 
-	// Trigger sync
+	if !h.shouldProcessEvent(webhookType, eventName) {
+		logger.Info("Ignoring non-push webhook event",
+			zap.String("type", webhookType),
+			zap.String("event", eventName))
+		return c.JSON(http.StatusOK, map[string]string{
+			"status": "ignored",
+			"event":  eventName,
+		})
+	}
+
 	if err := h.poller.TriggerSync(c.Request().Context()); err != nil {
 		logger.Error("Failed to sync after webhook", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -63,14 +75,11 @@ func (h *WebhookHandler) HandleWebhook(c echo.Context) error {
 	})
 }
 
-// detectWebhookType detects the type of webhook from headers
 func (h *WebhookHandler) detectWebhookType(c echo.Context) string {
-	// GitHub webhooks have X-GitHub-Event header
 	if c.Request().Header.Get("X-GitHub-Event") != "" {
 		return "github"
 	}
 
-	// GitLab webhooks have X-Gitlab-Event header
 	if c.Request().Header.Get("X-Gitlab-Event") != "" {
 		return "gitlab"
 	}
@@ -78,51 +87,64 @@ func (h *WebhookHandler) detectWebhookType(c echo.Context) string {
 	return "unknown"
 }
 
-// verifySignature verifies the webhook signature
+func (h *WebhookHandler) extractEventName(c echo.Context, webhookType string) string {
+	switch webhookType {
+	case "github":
+		return strings.TrimSpace(strings.ToLower(c.Request().Header.Get("X-GitHub-Event")))
+	case "gitlab":
+		return strings.TrimSpace(strings.ToLower(c.Request().Header.Get("X-Gitlab-Event")))
+	default:
+		return "unknown"
+	}
+}
+
+func (h *WebhookHandler) shouldProcessEvent(webhookType string, eventName string) bool {
+	switch webhookType {
+	case "github":
+		return eventName == "push"
+	case "gitlab":
+		return strings.Contains(eventName, "push")
+	default:
+		return true
+	}
+}
+
 func (h *WebhookHandler) verifySignature(c echo.Context, webhookType string) error {
 	var signature string
 	var payload []byte
 	var err error
 
-	// Read request body
 	payload, err = io.ReadAll(c.Request().Body)
 	if err != nil {
 		return fmt.Errorf("failed to read body: %w", err)
 	}
 
-	// Reset body so it can be read again
 	c.Request().Body = io.NopCloser(bytes.NewReader(payload))
 
 	switch webhookType {
 	case "github":
-		// GitHub uses X-Hub-Signature-256 header
 		signature = c.Request().Header.Get("X-Hub-Signature-256")
 		if signature == "" {
 			return fmt.Errorf("missing X-Hub-Signature-256 header")
 		}
 
-		// GitHub signature format: sha256=<signature>
 		signature = strings.TrimPrefix(signature, "sha256=")
 
-		// Verify signature
 		if err := h.verifyHMACHexSignature(payload, signature); err != nil {
 			return err
 		}
 
 	case "gitlab":
-		// GitLab uses X-Gitlab-Token header
 		token := c.Request().Header.Get("X-Gitlab-Token")
 		if token == "" {
 			return fmt.Errorf("missing X-Gitlab-Token header")
 		}
 
-		// GitLab uses simple token comparison
-		if token != h.secret {
+		if !hmac.Equal([]byte(token), []byte(h.secret)) {
 			return fmt.Errorf("token mismatch")
 		}
 
 	default:
-		// For unknown webhook types, use generic HMAC verification
 		signature = c.Request().Header.Get("X-Hub-Signature-256")
 		if signature == "" {
 			signature = c.Request().Header.Get("X-Signature")
@@ -141,14 +163,12 @@ func (h *WebhookHandler) verifySignature(c echo.Context, webhookType string) err
 	return nil
 }
 
-// computeHMAC computes the HMAC-SHA256 of the payload
 func (h *WebhookHandler) computeHMAC(payload []byte) string {
 	mac := hmac.New(sha256.New, []byte(h.secret))
 	mac.Write(payload)
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// verifyHMACHexSignature validates a hex-encoded SHA256 HMAC signature.
 func (h *WebhookHandler) verifyHMACHexSignature(payload []byte, signature string) error {
 	givenMAC, err := hex.DecodeString(signature)
 	if err != nil {

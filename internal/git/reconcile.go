@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// ReconcileRuntimeState enforces desired server state against current runtime state.
 func ReconcileRuntimeState(ctx context.Context, desiredConfig models.SpoutConfiguration) (SyncSummary, error) {
 	summary := SyncSummary{}
 
@@ -39,7 +38,6 @@ func ReconcileRuntimeState(ctx context.Context, desiredConfig models.SpoutConfig
 		dataPath = desiredConfig.Storage.DataPath
 	}
 
-	// Ensure all desired servers exist and match expected configuration.
 	for name, desired := range desiredByName {
 		if _, exists := actualByName[name]; !exists {
 			if err := docker.StartContainer(ctx, desired, dataPath); err != nil {
@@ -50,7 +48,6 @@ func ReconcileRuntimeState(ctx context.Context, desiredConfig models.SpoutConfig
 		}
 	}
 
-	// Remove runtime containers that are no longer desired.
 	for actualName, actual := range actualByName {
 		if _, shouldExist := desiredByName[actualName]; shouldExist {
 			continue

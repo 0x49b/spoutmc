@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// PlayerJournalEntry stores internal staff notes for a player.
 type PlayerJournalEntry struct {
 	gorm.Model
 

@@ -64,8 +64,6 @@ type bridgePlayer struct {
 	ClientBrand     string   `json:"clientBrand,omitempty"`
 	ClientMods      []string `json:"clientMods,omitempty"`
 }
-
-// BridgeClient talks to the velocity-players-bridge HTTP API inside the proxy container.
 type BridgeClient struct {
 	envURL      string // SPOUT_PLAYERS_BRIDGE_URL when set; otherwise we resolve via Docker
 	resolvedURL string // cached http://<container-ip>:29132
@@ -96,8 +94,6 @@ func (c *BridgeClient) baseURL(ctx context.Context) string {
 		return cached
 	}
 
-	// SpoutMC talks to the bridge from the host process; the proxy container exposes
-	// the bridge API on host loopback for this reason.
 	return "http://127.0.0.1:" + docker.DefaultPlayersBridgePort
 }
 
@@ -173,7 +169,6 @@ func normalizeAvatarURL(p bridgePlayer) string {
 		avatar = strings.TrimSpace(p.AvatarURL)
 	}
 
-	// Crafatar can occasionally fail with 52x; use mc-heads as a reliable fallback.
 	if strings.Contains(strings.ToLower(avatar), "crafatar.com/avatars/") {
 		if p.Name != "" {
 			return fmt.Sprintf("https://mc-heads.net/avatar/%s/72", url.QueryEscape(p.Name))

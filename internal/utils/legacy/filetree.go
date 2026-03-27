@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// File is a legacy recursive tree shape retained for compatibility.
 type File struct {
 	ModifiedTime time.Time `json:"modifiedtime"`
 	IsLink       bool      `json:"islink"`

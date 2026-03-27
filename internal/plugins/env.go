@@ -9,9 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// MergePluginsEnv returns a copy of server.Env with PLUGINS set to the merged list of
-// system-managed URLs, user-registry URLs for this server, and any URLs from the
-// original env PLUGINS value (advanced users). Order: system, user DB, then YAML PLUGINS.
 func MergePluginsEnv(db *gorm.DB, s models.SpoutServer) map[string]string {
 	out := make(map[string]string)
 	for k, v := range s.Env {

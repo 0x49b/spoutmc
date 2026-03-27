@@ -21,20 +21,16 @@ const (
 	maxOutputSize     = 1024
 )
 
-// RegisterMinimeRoutes registers minime generation routes (public, no JWT).
 func RegisterMinimeRoutes(g *echo.Group) {
 	g.POST("/minime", generateMinime)
 }
 
 type generateMinimeRequest struct {
-	// One of: MinecraftName, Username, or UUID (dashed or not).
 	MinecraftName string `json:"minecraftName"`
 	Username      string `json:"username"`
 	UUID          string `json:"uuid"`
-	// Output width/height in pixels after minime + resize (square).
-	Size int `json:"size"`
-	// Model is "normal" (default) or "slim". Only affects 128×128 skins (arm geometry).
-	Model string `json:"model"`
+	Size          int    `json:"size"`
+	Model         string `json:"model"`
 }
 
 type generateMinimeResponse struct {

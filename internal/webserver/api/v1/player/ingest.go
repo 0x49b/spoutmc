@@ -16,7 +16,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// RegisterPlayerChatIngestRoute exposes plugin → API persistence for incoming MC replies (shared secret).
 func RegisterPlayerChatIngestRoute(g *echo.Group) {
 	g.POST("/player/chat-ingest", ingestPlayerChatReply)
 }

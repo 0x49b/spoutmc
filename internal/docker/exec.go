@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 )
 
-// ExecCommand listens for commands and sends their output/results back via a channel.
 func ExecCommand(ctx context.Context, containerId string, cmdChan <-chan string) <-chan string {
 	outputChan := make(chan string)
 
@@ -71,12 +70,9 @@ func ExecCommand(ctx context.Context, containerId string, cmdChan <-chan string)
 	return outputChan
 }
 
-// ExecuteCommand executes a single command in a container using console pipe access.
-// Commands can start with or without a leading slash (/)
 func ExecuteCommand(ctx context.Context, containerId string, command string) error {
 	err := runExecAndWait(ctx, containerId, buildConsoleCommand(command), "1000:1000")
 	if err != nil {
-		// Fallback for containers without console pipe or with missing console setup.
 		fallbackErr := runExecAndWait(ctx, containerId, buildRCONCommand(command), "")
 		if fallbackErr != nil {
 			return fmt.Errorf("command execution failed (console path: %v, rcon fallback: %w)", err, fallbackErr)
@@ -127,7 +123,6 @@ func buildConsoleCommand(command string) []string {
 		return []string{"mc-send-to-console"}
 	}
 
-	// Use mc-send-to-console to avoid enabling RCON by default.
 	return []string{"mc-send-to-console", cmd}
 }
 
@@ -136,7 +131,6 @@ func buildRCONCommand(command string) []string {
 	if cmd == "" {
 		return []string{"rcon-cli"}
 	}
-	// rcon-cli expects the command as a single argument
 	return []string{"rcon-cli", cmd}
 }
 

@@ -6,7 +6,6 @@ import (
 	"io"
 )
 
-// Event represents a Server-Sent Event (SSE) structure
 type Event struct {
 	ID        []byte
 	Data      []byte
@@ -16,10 +15,7 @@ type Event struct {
 	Timestamp int64
 }
 
-// MarshalTo writes the SSE event to the provided writer
-// Marshalling implementation taken from: https://github.com/r3labs/sse/blob/c6d5381ee3ca63828b321c16baa008fd6c0b4564/http.go#L16
 func (ev *Event) MarshalTo(w io.Writer) error {
-	// Skip empty events
 	if len(ev.Data) == 0 && len(ev.Comment) == 0 {
 		return nil
 	}

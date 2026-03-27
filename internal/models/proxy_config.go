@@ -1,6 +1,5 @@
 package models
 
-// Config represents the main configuration structure for the Velocity proxy.
 type Config struct {
 	ConfigVersion                 string              `toml:"config-version"`
 	Bind                          string              `toml:"bind"`
@@ -22,7 +21,6 @@ type Config struct {
 	Query                         QueryConfig         `toml:"query"`
 }
 
-// AdvancedConfig represents the advanced configuration settings.
 type AdvancedConfig struct {
 	CompressionThreshold                 int  `toml:"compression-threshold"`
 	CompressionLevel                     int  `toml:"compression-level"`
@@ -41,7 +39,6 @@ type AdvancedConfig struct {
 	EnableReusePort                      bool `toml:"enable-reuse-port"`
 }
 
-// QueryConfig represents the query settings.
 type QueryConfig struct {
 	Enabled     bool   `toml:"enabled"`
 	Port        int    `toml:"port"`

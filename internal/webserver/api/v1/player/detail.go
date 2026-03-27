@@ -80,7 +80,6 @@ func getPlayerUUIDAndNameOrError(c echo.Context) (uuid.UUID, string, error) {
 		return uuid.Nil, "", echo.NewHTTPError(http.StatusBadRequest, "invalid minecraft uuid")
 	}
 
-	// Fast path: UUID already provided.
 	if parsed, err := uuid.Parse(identifier); err == nil {
 		db := storage.GetDB()
 		if db != nil {
@@ -92,13 +91,11 @@ func getPlayerUUIDAndNameOrError(c echo.Context) (uuid.UUID, string, error) {
 		return parsed, "", nil
 	}
 
-	// Fallback for legacy clients / older bridge: resolve username -> UUID.
 	playerUUID, username, skinURL, err := minecraft.GetPlayerProfile(identifier)
 	if err != nil {
 		return uuid.Nil, "", echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	// Best-effort: upsert player metadata so detail pages have a display name.
 	db := storage.GetDB()
 	if db != nil {
 		var p models.Player
@@ -119,7 +116,6 @@ func getPlayerUUIDAndNameOrError(c echo.Context) (uuid.UUID, string, error) {
 	return playerUUID, username, nil
 }
 
-// getPlayerSummary returns persisted player + active ban info from SQLite.
 func getPlayerSummary(c echo.Context) error {
 	db := storage.GetDB()
 	if db == nil {
@@ -131,8 +127,6 @@ func getPlayerSummary(c echo.Context) error {
 		return err
 	}
 
-	// Avoid db.First(&x) with ErrRecordNotFound: it generates noisy "record not found" logs
-	// even though this is an expected "no data yet" case.
 	var pRows []models.Player
 	err = db.Where("minecraft_uuid = ?", playerUUID).Limit(1).Find(&pRows).Error
 	var p models.Player
@@ -140,7 +134,6 @@ func getPlayerSummary(c echo.Context) error {
 		p = pRows[0]
 	}
 
-	// Active ban: lifted_at IS NULL.
 	var activeBanRows []models.PlayerBan
 	err = db.Where("minecraft_uuid = ? AND lifted_at IS NULL", playerUUID).
 		Order("created_at desc").Limit(1).Find(&activeBanRows).Error
@@ -186,12 +179,9 @@ func getPlayerSummary(c echo.Context) error {
 }
 
 func resolveDisplayPlayerName(db *gorm.DB, playerUUID uuid.UUID) string {
-	// Prefer the first chat line with a “real” name. Outgoing lines may store the uuid string,
-	// so skip values that parse as UUID.
 	display := playerUUID.String()
 
 	var candidates []models.PlayerSupportChatMessage
-	// Keep it small to avoid loading huge chat histories.
 	if err := db.Where("mc_player_uuid = ?", playerUUID).
 		Order("occurred_at asc, id asc").Limit(50).Find(&candidates).Error; err != nil {
 		return display
@@ -202,13 +192,11 @@ func resolveDisplayPlayerName(db *gorm.DB, playerUUID uuid.UUID) string {
 			continue
 		}
 		if _, err := uuid.Parse(row.McPlayerName); err == nil {
-			// Likely stored from uuid identifier instead of a gamertag.
 			continue
 		}
 		return row.McPlayerName
 	}
 
-	// Fall back to Player table name (if it exists).
 	var p models.Player
 	if err := db.Where("minecraft_uuid = ?", playerUUID).First(&p).Error; err == nil && strings.TrimSpace(p.MinecraftName) != "" {
 		return p.MinecraftName
@@ -217,7 +205,6 @@ func resolveDisplayPlayerName(db *gorm.DB, playerUUID uuid.UUID) string {
 	return display
 }
 
-// listPlayerConversations returns conversation threads for the given player (from player_support_conversations).
 func listPlayerConversations(c echo.Context) error {
 	cl := middleware.GetClaims(c)
 	if cl == nil {
@@ -316,7 +303,6 @@ func listPlayerConversations(c echo.Context) error {
 	})
 }
 
-// getConversationMessages returns ordered chat lines for one conversation.
 func getConversationMessages(c echo.Context) error {
 	cl := middleware.GetClaims(c)
 	if cl == nil {
@@ -655,7 +641,6 @@ func listPlayerAliases(c echo.Context) error {
 		return err
 	}
 
-	// Prefer UUID-keyed rows.
 	var names []string
 	if err := db.Model(&models.PlayerSupportChatMessage{}).
 		Where("mc_player_uuid = ?", playerUUID).
@@ -664,7 +649,6 @@ func listPlayerAliases(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
-	// Legacy fallback: if UUID-keyed chat rows don't exist, use mc_player_name.
 	if len(names) == 0 && strings.TrimSpace(resolvedName) != "" {
 		_ = db.Model(&models.PlayerSupportChatMessage{}).
 			Where("mc_player_name = ?", playerpkg.NormalizeMcPlayerName(resolvedName)).
@@ -679,7 +663,6 @@ func listPlayerAliases(c echo.Context) error {
 		if n == "" {
 			continue
 		}
-		// Skip values that are actually UUIDs (defensive against legacy identifier storage).
 		if _, err := uuid.Parse(n); err == nil {
 			continue
 		}

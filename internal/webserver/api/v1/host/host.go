@@ -70,10 +70,8 @@ type DiskStat struct {
 type Stats struct {
 	Timestamp time.Time `json:"timestamp"`
 
-	// Host/OS
 	OS OSInfo `json:"os_info"`
 
-	// CPU / Memory
 	CPUPercent     float64 `json:"cpu_percent"`
 	CPUsLogical    int     `json:"cpus_logical"`
 	CPUsPhysical   int     `json:"cpus_physical"`
@@ -81,40 +79,30 @@ type Stats struct {
 	MemUsedBytes   uint64  `json:"mem_used_bytes"`
 	MemUsedPercent float64 `json:"mem_used_percent"`
 
-	// Load / Uptime
 	Load1     float64 `json:"load1"`
 	Load5     float64 `json:"load5"`
 	Load15    float64 `json:"load15"`
 	UptimeSec uint64  `json:"uptime_seconds"`
 
-	// Storage
 	Disks []DiskStat `json:"disks"`
 
-	// Docker
-	//Docker *DockerInfo `json:"docker,omitempty"`
 	Docker system.Info `json:"docker,omitempty"`
 }
 
-// ---- Collector with change detection
-
 type Collector struct {
-	mu      sync.RWMutex
-	current Stats
-	// thresholds for change-notify
-	thCPU  float64
-	thMem  float64
-	thLoad float64
-	thDisk float64
-	// subscribers
+	mu       sync.RWMutex
+	current  Stats
+	thCPU    float64
+	thMem    float64
+	thLoad   float64
+	thDisk   float64
 	subsMu   sync.RWMutex
 	nextID   atomic.Int64
 	subs     map[int64]chan Stats
 	interval time.Duration
 }
 
-// RegisterHostRoutes registers host system statistics API endpoints.
 func RegisterHostRoutes(g *echo.Group) {
-	// REST
 	g.GET("/host/stats", getHostStats)
 }
 
@@ -123,32 +111,25 @@ func getHostStats(c echo.Context) error {
 	return c.JSON(http.StatusOK, s)
 }
 
-// ---------- Collector ----------
-
 func collectOnce(ctx context.Context) Stats {
-	// CPU percent
 	cpuPct := 0.0
 	if pct, err := cpu.PercentWithContext(ctx, 200*time.Millisecond, false); err == nil && len(pct) > 0 {
 		cpuPct = pct[0]
 	}
 
-	// CPU counts
 	logical, _ := cpu.CountsWithContext(ctx, true)
 	physical, _ := cpu.CountsWithContext(ctx, false)
 
-	// Memory
 	vmTotal, vmUsed, vmUsedPct := uint64(0), uint64(0), 0.0
 	if vm, err := mem.VirtualMemoryWithContext(ctx); err == nil {
 		vmTotal, vmUsed, vmUsedPct = vm.Total, vm.Used, vm.UsedPercent
 	}
 
-	// Load averages
 	load1, load5, load15 := 0.0, 0.0, 0.0
 	if avg, err := load.AvgWithContext(ctx); err == nil {
 		load1, load5, load15 = avg.Load1, avg.Load5, avg.Load15
 	}
 
-	// Host / OS info
 	var osinfo OSInfo
 	uptime := uint64(0)
 	if hi, err := host.InfoWithContext(ctx); err == nil {
@@ -164,7 +145,6 @@ func collectOnce(ctx context.Context) Stats {
 		}
 	}
 
-	// Disks
 	var disks []DiskStat
 	if parts, err := disk.PartitionsWithContext(ctx, true); err == nil {
 		for _, p := range parts {
@@ -183,8 +163,6 @@ func collectOnce(ctx context.Context) Stats {
 		}
 	}
 
-	// Docker info (optional)
-	//var dockerInfo *DockerInfo
 	client := docker.GetDockerClient()
 	info, err := client.Info(ctx)
 

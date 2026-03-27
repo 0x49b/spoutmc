@@ -20,7 +20,6 @@ var (
 	defaultInfraService = infrastructureapp.NewService()
 )
 
-// RegisterInfrastructureRoutes registers infrastructure-related routes
 func RegisterInfrastructureRoutes(g *echo.Group) {
 	infra := g.Group("/infrastructure")
 	infra.GET("", listInfrastructure)
@@ -41,7 +40,6 @@ func RegisterInfrastructureRoutesWithService(g *echo.Group, service *infrastruct
 	RegisterInfrastructureRoutes(g)
 }
 
-// InfrastructureContainer represents an infrastructure container response
 type InfrastructureContainer struct {
 	Summary container.Summary `json:"summary"`
 	Type    string            `json:"type"`
@@ -71,7 +69,6 @@ func getInfrastructureContainer(c echo.Context) error {
 		})
 	}
 
-	// Return enriched container with inspect data
 	response := map[string]interface{}{
 		"container":   enriched,
 		"inspectData": inspectData,
@@ -81,7 +78,6 @@ func getInfrastructureContainer(c echo.Context) error {
 }
 
 func debugAllContainers(c echo.Context) error {
-	// Get all containers from docker client directly
 	cli := docker.GetDockerClient()
 	allContainers, err := cli.ContainerList(c.Request().Context(), container.ListOptions{All: true})
 	if err != nil {
@@ -90,7 +86,6 @@ func debugAllContainers(c echo.Context) error {
 		})
 	}
 
-	// Return all containers with their labels
 	debug := make([]map[string]interface{}, 0)
 	for _, cont := range allContainers {
 		debug = append(debug, map[string]interface{}{
@@ -117,7 +112,6 @@ func restartInfrastructureContainer(c echo.Context) error {
 		})
 	}
 
-	// Use shared container action
 	if err := docker.RestartContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to restart container",
@@ -140,7 +134,6 @@ func stopInfrastructureContainer(c echo.Context) error {
 		})
 	}
 
-	// Use shared container action
 	if err := docker.StopContainerWithWatchdog(c.Request().Context(), containerID); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to stop container",
@@ -248,7 +241,6 @@ func getInfrastructureLogs(c echo.Context) error {
 	}
 }
 
-// InfrastructureContainerWithStats combines container info with real-time stats for SSE stream
 type InfrastructureContainerWithStats struct {
 	Summary container.Summary `json:"summary"`
 	Type    string            `json:"type"`

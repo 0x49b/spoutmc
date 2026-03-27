@@ -7,7 +7,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// Ensures the Velocity plugin can POST player chat replies to the API (shared-secret route).
 func TestChatIngestRouteRegistered(t *testing.T) {
 	e := echo.New()
 	api := e.Group("/api")

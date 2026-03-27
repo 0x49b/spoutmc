@@ -14,7 +14,6 @@ import (
 
 var logger = log.GetLogger(log.ModuleUser)
 
-// RegisterRoleRoutes registers role-related API routes
 func RegisterRoleRoutes(g *echo.Group) {
 	g.GET("/role", getRoles)
 	g.GET("/role/:id", getRole)

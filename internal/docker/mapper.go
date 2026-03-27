@@ -30,15 +30,11 @@ func MapExposedPorts(ports []models.SpoutServerPorts) (nat.PortSet, nat.PortMap)
 	return exposedPorts, containerPortBinding
 }
 
-// createHostPath generates the host path for a volume binding
-// Format: {dataPath}/{containerName}/{containerPath}
-// Uses filepath.Join to handle OS-specific path separators (/ for Unix, \ for Windows)
 func createHostPath(dataPath, containerName, containerPath string) string {
 	normalizedDataPath := pathutil.NormalizeHostPath(dataPath)
 	normalizedContainerPath := pathutil.NormalizeContainerPath(containerPath)
 	relativeContainerPath := strings.TrimPrefix(normalizedContainerPath, "/")
 
-	// Convert slash separators before joining on the host OS.
 	return filepath.Join(normalizedDataPath, containerName, filepath.FromSlash(relativeContainerPath))
 }
 

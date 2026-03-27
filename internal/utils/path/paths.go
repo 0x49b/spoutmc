@@ -12,8 +12,6 @@ import (
 var windowsUnixDrivePathRe = regexp.MustCompile(`^/([a-zA-Z])/(.*)$`)
 var unixUserHomePathRe = regexp.MustCompile(`^/(Users|home)/[^/]+(?:/(.*))?$`)
 
-// NormalizeHostPath normalizes user-provided host paths so they are valid for
-// the current OS and safe to pass to Docker bind mounts.
 func NormalizeHostPath(input string) string {
 	pathValue := strings.TrimSpace(input)
 	if pathValue == "" {
@@ -40,8 +38,6 @@ func NormalizeHostPath(input string) string {
 	return filepath.Clean(pathValue)
 }
 
-// NormalizeContainerPath normalizes container paths to Linux-style absolute
-// paths (Docker Linux images expect slash-separated paths).
 func NormalizeContainerPath(input string) string {
 	pathValue := strings.TrimSpace(input)
 	if pathValue == "" {
@@ -58,7 +54,6 @@ func normalizeWindowsPath(input string) string {
 		return filepath.Clean(mapped)
 	}
 
-	// Support Git-Bash style paths like /c/Users/... on Windows.
 	if matches := windowsUnixDrivePathRe.FindStringSubmatch(pathValue); len(matches) == 3 {
 		drive := strings.ToUpper(matches[1])
 		rest := strings.TrimLeft(strings.ReplaceAll(matches[2], "/", `\`), `\`)
@@ -68,8 +63,6 @@ func normalizeWindowsPath(input string) string {
 
 	pathValue = filepath.FromSlash(pathValue)
 
-	// Support Unix-style absolute paths like /Users/... on Windows by anchoring
-	// them to the current drive (e.g. C:\Users\...).
 	if strings.HasPrefix(pathValue, `\`) && filepath.VolumeName(pathValue) == "" {
 		drive := "C:"
 		if wd, err := os.Getwd(); err == nil {
@@ -134,7 +127,6 @@ func remapMismatchedWindowsUserHome(input string) string {
 		return cleanInput
 	}
 
-	// Expected shape: C:, Users, username, ...
 	if !strings.EqualFold(inputParts[1], "Users") || !strings.EqualFold(homeParts[1], "Users") {
 		return cleanInput
 	}

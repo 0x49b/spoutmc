@@ -6,7 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// SystemNotification is a global notification persisted for all users.
 type SystemNotification struct {
 	gorm.Model
 	Key         string     `gorm:"uniqueIndex;not null" json:"key"`

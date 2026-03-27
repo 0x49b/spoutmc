@@ -6,7 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Database connection wrapped
 type DB struct {
 	db *gorm.DB
 }
@@ -30,7 +29,6 @@ func (d *DB) ValidateIfExists(model interface{}, id int, name string) error {
 
 }
 
-// Returns wrapped database
 func (d *DB) DB() *gorm.DB {
 	return d.db
 }

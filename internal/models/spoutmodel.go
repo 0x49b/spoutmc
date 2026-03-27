@@ -35,16 +35,12 @@ type EULAConfig struct {
 }
 
 type BanDurationOption struct {
-	// Key is a stable identifier used by the frontend (e.g. "1h", "2d").
-	Key string `json:"key" yaml:"key"`
-	// Label is user-facing and displayed in the dropdown.
-	Label string `json:"label" yaml:"label"`
-	// Duration is parsed like time.ParseDuration (e.g. "1h", "5h", "48h", "336h").
+	Key      string        `json:"key" yaml:"key"`
+	Label    string        `json:"label" yaml:"label"`
 	Duration time.Duration `json:"duration" yaml:"duration"`
 }
 
 type PlayerBansConfig struct {
-	// BanDurations are the predefined timed-bans offered in the UI.
 	BanDurations []BanDurationOption `json:"banDurations,omitempty" yaml:"ban-durations,omitempty"`
 }
 

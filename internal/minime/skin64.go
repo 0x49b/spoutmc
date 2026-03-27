@@ -5,11 +5,8 @@ import (
 	"image/color"
 )
 
-// Skin64 returns an avatar generated from a skin that is 64x64 pixels. The skin must also be in the Minecraft format
-// otherwise the generated result may not look correct.
 func Skin64(src image.Image) image.Image {
 	dst := image.NewRGBA(image.Rect(0, 0, 10, 16))
-	// Head
 	for x := 0; x < 10; x++ {
 		for y := 0; y < 10; y++ {
 			if x == 0 || x == 9 || y == 0 || y == 9 {
@@ -36,7 +33,7 @@ func Skin64(src image.Image) image.Image {
 		}
 	}
 
-	// Body
+	//Body
 	for x := 0; x < 4; x++ {
 		for y := 0; y < 7; y++ {
 			if x == 0 || x == 3 || y == 0 || y == 4 || y == 6 {

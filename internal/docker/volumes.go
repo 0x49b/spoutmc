@@ -14,7 +14,6 @@ import (
 
 var volumeLogger = log.GetLogger(log.ModuleDocker)
 
-// getCurrentUser returns the UID and GID of the current user
 func getCurrentUser() (int, int, error) {
 	currentUser, err := user.Current()
 	if err != nil {
@@ -34,15 +33,11 @@ func getCurrentUser() (int, int, error) {
 	return uid, gid, nil
 }
 
-// ensureVolumeDirectoriesExist creates volume directories with proper ownership
-// This prevents Docker from creating them as root on Linux
 func ensureVolumeDirectoriesExist(volumes []models.SpoutServerVolumes, dataPath, containerName string) error {
 	if len(volumes) == 0 {
 		return nil
 	}
 
-	// Windows has no portable UID/GID/chown model for Docker bind paths.
-	// Create directories only and let ACLs apply naturally.
 	if runtime.GOOS == "windows" {
 		for _, vol := range volumes {
 			hostPath := createHostPath(dataPath, containerName, vol.Containerpath)
@@ -59,7 +54,6 @@ func ensureVolumeDirectoriesExist(volumes []models.SpoutServerVolumes, dataPath,
 	if err != nil {
 		volumeLogger.Warn("Failed to get current user, directories may have incorrect ownership",
 			zap.Error(err))
-		// Continue creating directories even if ownership cannot be set.
 		for _, vol := range volumes {
 			hostPath := createHostPath(dataPath, containerName, vol.Containerpath)
 			if mkErr := os.MkdirAll(hostPath, 0755); mkErr != nil {
@@ -72,19 +66,16 @@ func ensureVolumeDirectoriesExist(volumes []models.SpoutServerVolumes, dataPath,
 	for _, vol := range volumes {
 		hostPath := createHostPath(dataPath, containerName, vol.Containerpath)
 
-		// Create directory with 0755 permissions (rwxr-xr-x)
 		if err := os.MkdirAll(hostPath, 0755); err != nil {
 			return fmt.Errorf("failed to create volume directory %s: %w", hostPath, err)
 		}
 
-		// Set ownership to current user
 		if err := os.Chown(hostPath, uid, gid); err != nil {
 			volumeLogger.Warn("Failed to set ownership on volume directory",
 				zap.String("path", hostPath),
 				zap.Int("uid", uid),
 				zap.Int("gid", gid),
 				zap.Error(err))
-			// Don't fail - directory exists, just with wrong ownership
 		} else {
 			volumeLogger.Debug("Created volume directory with proper ownership",
 				zap.String("path", hostPath),

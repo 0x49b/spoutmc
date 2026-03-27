@@ -14,7 +14,6 @@ import (
 
 var logger = log.GetLogger(log.ModuleStorage)
 
-// Connect connects to the SQLite database.
 func Connect(ctx context.Context, sqlitePath string) (*gorm.DB, error) {
 	_ = ctx // reserved for future use
 	if sqlitePath == "" {

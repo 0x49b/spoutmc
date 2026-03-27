@@ -63,7 +63,6 @@ func TestIngestPlayerChatReplyAuthWithForwardingSecret(t *testing.T) {
 		},
 	})
 
-	// Wrong header must fail auth.
 	wrongReq := httptest.NewRequest(http.MethodPost, "/api/v1/player/chat-ingest", bytes.NewBufferString("{}"))
 	wrongReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	wrongReq.Header.Set("X-Spout-Chat-Ingest", "wrong-secret")
@@ -77,7 +76,6 @@ func TestIngestPlayerChatReplyAuthWithForwardingSecret(t *testing.T) {
 		t.Fatalf("expected status %d for wrong secret, got %d", http.StatusUnauthorized, wrongRec.Code)
 	}
 
-	// Matching header passes auth and reaches payload validation.
 	okReq := httptest.NewRequest(http.MethodPost, "/api/v1/player/chat-ingest", bytes.NewBufferString("{}"))
 	okReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	okReq.Header.Set("X-Spout-Chat-Ingest", "super-secret")

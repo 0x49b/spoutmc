@@ -12,7 +12,6 @@ import (
 
 var logger = log.GetLogger(log.ModuleFiles)
 
-// FileNode represents a file or directory in the file tree
 type FileNode struct {
 	Name     string      `json:"name"`
 	Path     string      `json:"path"`
@@ -22,15 +21,12 @@ type FileNode struct {
 	Children []*FileNode `json:"children,omitempty"`
 }
 
-// BuildFileTree recursively builds a tree of files and directories
-// isRoot indicates if this is the root directory (should not be excluded)
 func BuildFileTree(basePath, currentPath string, isRoot bool) (*FileNode, error) {
 	info, err := os.Stat(currentPath)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if this file/folder should be excluded (but not the root)
 	if !isRoot && ShouldExclude(info.Name()) {
 		logger.Debug("Excluding file/folder",
 			zap.String("name", info.Name()),
@@ -38,7 +34,6 @@ func BuildFileTree(basePath, currentPath string, isRoot bool) (*FileNode, error)
 		return nil, fmt.Errorf("excluded by pattern")
 	}
 
-	// Get relative path for the node
 	relPath, err := filepath.Rel(basePath, currentPath)
 	if err != nil {
 		relPath = currentPath
@@ -55,7 +50,6 @@ func BuildFileTree(basePath, currentPath string, isRoot bool) (*FileNode, error)
 		ModTime: info.ModTime().Format("2006-01-02 15:04:05"),
 	}
 
-	// If it's a directory, read its contents
 	if info.IsDir() {
 		entries, err := os.ReadDir(currentPath)
 		if err != nil {
@@ -79,11 +73,9 @@ func BuildFileTree(basePath, currentPath string, isRoot bool) (*FileNode, error)
 	return node, nil
 }
 
-// ShouldExclude checks if a file or folder name matches any exclusion pattern
 func ShouldExclude(name string) bool {
 	cfg := config.All()
 
-	// If no files config or no patterns, don't exclude anything
 	if cfg.Files == nil {
 		logger.Debug("Files config is nil")
 		return false
@@ -94,21 +86,17 @@ func ShouldExclude(name string) bool {
 		return false
 	}
 
-	// Log loaded patterns (only once per check to avoid spam)
 	logger.Debug("Checking exclusion patterns",
 		zap.Int("pattern_count", len(cfg.Files.ExcludePatterns)),
 		zap.String("checking_name", name))
 
-	// Check against each pattern
 	for _, pattern := range cfg.Files.ExcludePatterns {
-		// Support both glob patterns and exact matches
 		matched, err := filepath.Match(pattern, name)
 		if err != nil {
 			logger.Debug("Pattern match error",
 				zap.String("pattern", pattern),
 				zap.String("name", name),
 				zap.Error(err))
-			// If pattern is invalid, try exact match
 			if pattern == name {
 				logger.Debug("Exact match found",
 					zap.String("pattern", pattern),

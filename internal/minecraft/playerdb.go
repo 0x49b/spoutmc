@@ -13,8 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// GetPlayerProfile resolves a Minecraft player by username or UUID (with or without dashes)
-// via playerdb.co and returns the canonical UUID, current username, and skin texture URL.
 func GetPlayerProfile(identifier string) (playerUUID uuid.UUID, username string, skinURL string, err error) {
 	identifier = strings.TrimSpace(identifier)
 	if identifier == "" {

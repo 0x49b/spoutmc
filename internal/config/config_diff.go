@@ -35,14 +35,12 @@ func DiffServers(oldList, newList []models.SpoutServer) ChangeSet {
 
 	var cs ChangeSet
 
-	// Detect removed & updated
 	for k, ov := range oldMap {
 		nv, stillThere := newMap[k]
 		if !stillThere {
 			cs.Removed = append(cs.Removed, ov)
 			continue
 		}
-		// Equal? If not, record update with a readable diff
 		if !cmp.Equal(ov, nv, cmpOptions()...) {
 			cs.Updated = append(cs.Updated, ServerChange{
 				Key:    k,
@@ -53,22 +51,18 @@ func DiffServers(oldList, newList []models.SpoutServer) ChangeSet {
 		}
 	}
 
-	// Detect added
 	for k, nv := range newMap {
 		if _, had := oldMap[k]; !had {
 			cs.Added = append(cs.Added, nv)
 		}
 	}
 
-	// Keep output stable
 	sort.Slice(cs.Added, func(i, j int) bool { return keyFn(cs.Added[i]) < keyFn(cs.Added[j]) })
 	sort.Slice(cs.Removed, func(i, j int) bool { return keyFn(cs.Removed[i]) < keyFn(cs.Removed[j]) })
 	sort.Slice(cs.Updated, func(i, j int) bool { return cs.Updated[i].Key < cs.Updated[j].Key })
 
 	return cs
 }
-
-// Helpers
 
 func indexByKey(list []models.SpoutServer, keyFn func(models.SpoutServer) string) map[string]models.SpoutServer {
 	m := make(map[string]models.SpoutServer, len(list))
@@ -78,13 +72,8 @@ func indexByKey(list []models.SpoutServer, keyFn func(models.SpoutServer) string
 	return m
 }
 
-// cmpOptions controls how equality/diffs are computed.
-// You can ignore fields here if needed (e.g. EnvID, PortsID).
 func cmpOptions() []cmp.Option {
 	return []cmp.Option{
-		// Example: ignore volatile IDs:
-		// cmpopts.IgnoreFields(SpoutServer{}, "EnvID", "PortsID"),
-		// Example: treat nil and empty slices/maps as equal:
 		cmpopts.EquateEmpty(),
 	}
 }
@@ -93,7 +82,6 @@ func ApplyConfigChanges(ctx context.Context, oldConfig, newConfig models.SpoutCo
 
 	changeSet := DiffServers(oldConfig.Servers, newConfig.Servers)
 
-	// Get data path from new configuration
 	dataPath := ""
 	if newConfig.Storage != nil {
 		dataPath = newConfig.Storage.DataPath

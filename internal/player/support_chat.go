@@ -13,7 +13,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// NormalizeMcPlayerName lowercases trimmed MC name for consistent DB keys.
 func NormalizeMcPlayerName(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
 }
@@ -22,10 +21,8 @@ var roleRank = map[string]int{
 	"admin": 5, "manager": 4, "editor": 3, "mod": 2, "support": 1,
 }
 
-// ErrCloseConversationForbidden is returned when a user tries to close another staff member's thread without permission.
 var ErrCloseConversationForbidden = errors.New("forbidden")
 
-// StaffChatSenderLabel prefers Minecraft ign, then display name.
 func StaffChatSenderLabel(u models.User) string {
 	if s := strings.TrimSpace(u.MinecraftName); s != "" {
 		return s
@@ -33,7 +30,6 @@ func StaffChatSenderLabel(u models.User) string {
 	return strings.TrimSpace(u.DisplayName)
 }
 
-// PrimaryRoleDisplay picks the highest-privilege role label for chat prefixes.
 func PrimaryRoleDisplay(roles []models.Role) string {
 	bestScore := -1
 	var label string
@@ -87,14 +83,12 @@ func conversationMatchesPlayer(conv *models.PlayerSupportConversation, mcPlayerU
 	if conv.McPlayerUUID != nil && mcPlayerUUID == nil {
 		return false
 	}
-	// Legacy rows keyed only by normalized name.
 	if conv.McPlayerUUID == nil {
 		return NormalizeMcPlayerName(conv.McPlayerName) == NormalizeMcPlayerName(mcPlayerName)
 	}
 	return false
 }
 
-// AppendSupportChatMessage stores one chat line on an existing conversation.
 func AppendSupportChatMessage(conversationID uint, mcPlayer string, mcPlayerUUID *uuid.UUID, staffID uint, direction, sender, role, message string, at time.Time) error {
 	db := storage.GetDB()
 	if db == nil {
@@ -139,7 +133,6 @@ func AppendSupportChatMessage(conversationID uint, mcPlayer string, mcPlayerUUID
 	return nil
 }
 
-// CreateSupportConversation inserts a new open conversation row.
 func CreateSupportConversation(mcPlayerName string, mcPlayerUUID *uuid.UUID, staffID uint) (*models.PlayerSupportConversation, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -157,8 +150,6 @@ func CreateSupportConversation(mcPlayerName string, mcPlayerUUID *uuid.UUID, sta
 	return &conv, nil
 }
 
-// CloseOpenConversationsForStaffPlayer marks every open conversation for this player+staff as closed.
-// legacyNameNormalized should be NormalizeMcPlayerName(display name) when known, so name-only rows close too.
 func CloseOpenConversationsForStaffPlayer(db *gorm.DB, playerUUID uuid.UUID, staffID uint, legacyNameNormalized string) error {
 	if db == nil {
 		return fmt.Errorf("database unavailable")
@@ -174,7 +165,6 @@ func CloseOpenConversationsForStaffPlayer(db *gorm.DB, playerUUID uuid.UUID, sta
 	return q.Update("closed_at", now).Error
 }
 
-// FindOpenConversationForStaffPlayer returns the newest open conversation, if any.
 func FindOpenConversationForStaffPlayer(playerUUID uuid.UUID, staffID uint) (*models.PlayerSupportConversation, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -192,7 +182,6 @@ func FindOpenConversationForStaffPlayer(playerUUID uuid.UUID, staffID uint) (*mo
 	return &conv, nil
 }
 
-// FindOpenConversationForStaffPlayerByName matches legacy rows keyed only by normalized name.
 func FindOpenConversationForStaffPlayerByName(mcPlayerName string, staffID uint) (*models.PlayerSupportConversation, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -211,7 +200,6 @@ func FindOpenConversationForStaffPlayerByName(mcPlayerName string, staffID uint)
 	return &conv, nil
 }
 
-// GetConversationByID loads a conversation row.
 func GetConversationByID(id uint) (*models.PlayerSupportConversation, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -224,7 +212,6 @@ func GetConversationByID(id uint) (*models.PlayerSupportConversation, error) {
 	return &conv, nil
 }
 
-// ResolveOpenConversationForIngest picks the open thread for Velocity → panel ingest.
 func ResolveOpenConversationForIngest(mcPlayerUUID *uuid.UUID, staffID uint, mcPlayerName string) (uint, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -254,7 +241,6 @@ func ResolveOpenConversationForIngest(mcPlayerUUID *uuid.UUID, staffID uint, mcP
 	return conv2.ID, nil
 }
 
-// ValidateConversationForOutgoingMessage ensures the thread belongs to this staff member and player identifier.
 func ValidateConversationForOutgoingMessage(conv *models.PlayerSupportConversation, playerUUID *uuid.UUID, mcPlayerName string, staffID uint) error {
 	if conv.StaffUserID != staffID {
 		return fmt.Errorf("not your conversation")
@@ -265,7 +251,6 @@ func ValidateConversationForOutgoingMessage(conv *models.PlayerSupportConversati
 	return nil
 }
 
-// ConversationBelongsToPlayer checks that a conversation row is for this Minecraft player (UUID and/or legacy name).
 func ConversationBelongsToPlayer(conv *models.PlayerSupportConversation, playerUUID uuid.UUID, legacyNameNormalized string) bool {
 	if conv.McPlayerUUID != nil && *conv.McPlayerUUID == playerUUID {
 		return true
@@ -276,7 +261,6 @@ func ConversationBelongsToPlayer(conv *models.PlayerSupportConversation, playerU
 	return false
 }
 
-// CloseConversationForActor sets closed_at if the actor may close this thread.
 func CloseConversationForActor(conversationID uint, actorUserID uint, allowViewAll bool) error {
 	db := storage.GetDB()
 	if db == nil {
@@ -296,7 +280,6 @@ func CloseConversationForActor(conversationID uint, actorUserID uint, allowViewA
 	return db.Model(&conv).Update("closed_at", now).Error
 }
 
-// ConversationListEntry is one sidebar row on the player detail page.
 type ConversationListEntry struct {
 	ID             uint
 	StaffUserID    uint
@@ -305,7 +288,6 @@ type ConversationListEntry struct {
 	LastOccurredAt time.Time
 }
 
-// ListConversationsForPlayer returns conversation rows for a Minecraft player (UUID + optional legacy name key).
 func ListConversationsForPlayer(playerUUID uuid.UUID, legacyNameNormalized string) ([]ConversationListEntry, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -344,7 +326,6 @@ func ListConversationsForPlayer(playerUUID uuid.UUID, legacyNameNormalized strin
 	return out, nil
 }
 
-// ListSupportChatMessagesForConversation returns ordered lines for one conversation.
 func ListSupportChatMessagesForConversation(conversationID uint, displayPlayer string) ([]PlayerChatMessage, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -378,7 +359,6 @@ func supportRowToDTO(r models.PlayerSupportChatMessage, displayPlayer string) Pl
 	return m
 }
 
-// ListSupportChatForStaff returns messages between one MC player and one staff user (panel default).
 func ListSupportChatForStaff(displayPlayer string, staffID uint) ([]PlayerChatMessage, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -397,7 +377,6 @@ func ListSupportChatForStaff(displayPlayer string, staffID uint) ([]PlayerChatMe
 	return out, nil
 }
 
-// ListSupportChatAllForPlayer returns every stored thread line for an MC player (admin archive).
 func ListSupportChatAllForPlayer(displayPlayer string) ([]PlayerChatMessage, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -416,7 +395,6 @@ func ListSupportChatAllForPlayer(displayPlayer string) ([]PlayerChatMessage, err
 	return out, nil
 }
 
-// ListSupportChatForStaffByUUID returns messages between one UUID-identified MC player and one staff user.
 func ListSupportChatForStaffByUUID(playerUUID uuid.UUID, displayPlayer string, staffID uint) ([]PlayerChatMessage, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -436,7 +414,6 @@ func ListSupportChatForStaffByUUID(playerUUID uuid.UUID, displayPlayer string, s
 	return out, nil
 }
 
-// ListSupportChatAllForPlayerByUUID returns every stored thread line for an MC player UUID (admin archive).
 func ListSupportChatAllForPlayerByUUID(playerUUID uuid.UUID, displayPlayer string) ([]PlayerChatMessage, error) {
 	db := storage.GetDB()
 	if db == nil {
@@ -456,7 +433,6 @@ func ListSupportChatAllForPlayerByUUID(playerUUID uuid.UUID, displayPlayer strin
 	return out, nil
 }
 
-// LoadUserWithRoles returns the user or gorm.ErrRecordNotFound.
 func LoadUserWithRoles(userID uint) (models.User, error) {
 	db := storage.GetDB()
 	if db == nil {

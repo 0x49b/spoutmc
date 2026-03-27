@@ -1,7 +1,5 @@
 package access
 
-// RolePermissionKeys maps default role names to permission keys (seeded on startup).
-// Admin is handled separately (all keys).
 var RolePermissionKeys = map[string][]string{
 	"manager": {
 		"auth.user.manage",

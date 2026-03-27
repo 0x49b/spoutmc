@@ -9,8 +9,6 @@ import (
 
 const AdminRoleName = "admin"
 
-// EffectivePermissionKeys loads the user and returns merged permission keys (roles + direct grants).
-// Users with the admin role receive all permission keys currently in the database.
 func EffectivePermissionKeys(db *gorm.DB, userID uint) ([]string, error) {
 	db = resolveDB(db)
 	if db == nil {
@@ -23,12 +21,10 @@ func EffectivePermissionKeys(db *gorm.DB, userID uint) ([]string, error) {
 	return EffectivePermissionKeysFromUserWithDB(db, &user), nil
 }
 
-// EffectivePermissionKeysFromUser uses preloaded Roles (with Permissions) and DirectPermissions.
 func EffectivePermissionKeysFromUser(user *models.User) []string {
 	return EffectivePermissionKeysFromUserWithDB(resolveDB(nil), user)
 }
 
-// EffectivePermissionKeysFromUserWithDB resolves admin "all permissions" from the database.
 func EffectivePermissionKeysFromUserWithDB(db *gorm.DB, user *models.User) []string {
 	if user == nil {
 		return nil

@@ -13,8 +13,6 @@ import (
 
 var logger = log.GetLogger(log.ModuleServer)
 
-// DetermineServerType determines the server type based on container labels
-// Returns "proxy", "lobby", or "game"
 func DetermineServerType(labels map[string]string) string {
 	if labels["io.spout.proxy"] == "true" {
 		return "proxy"
@@ -25,7 +23,6 @@ func DetermineServerType(labels map[string]string) string {
 	return "game"
 }
 
-// FindProxyServer finds the proxy server container
 func FindProxyServer(ctx context.Context) (*container.Summary, error) {
 	containers, err := docker.GetNetworkContainers(ctx)
 	if err != nil {
@@ -33,13 +30,11 @@ func FindProxyServer(ctx context.Context) (*container.Summary, error) {
 	}
 
 	for _, c := range containers {
-		// Get detailed container info to check environment variables
 		containerInfo, err := docker.GetContainerById(ctx, c.ID)
 		if err != nil {
 			continue
 		}
 
-		// Check if this is a proxy server
 		for _, env := range containerInfo.Config.Env {
 			if len(env) > 5 && env[:5] == "TYPE=" && env[5:] == "VELOCITY" {
 				return &c, nil
@@ -50,17 +45,12 @@ func FindProxyServer(ctx context.Context) (*container.Summary, error) {
 	return nil, fmt.Errorf("no proxy server found")
 }
 
-// GetDefaultEnvVars returns system-managed environment variables for each server type
-// These defaults can be overridden by user-provided values
 func GetDefaultEnvVars(isProxy, isLobby bool) map[string]string {
 	if isProxy {
-		// Proxy server defaults
 		return map[string]string{
 			"TYPE": "VELOCITY",
 		}
 	} else {
-		// Get the Velocity forwarding secret automatically
-		// Try to get data path and proxy name from config
 		cfg := config.All()
 		dataPath := ""
 		proxyName := ""
@@ -69,7 +59,6 @@ func GetDefaultEnvVars(isProxy, isLobby bool) map[string]string {
 			dataPath = cfg.Storage.DataPath
 		}
 
-		// Find proxy server name
 		for i := range cfg.Servers {
 			if cfg.Servers[i].Proxy {
 				proxyName = cfg.Servers[i].Name
@@ -79,7 +68,6 @@ func GetDefaultEnvVars(isProxy, isLobby bool) map[string]string {
 
 		velocitySecret := docker.GetOrGenerateVelocitySecret(dataPath, proxyName)
 
-		// Log secret preview for debugging (first 8 chars only for security)
 		secretPreview := velocitySecret
 		if len(velocitySecret) > 8 {
 			secretPreview = velocitySecret[:8] + "..."
@@ -88,7 +76,6 @@ func GetDefaultEnvVars(isProxy, isLobby bool) map[string]string {
 			zap.String("secret_preview", secretPreview),
 			zap.Int("secret_length", len(velocitySecret)))
 
-		// Lobby and game server defaults with Velocity forwarding support
 		return map[string]string{
 			"EULA":                     "TRUE",
 			"TYPE":                     "PAPER",
@@ -106,17 +93,13 @@ func GetDefaultEnvVars(isProxy, isLobby bool) map[string]string {
 	}
 }
 
-// MergeEnvVars merges default environment variables with user-provided ones
-// User-provided values override defaults
 func MergeEnvVars(defaults, userProvided map[string]string) map[string]string {
 	merged := make(map[string]string)
 
-	// Start with defaults
 	for k, v := range defaults {
 		merged[k] = v
 	}
 
-	// Override with user-provided values
 	for k, v := range userProvided {
 		merged[k] = v
 	}
@@ -124,16 +107,12 @@ func MergeEnvVars(defaults, userProvided map[string]string) map[string]string {
 	return merged
 }
 
-// FindNextAvailablePort finds the next available port starting from 25566
-// Returns the next available port number
 func FindNextAvailablePort() int {
 	existingConfig := config.All()
 	usedPorts := make(map[int]bool)
 
-	// Collect all ports currently in use
 	for _, server := range existingConfig.Servers {
 		for _, portMapping := range server.Ports {
-			// Parse host port as integer
 			if hostPort := portMapping.HostPort; hostPort != "" {
 				var port int
 				fmt.Sscanf(hostPort, "%d", &port)
@@ -144,7 +123,6 @@ func FindNextAvailablePort() int {
 		}
 	}
 
-	// Start from 25566 (25565 is typically for proxy) and find first available
 	startPort := 25566
 	for port := startPort; port <= 65535; port++ {
 		if !usedPorts[port] {
@@ -152,12 +130,9 @@ func FindNextAvailablePort() int {
 		}
 	}
 
-	// Fallback (should never happen unless all ports are used)
 	return startPort
 }
 
-// ValidateProxyConstraint checks if adding a proxy server is allowed
-// Returns error if a proxy already exists
 func ValidateProxyConstraint() error {
 	existingConfig := config.All()
 	for _, server := range existingConfig.Servers {
@@ -170,8 +145,6 @@ func ValidateProxyConstraint() error {
 	return nil
 }
 
-// ValidateLobbyConstraint checks if adding a lobby server is allowed
-// Returns error if a lobby already exists
 func ValidateLobbyConstraint() error {
 	existingConfig := config.All()
 	for _, server := range existingConfig.Servers {

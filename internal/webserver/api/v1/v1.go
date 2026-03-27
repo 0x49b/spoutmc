@@ -40,15 +40,12 @@ func RegisterV1WithModules(g *echo.Group, modules Modules) {
 		return c.String(http.StatusOK, "pong")
 	})
 
-	// Plugin → API (shared secret header). Must stay public (no JWT).
 	player.RegisterPlayerChatIngestRoute(v1)
 
-	// Public routes (no JWT required)
 	auth.RegisterAuthRoutes(v1)
 	setup.RegisterSetupRoutes(v1)
 	minime.RegisterMinimeRoutes(v1)
 
-	// Protected routes (JWT required)
 	protected := v1.Group("", middleware.JWT)
 	serverService := modules.ServerService
 	if serverService == nil {

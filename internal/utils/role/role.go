@@ -6,7 +6,6 @@ import (
 	"unicode"
 )
 
-// DisplayNameToName converts "Forum Moderator" to "forumModerator" (camelCase).
 func DisplayNameToName(displayName string) string {
 	if displayName == "" {
 		return ""
@@ -28,7 +27,6 @@ func DisplayNameToName(displayName string) string {
 	return strings.Join(words, "")
 }
 
-// DisplayNameToSlug converts "Forum Moderator" to "forum-moderator" (kebab-case).
 func DisplayNameToSlug(displayName string) string {
 	if displayName == "" {
 		return ""

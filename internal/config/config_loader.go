@@ -15,8 +15,6 @@ import (
 
 var spoutConfiguration models.SpoutConfiguration // package-scoped state
 
-// ReadConfiguration finds and loads spoutmc.yaml|yml into package state.
-// It also returns the loaded config for convenience.
 func ReadConfiguration() error {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -54,12 +52,10 @@ func ReadConfiguration() error {
 	return nil
 }
 
-// All returns the currently loaded configuration.
 func All() models.SpoutConfiguration {
 	return spoutConfiguration
 }
 
-// GetServerConfigForContainerName looks up a server by its Name.
 func GetServerConfigForContainerName(name string) (models.SpoutServer, error) {
 	for _, s := range spoutConfiguration.Servers {
 		if s.Name == name {
@@ -69,7 +65,6 @@ func GetServerConfigForContainerName(name string) (models.SpoutServer, error) {
 	return models.SpoutServer{}, errors.New("No matching config found")
 }
 
-// IsValidServerName reports whether name matches a server in the loaded Spout configuration.
 func IsValidServerName(name string) bool {
 	for _, s := range spoutConfiguration.Servers {
 		if s.Name == name {
@@ -79,19 +74,15 @@ func IsValidServerName(name string) bool {
 	return false
 }
 
-// UpdateConfiguration updates the package-scoped configuration.
-// This is used by GitOps to update configuration from Git repository.
 func UpdateConfiguration(newConfig models.SpoutConfiguration) {
 	normalizeConfigurationPaths(&newConfig)
 	spoutConfiguration = newConfig
 }
 
-// IsGitOpsEnabled checks if GitOps mode is enabled in the configuration.
 func IsGitOpsEnabled() bool {
 	return spoutConfiguration.Git != nil && spoutConfiguration.Git.Enabled
 }
 
-// GetGitConfig returns the Git configuration if GitOps is enabled.
 func GetGitConfig() *models.GitConfig {
 	if spoutConfiguration.Git != nil {
 		return spoutConfiguration.Git
@@ -113,8 +104,6 @@ func normalizeConfigurationPaths(cfg *models.SpoutConfiguration) {
 	cfg.Storage.DataPath = normalizedPath
 }
 
-// EnsureVelocityEnvVars checks all backend servers and injects required Velocity forwarding
-// environment variables if they're missing. Returns true if any servers were updated.
 func EnsureVelocityEnvVars(velocitySecret string) bool {
 	updated := false
 	requiredVars := map[string]string{
@@ -128,17 +117,14 @@ func EnsureVelocityEnvVars(velocitySecret string) bool {
 	for i := range spoutConfiguration.Servers {
 		server := &spoutConfiguration.Servers[i]
 
-		// Skip proxy servers - they don't need backend forwarding config
 		if server.Proxy {
 			continue
 		}
 
-		// Initialize env map if nil
 		if server.Env == nil {
 			server.Env = make(map[string]string)
 		}
 
-		// Check if server is missing any required vars
 		serverUpdated := false
 		for key, value := range requiredVars {
 			if _, exists := server.Env[key]; !exists {

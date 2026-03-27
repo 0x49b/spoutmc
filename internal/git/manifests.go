@@ -9,28 +9,22 @@ import (
 )
 
 const (
-	// APIVersionV1Alpha1 is the manifest API version for GitOps resources.
 	APIVersionV1Alpha1          = "spoutmc.io/v1alpha1"
 	KindSpoutServer             = "SpoutServer"
 	KindInfrastructureContainer = "InfrastructureContainer"
 )
 
-// ManifestMetadata contains resource metadata similar to Kubernetes ObjectMeta.
 type ManifestMetadata struct {
 	Name        string            `yaml:"name,omitempty"`
 	Labels      map[string]string `yaml:"labels,omitempty"`
 	Annotations map[string]string `yaml:"annotations,omitempty"`
 }
-
-// ServerManifest defines the GitOps manifest format for a Spout server.
 type ServerManifest struct {
 	APIVersion string             `yaml:"apiVersion"`
 	Kind       string             `yaml:"kind"`
 	Metadata   ManifestMetadata   `yaml:"metadata,omitempty"`
 	Spec       models.SpoutServer `yaml:"spec"`
 }
-
-// InfrastructureManifest defines the GitOps manifest format for infrastructure containers.
 type InfrastructureManifest struct {
 	APIVersion string                                 `yaml:"apiVersion"`
 	Kind       string                                 `yaml:"kind"`
@@ -62,7 +56,6 @@ func ParseServerYAML(data []byte) (models.SpoutServer, error) {
 		return models.SpoutServer{}, fmt.Errorf("failed to parse yaml header: %w", err)
 	}
 
-	// Legacy format (raw SpoutServer object)
 	if header.Kind == "" && header.APIVersion == "" {
 		var server models.SpoutServer
 		if err := yaml.Unmarshal(data, &server); err != nil {
@@ -102,7 +95,6 @@ func ParseInfrastructureYAML(data []byte) (infrastructure.InfrastructureContaine
 		return infrastructure.InfrastructureContainer{}, fmt.Errorf("failed to parse yaml header: %w", err)
 	}
 
-	// Legacy format (raw InfrastructureContainer object)
 	if header.Kind == "" && header.APIVersion == "" {
 		var container infrastructure.InfrastructureContainer
 		if err := yaml.Unmarshal(data, &container); err != nil {
