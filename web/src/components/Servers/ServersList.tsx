@@ -1,24 +1,18 @@
 import React, {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {
-    Alert,
     Button,
     Card,
     CardBody,
-    CardTitle,
     EmptyState,
     EmptyStateBody,
     EmptyStateVariant,
-    ExpandableSection,
-    Flex,
-    FlexItem,
     Gallery,
     PageSection,
     SearchInput
 } from '@patternfly/react-core';
 import {PlusIcon, SyncAltIcon} from '@patternfly/react-icons';
 import {useServerStore} from '../../store/serverStore';
-import StatusBadge from '../UI/StatusBadge';
 import PageHeader from '../UI/PageHeader';
 import AddServerModal from './Modals/AddServerModal.tsx';
 import ServerCardSkeleton from './ServerCardSkeleton';
@@ -38,9 +32,7 @@ const ServersList: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isLoading, setLoading] = useState(false);
-    const [isGitOpsSyncButtonLoading, setIsGitOpsSyncButtonLoading] = useState(false);
     const [gitOpsStatus, setGitOpsStatus] = useState<api.GitOpsStatus | null>(null);
-    const [isGitOpsSectionExpanded, setIsGitOpsSectionExpanded] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -99,37 +91,7 @@ const ServersList: React.FC = () => {
         await addServer(serverData);
     };
 
-    const handleTriggerGitOpsSync = async () => {
-        setIsGitOpsSyncButtonLoading(true);
-        try {
-            await api.triggerGitOpsSync();
-            const statusResponse = await api.getGitOpsStatus();
-            setGitOpsStatus(statusResponse.data);
-        } catch (error) {
-            console.error('Failed to trigger GitOps sync:', error);
-        } finally {
-            setIsGitOpsSyncButtonLoading(false);
-        }
-    };
-
     const isGitOpsEnabled = gitOpsStatus?.enabled === true;
-    const formatTime = (value?: string) => {
-        if (!value) return 'Never';
-        return new Date(value).toLocaleString();
-    };
-    const gitOpsBadgeStatus = (() => {
-        if (!isGitOpsEnabled) {
-            return 'offline';
-        }
-        if (gitOpsStatus?.state === 'error') {
-            return 'offline';
-        }
-        if (gitOpsStatus?.state === 'syncing') {
-            return 'syncing';
-        }
-        return 'online';
-    })();
-    const isGitOpsSyncInProgress = isGitOpsSyncButtonLoading || gitOpsStatus?.state === 'syncing';
 
     const serversGridContent = (() => {
         if (loading && servers.length === 0) {
@@ -215,71 +177,6 @@ const ServersList: React.FC = () => {
 
                 {/* Servers grid */}
                 {serversGridContent}
-
-                <div className="pf-v6-u-mt-xl mt-8">
-                    <ExpandableSection
-                        isExpanded={isGitOpsSectionExpanded}
-                        onToggle={(_event, expanded) => setIsGitOpsSectionExpanded(expanded)}
-                        displaySize="lg"
-                        toggleContent={
-                            <Flex justifyContent={{default: 'justifyContentFlexStart'}}
-                                  alignItems={{default: 'alignItemsCenter'}}
-                                  style={{width: '100%'}}>
-                                <FlexItem>
-                                    <CardTitle>GitOpsSync</CardTitle>
-                                </FlexItem>
-                                <FlexItem>
-                                    <StatusBadge
-                                        status={gitOpsBadgeStatus}
-                                    />
-                                </FlexItem>
-                            </Flex>
-                        }
-                    >
-                        {isGitOpsEnabled ? (
-                            <Alert
-                                variant="warning"
-                                isInline
-                                title="GitOps restart behavior"
-                                className="pf-v6-u-mb-md"
-                            >
-                                Server changes from GitOps sync update <code>velocity.toml</code> and automatically
-                                restart the proxy.
-                            </Alert>
-                        ) : null}
-                        <div className="pf-v6-u-mt-sm pf-v6-u-color-200">
-                            Mode: <strong>{isGitOpsEnabled ? 'Enabled' : 'Disabled'}</strong> | Last
-                            sync: <strong>{formatTime(gitOpsStatus?.lastSyncAt)}</strong>
-                            {gitOpsStatus?.lastSyncCommit ? <> |
-                                Commit: <strong>{gitOpsStatus.lastSyncCommit}</strong></> : null}
-                        </div>
-                        {gitOpsStatus?.lastSyncCommitMessage ? (
-                            <div className="pf-v6-u-mt-xs pf-v6-u-color-200">
-                                Commit
-                                message: <strong>{gitOpsStatus.lastSyncCommitMessage}</strong>
-                            </div>
-                        ) : null}
-                        {gitOpsStatus?.lastError ? (
-                            <div className="pf-v6-u-mt-xs pf-v6-u-danger-color-100">
-                                Last error: {gitOpsStatus.lastError}
-                            </div>
-                        ) : null}
-
-                        <div className="pf-v6-u-mt-lg-on-md mt-5">
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={handleTriggerGitOpsSync}
-                                isDisabled={!isGitOpsEnabled || isGitOpsSyncInProgress}
-                                isLoading={isGitOpsSyncInProgress}
-                                spinnerAriaLabel="GitOps sync in progress"
-                            >
-                                Trigger Sync
-                            </Button>
-                        </div>
-                    </ExpandableSection>
-                </div>
-
 
                 {/* Add Server Modal */}
                 <AddServerModal

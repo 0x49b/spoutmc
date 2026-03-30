@@ -1,6 +1,15 @@
 /* Import PatternFly CSS */
 @import '@patternfly/react-core/dist/styles/base.css';
+@import '@patternfly/patternfly/patternfly-addons.css';
 @import '@patternfly/react-log-viewer/dist/css/log-viewer.css';
+
+@font-face {
+    font-family  : 'MinecraftFont';
+    src          : url('./assets/fonts/Minecraft.ttf') format('truetype');
+    font-style   : normal;
+    font-weight  : 400;
+    font-display : swap;
+}
 
 /* Global styles */
 html, body {

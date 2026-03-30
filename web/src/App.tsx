@@ -33,6 +33,7 @@ import UpdateAvailableBanner from './components/UI/UpdateAvailableBanner';
 import {getSetupStatus} from './service/apiService';
 
 import {
+    Button,
     Avatar,
     Brand,
     Drawer,
@@ -58,6 +59,7 @@ import {
     PageSidebar,
     PageSidebarBody,
     PageToggleButton,
+    Tooltip,
     Toolbar,
     ToolbarContent,
     ToolbarGroup,
@@ -70,10 +72,13 @@ import {
     CogIcon,
     CubeIcon,
     ServerIcon,
+    SyncAltIcon,
     UserIcon,
     UsersIcon
 } from '@patternfly/react-icons';
 import smlogo from "./assets/logo.svg";
+import * as api from './service/apiService';
+import StatusBadge from './components/UI/StatusBadge';
 
 /** Optional gates aligned with {@link ProtectedRoute}: all permission keys, and/or at least one role. */
 export type NavAccess = {
@@ -190,6 +195,8 @@ const PageLayout = () => {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState(false);
+    const [isGitOpsSyncButtonLoading, setIsGitOpsSyncButtonLoading] = useState(false);
+    const [gitOpsStatus, setGitOpsStatus] = useState<api.GitOpsStatus | null>(null);
 
     const isActive = (path: string) => {
         if (path === '/') {
@@ -224,6 +231,42 @@ const PageLayout = () => {
             clearTimeout(timeoutId);
         };
     }, [fetchGlobalNotifications, getBackoffDelay]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadGitOpsStatus = async () => {
+            try {
+                const response = await api.getGitOpsStatus();
+                if (isMounted) {
+                    setGitOpsStatus(response.data);
+                }
+            } catch (error) {
+                console.error('Failed to load GitOps status:', error);
+            }
+        };
+
+        loadGitOpsStatus();
+        const interval = setInterval(loadGitOpsStatus, 10000);
+
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, []);
+
+    const handleTriggerGitOpsSync = async () => {
+        setIsGitOpsSyncButtonLoading(true);
+        try {
+            await api.triggerGitOpsSync();
+            const statusResponse = await api.getGitOpsStatus();
+            setGitOpsStatus(statusResponse.data);
+        } catch (error) {
+            console.error('Failed to trigger GitOps sync:', error);
+        } finally {
+            setIsGitOpsSyncButtonLoading(false);
+        }
+    };
 
     const visibleNavItems = useMemo(
         () =>
@@ -381,9 +424,68 @@ const PageLayout = () => {
         </Nav>
     );
 
+    const isGitOpsEnabled = gitOpsStatus?.enabled === true;
+    const formatSyncTime = (value?: string) => {
+        if (!value) {
+            return 'Never';
+        }
+        return new Date(value).toLocaleString();
+    };
+    const gitOpsBadgeStatus = (() => {
+        if (!isGitOpsEnabled || gitOpsStatus?.state === 'error') {
+            return 'offline';
+        }
+        if (gitOpsStatus?.state === 'syncing') {
+            return 'syncing';
+        }
+        return 'online';
+    })();
+    const isGitOpsSyncInProgress = isGitOpsSyncButtonLoading || gitOpsStatus?.state === 'syncing';
+
+    const gitOpsSidebarFooter = isGitOpsEnabled ? (
+        <div
+            className="pf-v6-u-p-sm pf-v6-u-border-top"
+            style={{
+                borderTopColor: 'var(--pf-v6-global--BorderColor--100)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+            }}
+        >
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem'}}>
+                <span className="pf-v6-u-color-200 pf-v6-u-font-size-sm">GitOps</span>
+                <Tooltip content={`Last sync: ${formatSyncTime(gitOpsStatus?.lastSyncAt)}`}>
+                    <span style={{display: 'inline-flex'}}>
+                        <StatusBadge status={gitOpsBadgeStatus}/>
+                    </span>
+                </Tooltip>
+            </div>
+            <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleTriggerGitOpsSync}
+                isDisabled={isGitOpsSyncInProgress}
+                isLoading={isGitOpsSyncInProgress}
+                spinnerAriaLabel="GitOps sync in progress"
+                icon={<SyncAltIcon className={isGitOpsSyncInProgress ? 'pf-v6-u-animation-spin' : ''}/>}
+            >
+                Trigger Sync
+            </Button>
+        </div>
+    ) : null;
+
     const sidebar = (
         <PageSidebar isSidebarOpen={isSidebarOpen}>
-            <PageSidebarBody>{pageNav}</PageSidebarBody>
+            <PageSidebarBody
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minHeight: '100%'
+                }}
+            >
+                <div style={{flex: 1}}>{pageNav}</div>
+                {gitOpsSidebarFooter}
+            </PageSidebarBody>
         </PageSidebar>
     );
 

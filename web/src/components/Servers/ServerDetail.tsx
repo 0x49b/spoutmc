@@ -44,6 +44,7 @@ import PageHeader from '../UI/PageHeader.tsx';
 import StatusBadge from '../UI/StatusBadge.tsx';
 import {ConsoleTab} from './ServerDetailTabs/ConsoleTab.tsx';
 import {OverviewTab} from './ServerDetailTabs/OverviewTab.tsx';
+import {ProxyMotdTab} from './ServerDetailTabs/ProxyMotdTab.tsx';
 import {ServerStats} from '../../model/ServerStats.ts';
 import DeleteServerModal from './Modals/DeleteServerModal.tsx';
 import StopServerModal from './Modals/StopServerModal.tsx';
@@ -272,15 +273,10 @@ const ServerDetail: React.FC = () => {
     const handleRestart = async () => {
         setIsRestarting(true);
         try {
-            await restartServer(server.id).then(()=>{
-                setIsRestartModalOpen(false);
-                setIsRestarting(false);
-            });
+            await restartServer(server.id);
         } finally {
-            setTimeout(() => {
-                setIsRestartModalOpen(false);
-                setIsRestarting(false);
-            }, 5000);
+            setIsRestartModalOpen(false);
+            setIsRestarting(false);
         }
     };
 
@@ -307,14 +303,9 @@ const ServerDetail: React.FC = () => {
         } else {
             setIsPowerActionLoading(true);
             try {
-                await startServer(server.id).then(() => {
-                    setIsStopModalOpen(false);
-                    setIsPowerActionLoading(false);
-                });
+                await startServer(server.id);
             } finally {
-                setTimeout(() => {
-                    setIsPowerActionLoading(false);
-                }, 1000);
+                setIsPowerActionLoading(false);
             }
         }
     };
@@ -324,10 +315,8 @@ const ServerDetail: React.FC = () => {
         try {
             await stopServer(server.id);
         } finally {
-            setTimeout(() => {
-                setIsPowerActionLoading(false);
-                setIsStopModalOpen(false);
-            }, 1000);
+            setIsPowerActionLoading(false);
+            setIsStopModalOpen(false);
         }
     };
 
@@ -732,6 +721,23 @@ const ServerDetail: React.FC = () => {
                                 </CardBody>
                             </Card>
                         </Tab>
+                        {server.type === 'proxy' && (
+                            <Tab
+                                eventKey="motd"
+                                title={
+                                    <>
+                                        <TabTitleIcon><NetworkIcon/></TabTitleIcon>
+                                        <TabTitleText>MOTD</TabTitleText>
+                                    </>
+                                }
+                            >
+                                <ProxyMotdTab
+                                    serverId={server.id}
+                                    serverName={server.name}
+                                    gitOpsEnabled={gitOpsStatus?.enabled === true}
+                                />
+                            </Tab>
+                        )}
                     </Tabs>
                 </Grid>
             </PageSection>

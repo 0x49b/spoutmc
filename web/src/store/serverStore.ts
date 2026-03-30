@@ -18,6 +18,7 @@ interface ServerState {
 
   // Actions
   fetchServers: () => Promise<void>;
+  reconcileServerStatus: (serverId: string, maxAttempts?: number, delayMs?: number) => Promise<void>;
   connectSSE: () => void;
   disconnectSSE: () => void;
   setSelectedServer: (serverId: string | null) => void;
@@ -58,6 +59,23 @@ export const useServerStore = create<ServerState>((set, get) => ({
   error: null,
   eventSource: null,
   sseShouldReconnect: false,
+
+  // Wait and refresh status after power actions so optimistic state
+  // converges to the backend-reported container state.
+  reconcileServerStatus: async (serverId: string, maxAttempts: number = 8, delayMs: number = 1500) => {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      await get().fetchServers();
+      const updatedServer = get().servers.find(server => server.id === serverId);
+
+      if (!updatedServer || updatedServer.status !== 'restarting') {
+        return;
+      }
+
+      if (attempt < maxAttempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  },
 
   fetchServers: async () => {
     set({ loading: true, error: null });
@@ -184,6 +202,8 @@ export const useServerStore = create<ServerState>((set, get) => ({
         ),
         loading: false
       }));
+
+      await get().reconcileServerStatus(serverId);
     } catch (error) {
       console.error('Failed to restart server:', error);
       set({
@@ -208,6 +228,8 @@ export const useServerStore = create<ServerState>((set, get) => ({
         ),
         loading: false
       }));
+
+      await get().reconcileServerStatus(serverId);
     } catch (error) {
       console.error('Failed to stop server:', error);
       set({
@@ -232,6 +254,8 @@ export const useServerStore = create<ServerState>((set, get) => ({
         ),
         loading: false
       }));
+
+      await get().reconcileServerStatus(serverId);
     } catch (error) {
       console.error('Failed to start server:', error);
       set({
