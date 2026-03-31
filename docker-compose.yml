@@ -20,6 +20,9 @@ services:
       - /opt/spoutmc/server_data:/opt/spoutmc/server_data
     environment:
       - SQLITE_DB_PATH=/app/data/spoutmc.db
+      # Override storage.data_path without editing spoutmc.yaml.
+      # Must match the host-side path of the server data volume mount above.
+      - SPOUTMC_DATA_PATH=/opt/spoutmc/server_data
       # Override to allow access from a remote host, e.g.:
       # - SPOUTMC_CORS_ORIGINS=http://192.168.1.100:3000
       # Override the web UI port (must also update the ports mapping above):
