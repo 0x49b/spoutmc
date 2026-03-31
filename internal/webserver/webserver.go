@@ -56,8 +56,12 @@ func Start() (*echo.Echo, error) {
 	e.Pre(middleware.RemoveTrailingSlash())
 
 	e.Use(middleware.Recover())
+	corsOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
+	if envOrigins := os.Getenv("SPOUTMC_CORS_ORIGINS"); envOrigins != "" {
+		corsOrigins = strings.Split(envOrigins, ",")
+	}
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
+		AllowOrigins: corsOrigins,
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodOptions},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
@@ -98,11 +102,15 @@ func Start() (*echo.Echo, error) {
 	}
 	api.RegisterAPIWithModules(e, modules)
 
-	ln, err := net.Listen("tcp", ":3000")
+	port := os.Getenv("SPOUTMC_PORT")
+	if port == "" {
+		port = "3000"
+	}
+	ln, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return nil, fmt.Errorf("❌ failed to bind to port: %w", err)
 	}
-	logger.Info("webserver started on http://localhost:3000")
+	logger.Info("webserver started", zap.String("addr", "http://localhost:"+port))
 
 	go func() {
 		if err := e.Server.Serve(ln); err != nil && err != http.ErrServerClosed {

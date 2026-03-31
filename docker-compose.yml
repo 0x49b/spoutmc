@@ -1,0 +1,30 @@
+services:
+  spoutmc:
+    build: .
+    image: spoutmc:latest
+    container_name: spoutmc
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Docker socket — gives SpoutMC access to the host Docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Config directory — must contain spoutmc.yaml
+      - ./config:/app/config
+      # SQLite database — persisted in a named volume
+      - spoutmc-db:/app/data
+      # Server data directory — CRITICAL: must be mounted at the SAME absolute path
+      # as storage.data_path in spoutmc.yaml so that volume bindings SpoutMC
+      # creates for server containers resolve correctly on the host.
+      # Change /opt/spoutmc/server_data to match your storage.data_path value.
+      - /opt/spoutmc/server_data:/opt/spoutmc/server_data
+    environment:
+      - SQLITE_DB_PATH=/app/data/spoutmc.db
+      # Override to allow access from a remote host, e.g.:
+      # - SPOUTMC_CORS_ORIGINS=http://192.168.1.100:3000
+      # Override the web UI port (must also update the ports mapping above):
+      # - SPOUTMC_PORT=3000
+    working_dir: /app
+
+volumes:
+  spoutmc-db:
