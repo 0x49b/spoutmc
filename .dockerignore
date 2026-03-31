@@ -1,0 +1,8 @@
+build/
+internal/webserver/static/dist/
+web/node_modules/
+web/dist/
+*.exe
+*.log
+.git/
+docs/routes.json

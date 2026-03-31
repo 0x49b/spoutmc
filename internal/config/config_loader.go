@@ -95,6 +95,12 @@ func normalizeConfigurationPaths(cfg *models.SpoutConfiguration) {
 		return
 	}
 
+	if envDataPath := os.Getenv("SPOUTMC_DATA_PATH"); envDataPath != "" {
+		log.GetLogger(log.ModuleConfig).Info("Data path overridden by SPOUTMC_DATA_PATH env var",
+			zap.String("value", envDataPath))
+		cfg.Storage.DataPath = envDataPath
+	}
+
 	normalizedPath := pathutil.NormalizeHostPath(cfg.Storage.DataPath)
 	if normalizedPath != cfg.Storage.DataPath {
 		log.GetLogger(log.ModuleConfig).Info("Normalized storage data path",
