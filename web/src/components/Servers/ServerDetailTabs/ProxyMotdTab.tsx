@@ -11,11 +11,12 @@ import {
     Spinner,
     Title
 } from '@patternfly/react-core';
-import { SaveIcon } from '@patternfly/react-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {SaveIcon, UploadIcon} from '@patternfly/react-icons';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import motdDirtBackground from '../../../assets/motd-dirt-background.png';
+import packPng from '../../../assets/packpng.svg';
 import * as api from '../../../service/apiService.ts';
-import { useNotificationStore } from '../../../store/notificationStore.ts';
+import {useNotificationStore} from '../../../store/notificationStore.ts';
 
 interface ProxyMotdTabProps {
     serverId: string;
@@ -24,6 +25,7 @@ interface ProxyMotdTabProps {
 }
 
 const COMMON_SYMBOLS = ['★', '✦', '✧', '▶', '◀', '◆', '»', '«', '|', '•', '✪', '⚔'];
+const SERVER_ICON_SIZE = 64;
 
 const escapeTomlBasicString = (value: string): string =>
     value
@@ -194,6 +196,52 @@ const escapeHtml = (text: string): string =>
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 
+const normalizeImageToPngIcon = (file: File): Promise<{ dataUrl: string; base64: string }> =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Failed to read image file'));
+        reader.onload = () => {
+            const sourceDataUrl = typeof reader.result === 'string' ? reader.result : '';
+            if (!sourceDataUrl) {
+                reject(new Error('Invalid image data'));
+                return;
+            }
+
+            const img = new Image();
+            img.onerror = () => reject(new Error('Failed to decode image'));
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = SERVER_ICON_SIZE;
+                canvas.height = SERVER_ICON_SIZE;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Canvas context unavailable'));
+                    return;
+                }
+
+                const scale = Math.max(SERVER_ICON_SIZE / img.width, SERVER_ICON_SIZE / img.height);
+                const drawWidth = img.width * scale;
+                const drawHeight = img.height * scale;
+                const drawX = (SERVER_ICON_SIZE - drawWidth) / 2;
+                const drawY = (SERVER_ICON_SIZE - drawHeight) / 2;
+
+                ctx.clearRect(0, 0, SERVER_ICON_SIZE, SERVER_ICON_SIZE);
+                ctx.imageSmoothingEnabled = true;
+                ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+                const pngDataUrl = canvas.toDataURL('image/png');
+                const base64 = pngDataUrl.split(',')[1] || '';
+                if (!base64) {
+                    reject(new Error('Failed to encode PNG image'));
+                    return;
+                }
+                resolve({dataUrl: pngDataUrl, base64});
+            };
+            img.src = sourceDataUrl;
+        };
+        reader.readAsDataURL(file);
+    });
+
 type MiniMessageParseResult = {
     html: string;
     hadUnsupportedTag: boolean;
@@ -205,20 +253,24 @@ const normalizeHexForMiniMessage = (value: string): string | null => {
     return normalized ? normalized.toLowerCase() : null;
 };
 
-const openTagToHtml = (rawTag: string): { key: string; openHtml: string; closeHtml: string } | null => {
+const openTagToHtml = (rawTag: string): {
+    key: string;
+    openHtml: string;
+    closeHtml: string
+} | null => {
     const tag = rawTag.trim().toLowerCase();
 
     if (tag === 'bold') {
-        return { key: 'bold', openHtml: '<strong>', closeHtml: '</strong>' };
+        return {key: 'bold', openHtml: '<strong>', closeHtml: '</strong>'};
     }
     if (tag === 'italic') {
-        return { key: 'italic', openHtml: '<em>', closeHtml: '</em>' };
+        return {key: 'italic', openHtml: '<em>', closeHtml: '</em>'};
     }
     if (tag === 'underlined') {
-        return { key: 'underlined', openHtml: '<u>', closeHtml: '</u>' };
+        return {key: 'underlined', openHtml: '<u>', closeHtml: '</u>'};
     }
     if (tag === 'strikethrough') {
-        return { key: 'strikethrough', openHtml: '<s>', closeHtml: '</s>' };
+        return {key: 'strikethrough', openHtml: '<s>', closeHtml: '</s>'};
     }
     if (tag === 'obfuscated') {
         return {
@@ -357,7 +409,7 @@ const miniMessageToEditorHtml = (input: string): MiniMessageParseResult => {
         }
 
         html += parsed.openHtml;
-        stack.push({ key: parsed.key, closeHtml: parsed.closeHtml });
+        stack.push({key: parsed.key, closeHtml: parsed.closeHtml});
         i = end + 1;
     }
 
@@ -368,7 +420,7 @@ const miniMessageToEditorHtml = (input: string): MiniMessageParseResult => {
         html += top.closeHtml;
     }
 
-    return { html: html || '<br>', hadUnsupportedTag, hadMalformedTag };
+    return {html: html || '<br>', hadUnsupportedTag, hadMalformedTag};
 };
 
 const wrapSelectionWithSpan = (
@@ -402,20 +454,24 @@ const wrapSelectionWithSpan = (
 };
 
 export const ProxyMotdTab: React.FC<ProxyMotdTabProps> = ({
-    serverId,
-    serverName,
-    gitOpsEnabled
-}) => {
+                                                              serverId,
+                                                              serverName,
+                                                              gitOpsEnabled
+                                                          }) => {
     const [editorHtml, setEditorHtml] = useState('');
     const [selectedColor, setSelectedColor] = useState('#09add3');
 
     const [tomlContent, setTomlContent] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isUploadingIcon, setIsUploadingIcon] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [parseWarning, setParseWarning] = useState<string | null>(null);
+    const [iconError, setIconError] = useState<string | null>(null);
+    const [uploadedIconDataUrl, setUploadedIconDataUrl] = useState<string | null>(null);
 
     const editorRef = useRef<HTMLDivElement | null>(null);
+    const iconFileInputRef = useRef<HTMLInputElement | null>(null);
     const pushToast = useNotificationStore((state) => state.pushToast);
 
     const generatedMotd = useMemo(() => {
@@ -467,7 +523,7 @@ export const ProxyMotdTab: React.FC<ProxyMotdTabProps> = ({
             const currentMotd = parseMotdFromToml(content);
             if (currentMotd === null) {
                 setParseWarning('No existing MOTD key found in velocity.toml. A new one will be added on save.');
-                setEditorHtml('<div>A Velocity Server</div>');
+                setEditorHtml(`<span style="color: #ffffff;">${escapeHtml(serverName || 'Minecraft Server')}</span><br><span style="color: #8a8a8a;">A Minecraft Server</span>`);
                 return;
             }
 
@@ -524,16 +580,57 @@ export const ProxyMotdTab: React.FC<ProxyMotdTabProps> = ({
         }
     };
 
+    const handleIconPickClick = () => {
+        if (isUploadingIcon) return;
+        iconFileInputRef.current?.click();
+    };
+
+    const handleIconFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setIconError('Please select a valid image file.');
+            return;
+        }
+
+        setIconError(null);
+        setIsUploadingIcon(true);
+
+        try {
+            const {dataUrl, base64} = await normalizeImageToPngIcon(file);
+            await api.updateServerBinaryFile(serverId, 'server-icon.png', base64, '/server');
+            setUploadedIconDataUrl(dataUrl);
+            pushToast({
+                variant: 'success',
+                title: 'Proxy icon uploaded',
+                description: 'Saved /server/server-icon.png successfully (proxy was not restarted).'
+            });
+        } catch (error: any) {
+            console.error('Failed to upload proxy icon', error);
+            if (error?.response?.status === 404) {
+                setIconError('Icon upload endpoint is not available on the running API. Restart/update the backend, then try again.');
+            } else {
+                setIconError('Failed to upload icon. Please try another image.');
+            }
+        } finally {
+            setIsUploadingIcon(false);
+        }
+    };
+
     return (
         <Card>
             <CardBody>
-                <Title headingLevel="h3" size="lg" className="pf-v6-u-mb-md">Proxy MOTD Generator</Title>
+                <Title headingLevel="h3" size="lg" className="pf-v6-u-mb-md">Proxy MOTD
+                    Generator</Title>
                 <div className="pf-v6-u-color-200 pf-v6-u-mb-md">
                     {gitOpsEnabled && ' This file can be overwritten by GitSync. Ensure your repository includes the same MOTD (MOTD Env Var).'}
                 </div>
 
                 {parseWarning && (
-                    <Alert variant="info" isInline title="MOTD parsing note" className="pf-v6-u-mb-md">
+                    <Alert variant="info" isInline title="MOTD parsing note"
+                           className="pf-v6-u-mb-md">
                         {parseWarning}
                     </Alert>
                 )}
@@ -541,6 +638,11 @@ export const ProxyMotdTab: React.FC<ProxyMotdTabProps> = ({
                 {loadError && (
                     <Alert variant="danger" isInline title="Error" className="pf-v6-u-mb-md">
                         {loadError}
+                    </Alert>
+                )}
+                {iconError && (
+                    <Alert variant="danger" isInline title="Icon upload error" className="pf-v6-u-mb-md">
+                        {iconError}
                     </Alert>
                 )}
 
@@ -554,54 +656,89 @@ export const ProxyMotdTab: React.FC<ProxyMotdTabProps> = ({
                             <GridItem span={12} lg={12}>
                                 <Card isCompact>
                                     <CardBody>
-                                        <Title headingLevel="h4" size="md" className="pf-v6-u-mb-sm">MOTD editor (live preview)</Title>
-                                        <Flex spaceItems={{default: 'spaceItemsSm'}} flexWrap={{default: 'wrap'}} className="pf-v6-u-mb-sm">
-                                            <FlexItem><Button size="sm" variant="control" onClick={() => runCommand('bold')}><b>B</b></Button></FlexItem>
-                                            <FlexItem><Button size="sm" variant="control" onClick={() => runCommand('italic')}><i>I</i></Button></FlexItem>
-                                            <FlexItem><Button size="sm" variant="control" onClick={() => runCommand('underline')}><u>U</u></Button></FlexItem>
-                                            <FlexItem><Button size="sm" variant="control" onClick={() => runCommand('strikeThrough')}><del>S</del></Button></FlexItem>
-                                            <FlexItem><Button size="sm" variant="control" onClick={applyObfuscated}>Obfuscated</Button></FlexItem>
+                                        <Title headingLevel="h4" size="md"
+                                               className="pf-v6-u-mb-sm">MOTD editor (live
+                                            preview)</Title>
+                                        <Flex spaceItems={{default: 'spaceItemsSm'}}
+                                              flexWrap={{default: 'wrap'}}
+                                              className="pf-v6-u-mb-sm">
+                                            <FlexItem><Button size="sm" variant="control"
+                                                              onClick={() => runCommand('bold')}><b>B</b></Button></FlexItem>
+                                            <FlexItem><Button size="sm" variant="control"
+                                                              onClick={() => runCommand('italic')}><i>I</i></Button></FlexItem>
+                                            <FlexItem><Button size="sm" variant="control"
+                                                              onClick={() => runCommand('underline')}><u>U</u></Button></FlexItem>
+                                            <FlexItem><Button size="sm" variant="control"
+                                                              onClick={() => runCommand('strikeThrough')}>
+                                                <del>S</del>
+                                            </Button></FlexItem>
+                                            <FlexItem><Button size="sm" variant="control"
+                                                              onClick={applyObfuscated}>Obfuscated</Button></FlexItem>
                                             <FlexItem>
                                                 <input
                                                     aria-label="Selected text color"
                                                     type="color"
                                                     value={selectedColor}
-                                                    onChange={(event) => {setSelectedColor(event.target.value); runCommand('foreColor', selectedColor)}}
+                                                    onChange={(event) => {
+                                                        const color = event.target.value;
+                                                        setSelectedColor(color);
+                                                        runCommand('foreColor', color);
+                                                    }}
                                                 />
                                             </FlexItem>
-                        
+
                                             {COMMON_SYMBOLS.map((symbol) => (
                                                 <FlexItem key={symbol}>
-                                                    <Button size="sm" variant="control" onClick={() => insertSymbol(symbol)}>{symbol}</Button>
+                                                    <Button size="sm" variant="control"
+                                                            onClick={() => insertSymbol(symbol)}>{symbol}</Button>
                                                 </FlexItem>
                                             ))}
                                         </Flex>
                                         <div
-                                            ref={editorRef}
-                                            contentEditable
-                                            suppressContentEditableWarning
-                                            onInput={(event) => setEditorHtml((event.target as HTMLDivElement).innerHTML)}
-                                            onPaste={(event) => {
-                                                event.preventDefault();
-                                                const text = event.clipboardData.getData('text/plain');
-                                                document.execCommand('insertText', false, text);
-                                            }}
-                                            style={{
-                                                minHeight: '70px',
-                                                border: '1px solid var(--pf-v6-global--BorderColor--100)',
-                                                borderRadius: 'var(--pf-v6-global--BorderRadius--sm)',
-                                                padding: '0.5rem',
-                                                backgroundColor: '#2f2f2f',
-                                                backgroundImage: `url(${motdDirtBackground})`,
-                                                backgroundSize: 'cover',
-                                                backgroundPosition: 'center',
-                                                fontFamily: '"MinecraftFont", monospace',
-                                                fontSize: '20px',
-                                                letterSpacing: '1px',
-                                                fontSmooth: 'always'
-                                            }}
-                                            className="pf-v6-u-mb-sm"
-                                        />
+                                            className="server-detail-motd-preview pf-v6-u-mb-sm"
+                                            style={{backgroundImage: `url(${motdDirtBackground})`}}
+                                        >
+                                            <button
+                                                type="button"
+                                                className="server-detail-motd-icon-upload"
+                                                onClick={handleIconPickClick}
+                                                disabled={isUploadingIcon}
+                                                title={isUploadingIcon ? 'Uploading icon...' : 'Upload server icon'}
+                                                aria-label="Upload server icon"
+                                            >
+                                                <img
+                                                    src={uploadedIconDataUrl || packPng}
+                                                    alt="server icon"
+                                                    className="server-detail-motd-default-image"
+                                                />
+                                                <span className="server-detail-motd-icon-upload-overlay" aria-hidden="true">
+                                                    <UploadIcon/>
+                                                </span>
+                                            </button>
+                                            <input
+                                                ref={iconFileInputRef}
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp,image/gif"
+                                                onChange={handleIconFileChange}
+                                                className="server-detail-motd-file-input"
+                                            />
+                                            <div
+                                                className="server-detail-motd-content"
+                                            >
+                                                <div
+                                                    ref={editorRef}
+                                                    contentEditable
+                                                    suppressContentEditableWarning
+                                                    onInput={(event) => setEditorHtml((event.target as HTMLDivElement).innerHTML)}
+                                                    onPaste={(event) => {
+                                                        event.preventDefault();
+                                                        const text = event.clipboardData.getData('text/plain');
+                                                        document.execCommand('insertText', false, text);
+                                                    }}
+                                                    className="server-detail-motd-editor"
+                                                />
+                                            </div>
+                                        </div>
                                         <ClipboardCopy isReadOnly hoverTip="Copy" clickTip="Copied">
                                             {generatedMotd || '<#09add3>A Velocity Server'}
                                         </ClipboardCopy>

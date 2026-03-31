@@ -1,16 +1,15 @@
 import React from 'react';
 import {
+    Alert,
     Button,
     ButtonVariant,
     Grid,
     GridItem,
-    Icon,
     Modal,
     ModalBody,
     ModalFooter,
     ModalVariant
 } from '@patternfly/react-core';
-import {ExclamationTriangleIcon} from "@patternfly/react-icons";
 
 interface RestartServerModalPropsProps {
     isOpen: boolean;
@@ -21,12 +20,12 @@ interface RestartServerModalPropsProps {
 }
 
 const RestartServerModalProps: React.FC<RestartServerModalPropsProps> = ({
-                                                             isOpen,
-                                                             onClose,
-                                                             onConfirm,
-                                                             serverName,
-                                                             isLoading = false
-                                                         }) => {
+                                                                             isOpen,
+                                                                             onClose,
+                                                                             onConfirm,
+                                                                             serverName,
+                                                                             isLoading = false
+                                                                         }) => {
     return (
         <Modal
             variant={ModalVariant.small}
@@ -37,12 +36,11 @@ const RestartServerModalProps: React.FC<RestartServerModalPropsProps> = ({
                 <Grid hasGutter component="ul">
                     <GridItem className="pf-v6-u-mt-xl">Are you sure you want to restart
                         Server <strong>{serverName}</strong>?</GridItem>
-                    <GridItem>
-                        <Icon status="warning" className="mr-2">
-                            <ExclamationTriangleIcon/>
-                        </Icon>
-                        All players will be disconnected when the server restarts.
-                    </GridItem>
+
+                    <Alert variant="danger"
+                           title="All players will be disconnected when the server restarts."
+                           ouiaId="DisconnectPlayerAlert"/>
+
                 </Grid>
             </ModalBody>
             <ModalFooter>

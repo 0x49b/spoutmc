@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -48,6 +49,7 @@ func RegisterServerRoutes(g *echo.Group) {
 	g.GET("/server/:id/files", listServerFilesHandler)
 	g.GET("/server/:id/file", getServerFileHandler)
 	g.PUT("/server/:id/file", updateServerFileHandler)
+	g.PUT("/server/:id/file/binary", updateServerBinaryFileHandler)
 
 	g.GET("/server/stream", streamServers)
 	g.GET("/server/:id/logs", getServerLogs)
@@ -409,9 +411,10 @@ func executeCommandHandler(c echo.Context) error {
 }
 
 type UpdateServerRequest struct {
-	Name          string                      `json:"name,omitempty"`
-	Env           map[string]string           `json:"env,omitempty"`
-	RestartPolicy *ServerRestartPolicyRequest `json:"restartPolicy,omitempty"`
+	Name             string                      `json:"name,omitempty"`
+	Env              map[string]string           `json:"env,omitempty"`
+	RestartPolicy    *ServerRestartPolicyRequest `json:"restartPolicy,omitempty"`
+	ApplyImmediately *bool                       `json:"applyImmediately,omitempty"`
 }
 
 func mapRestartPolicyRequest(req *ServerRestartPolicyRequest) *models.SpoutServerRestartPolicy {
@@ -547,28 +550,40 @@ func updateServerHandler(c echo.Context) error {
 		serverConfig.RestartPolicy = mapRestartPolicyRequest(req.RestartPolicy)
 	}
 
-	logger.Info("Stopping and removing old container", zap.String("name", currentName))
-	if err := docker.StopAndRemoveContainerById(c.Request().Context(), containerID); err != nil {
-		logger.Error("Failed to stop and remove container", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": fmt.Sprintf("Failed to remove container: %v", err),
+	applyImmediately := true
+	if req.ApplyImmediately != nil {
+		applyImmediately = *req.ApplyImmediately
+	}
+	if !applyImmediately && req.Name != "" && req.Name != currentName {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Renaming a server requires applyImmediately=true",
 		})
 	}
 
-	if newName != currentName {
-		dataPath := ""
-		if cfg.Storage != nil {
-			dataPath = cfg.Storage.DataPath
+	if applyImmediately {
+		logger.Info("Stopping and removing old container", zap.String("name", currentName))
+		if err := docker.StopAndRemoveContainerById(c.Request().Context(), containerID); err != nil {
+			logger.Error("Failed to stop and remove container", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("Failed to remove container: %v", err),
+			})
 		}
-		if dataPath != "" {
-			oldPath := filepath.Join(dataPath, currentName)
-			newPath := filepath.Join(dataPath, newName)
-			if _, err := os.Stat(oldPath); err == nil {
-				if err := os.Rename(oldPath, newPath); err != nil {
-					logger.Warn("Failed to rename server data directory",
-						zap.String("oldPath", oldPath),
-						zap.String("newPath", newPath),
-						zap.Error(err))
+
+		if newName != currentName {
+			dataPath := ""
+			if cfg.Storage != nil {
+				dataPath = cfg.Storage.DataPath
+			}
+			if dataPath != "" {
+				oldPath := filepath.Join(dataPath, currentName)
+				newPath := filepath.Join(dataPath, newName)
+				if _, err := os.Stat(oldPath); err == nil {
+					if err := os.Rename(oldPath, newPath); err != nil {
+						logger.Warn("Failed to rename server data directory",
+							zap.String("oldPath", oldPath),
+							zap.String("newPath", newPath),
+							zap.Error(err))
+					}
 				}
 			}
 		}
@@ -590,6 +605,14 @@ func updateServerHandler(c echo.Context) error {
 				"error": fmt.Sprintf("Failed to update server in local config: %v", err),
 			})
 		}
+	}
+
+	if !applyImmediately {
+		return c.JSON(http.StatusOK, map[string]string{
+			"status":  "success",
+			"message": "Server configuration updated without container restart",
+			"name":    newName,
+		})
 	}
 
 	dataPath := ""
@@ -1299,5 +1322,142 @@ func updateServerFileHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"status":  "success",
 		"message": "File updated successfully",
+	})
+}
+
+func updateServerBinaryFileHandler(c echo.Context) error {
+	containerID := c.Param("id")
+	filePath := c.QueryParam("path")
+	volumePath := c.QueryParam("volume")
+
+	if containerID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Container ID is required",
+		})
+	}
+
+	if filePath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "File path is required",
+		})
+	}
+
+	var reqBody struct {
+		ContentBase64 string `json:"contentBase64"`
+	}
+
+	if err := c.Bind(&reqBody); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+	}
+	if reqBody.ContentBase64 == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "contentBase64 is required",
+		})
+	}
+
+	contentBytes, err := base64.StdEncoding.DecodeString(reqBody.ContentBase64)
+	if err != nil {
+		contentBytes, err = base64.RawStdEncoding.DecodeString(reqBody.ContentBase64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "contentBase64 is not valid base64 data",
+			})
+		}
+	}
+
+	containerInfo, err := docker.GetContainerById(c.Request().Context(), containerID)
+	if err != nil {
+		logger.Error("Failed to get container info", zap.Error(err))
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Container not found",
+		})
+	}
+
+	serverName := containerInfo.Name
+	if len(serverName) > 0 && serverName[0] == '/' {
+		serverName = serverName[1:] // Remove leading slash
+	}
+
+	cfg := config.All()
+	dataPath := ""
+	if cfg.Storage != nil {
+		dataPath = cfg.Storage.DataPath
+	}
+
+	if dataPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to determine data path",
+			})
+		}
+		dataPath = wd
+	}
+
+	var containerPath string
+	for _, server := range cfg.Servers {
+		if server.Name == serverName {
+			if volumePath != "" {
+				containerPath = volumePath
+			} else if len(server.Volumes) > 0 {
+				containerPath = server.Volumes[0].Containerpath
+			}
+			break
+		}
+	}
+
+	if containerPath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "No volumes found for server",
+		})
+	}
+
+	fullPath := filepath.Join(dataPath, serverName, containerPath, filePath)
+
+	serverDir := filepath.Join(dataPath, serverName)
+	rel, err := filepath.Rel(serverDir, fullPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid file path",
+		})
+	}
+
+	backupPath := fullPath + ".backup"
+	if _, err := os.Stat(fullPath); err == nil {
+		if err := os.Rename(fullPath, backupPath); err != nil {
+			logger.Error("Failed to create backup of file",
+				zap.String("file", fullPath),
+				zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to create backup of file",
+			})
+		}
+	}
+
+	if err := os.WriteFile(fullPath, contentBytes, 0644); err != nil {
+		logger.Error("Failed to write binary file",
+			zap.String("file", fullPath),
+			zap.Error(err))
+
+		if _, statErr := os.Stat(backupPath); statErr == nil {
+			os.Rename(backupPath, fullPath)
+		}
+
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to write binary file",
+		})
+	}
+
+	os.Remove(backupPath)
+
+	logger.Info("Binary file updated successfully",
+		zap.String("server", serverName),
+		zap.String("file", filePath))
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Binary file updated successfully",
 	})
 }

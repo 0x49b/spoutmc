@@ -318,8 +318,15 @@ export const addServer = (serverData: {
 export const deleteServer = (id: string, removeData: boolean = true) =>
   api.delete(`/server/${id}`, { params: { removeData } });
 
-export const updateServer = (id: string, data: { name?: string; env?: Record<string, string> }) =>
-  api.put(`/server/${id}`, data);
+export const updateServer = (
+  id: string,
+  data: { name?: string; env?: Record<string, string> },
+  opts?: { applyImmediately?: boolean }
+) =>
+  api.put(`/server/${id}`, {
+    ...data,
+    ...(opts?.applyImmediately !== undefined ? { applyImmediately: opts.applyImmediately } : {})
+  });
 
 export const getServerEnv = (id: string) =>
   api.get<Record<string, string>>(`/server/${id}/env`);
@@ -360,6 +367,13 @@ export const getServerFile = (serverId: string, path: string, volume?: string) =
 
 export const updateServerFile = (serverId: string, path: string, content: string, volume?: string) =>
   api.put(`/server/${serverId}/file`, { content }, { params: { path, volume } });
+
+export const updateServerBinaryFile = (serverId: string, path: string, contentBase64: string, volume?: string) =>
+  api.put(
+    `/server/${serverId}/file/binary`,
+    { contentBase64 },
+    { params: { path, volume } }
+  );
 
 // Plugin registry API
 export interface PluginRegistryEntryDTO {

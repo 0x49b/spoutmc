@@ -5,7 +5,7 @@
 
 @font-face {
     font-family  : 'MinecraftFont';
-    src          : url('./assets/fonts/Minecraft.ttf') format('truetype');
+    src          : url('./assets/fonts/minecraft.woff2');
     font-style   : normal;
     font-weight  : 400;
     font-display : swap;
@@ -43,4 +43,79 @@ html, body {
 }
 .p-1{
     padding: 1rem;
+}
+.server-detail-motd-preview {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-height: 90px;
+    padding: 8px 12px 10px;
+    background-position: center;
+    background-size: cover;
+}
+
+.server-detail-motd-default-image {
+    width: 56px;
+    height: 56px;
+    image-rendering: pixelated;
+    flex-shrink: 0;
+}
+
+.server-detail-motd-icon-upload {
+    position: relative;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    line-height: 0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.server-detail-motd-icon-upload:disabled {
+    cursor: wait;
+    opacity: 0.8;
+}
+
+.server-detail-motd-icon-upload-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    opacity: 0;
+    transition: opacity 120ms ease-in-out;
+    font-size: 1.1rem;
+}
+
+.server-detail-motd-icon-upload:hover .server-detail-motd-icon-upload-overlay,
+.server-detail-motd-icon-upload:focus-visible .server-detail-motd-icon-upload-overlay {
+    opacity: 1;
+}
+
+.server-detail-motd-file-input {
+    display: none;
+}
+
+.server-detail-motd-content {
+    flex: 1;
+    min-width: 0;
+    padding-top: 2px;
+}
+
+.server-detail-motd-editor {
+    min-height: 56px;
+    outline: none;
+    border: none;
+    background: transparent;
+    color: #fff;
+    font-family: 'MinecraftFont', monospace;
+    font-size: 20px;
+    letter-spacing: 1px;
+    font-smooth: always;
+    -webkit-font-smoothing: antialiased;
+    white-space: pre-wrap;
+    word-break: break-word;
 }

@@ -29,9 +29,7 @@ import {
     EditIcon,
     FileIcon,
     NetworkIcon,
-    OutlinedHddIcon,
     PowerOffIcon,
-    ServerGroupIcon,
     SyncAltIcon,
     TerminalIcon,
     TrashIcon,
@@ -284,19 +282,6 @@ const ServerDetail: React.FC = () => {
         setIsRestartModalOpen(true);
     }
 
-    const getServerIcon = (type: 'proxy' | 'lobby' | 'game') => {
-        switch (type) {
-            case 'proxy':
-                return <NetworkIcon style={{ fontSize: '20px', color: 'var(--pf-v6-global--warning-color--100)' }} />;
-            case 'lobby':
-                return <OutlinedHddIcon style={{ fontSize: '20px', color: 'var(--pf-v6-global--info-color--100)' }} />;
-            case 'game':
-                return <ServerGroupIcon style={{ fontSize: '20px', color: 'var(--pf-v6-global--success-color--100)' }} />;
-            default:
-                return <ServerGroupIcon style={{ fontSize: '20px', color: 'var(--pf-v6-global--success-color--100)' }} />;
-        }
-    };
-
     const handlePowerAction = async () => {
         if (server.status === 'online') {
             setIsStopModalOpen(true);
@@ -342,6 +327,7 @@ const ServerDetail: React.FC = () => {
             <PageHeader
                 title={server.name}
                 description={`Server details and management for ${server.name}`}
+                serverStatus={<StatusBadge status={server.status}/>}
                 actions={
                     <>
 
@@ -364,16 +350,16 @@ const ServerDetail: React.FC = () => {
                             <Button
                                 variant="secondary"
                                 icon={<SyncAltIcon
-                                    className={isRestarting || server.status === 'restarting' ? 'pf-v6-u-animation-spin' : ''}/>}
+                                    className={isRestarting ? 'pf-v6-u-animation-spin' : ''}/>}
                                 onClick={handleRestartAction}
-                                isDisabled={isRestarting || server.status === 'restarting' || isPowerActionLoading}
+                                isDisabled={isRestarting || isPowerActionLoading}
                             >
-                                {server.status === 'restarting' ? 'Restarting...' :
-                                    isRestarting ? 'Restarting...' : 'Restart Server'}
+
+                                {isRestarting ? 'Restarting...' : 'Restart Server'}
                             </Button>
                         )}
                         <Button
-                            variant={server.status === 'online' ? 'danger' : 'success'}
+                            variant={server.status === 'online' ? 'danger' : 'primary'}
                             icon={isPowerActionLoading ? <Spinner size="md"/> : <PowerOffIcon/>}
                             onClick={handlePowerAction}
                             isDisabled={server.status === 'restarting' || isRestarting || isPowerActionLoading}
@@ -393,16 +379,6 @@ const ServerDetail: React.FC = () => {
                     </>
                 }
             />
-
-            {gitOpsStatus?.enabled ? (
-                <PageSection className="pf-v6-u-pb-0">
-                    <div className="pf-v6-u-color-200">
-                        GitOps is enabled: server removal is disabled in the UI. Remove the server from the Git
-                        repository instead. Any server change synced from Git updates <code>velocity.toml</code> and
-                        restarts the proxy.
-                    </div>
-                </PageSection>
-            ) : null}
 
             {/* Modals */}
             <StopServerModal
@@ -452,28 +428,6 @@ const ServerDetail: React.FC = () => {
                 <Grid hasGutter>
                     {/* Server Status Cards */}
                     <Grid hasGutter className="pf-v6-u-mb-lg">
-                        <GridItem span={12} md={6} lg={3}>
-                            <Card isCompact>
-                                <CardBody>
-                                    <Flex alignItems={{default: 'alignItemsCenter'}}>
-                                        <FlexItem spacer={{default: 'spacerSm'}}>
-                                            <ChartLineIcon style={{
-                                                fontSize: '20px',
-                                                color: 'var(--pf-v6-global--primary-color--100)'
-                                            }}/>
-                                        </FlexItem>
-                                        <FlexItem>
-                                            <div>
-                                                <div className="pf-v6-u-font-size-sm">Status</div>
-                                                <div className="pf-v6-u-mt-xs"><StatusBadge
-                                                    status={server.status}/></div>
-                                            </div>
-                                        </FlexItem>
-                                    </Flex>
-                                </CardBody>
-                            </Card>
-                        </GridItem>
-
                         <GridItem span={12} md={6} lg={3}>
                             <Card isCompact>
                                 <CardBody>
@@ -607,16 +561,19 @@ const ServerDetail: React.FC = () => {
                                         Plugins for this server ({registryPluginsForServer.length})
                                     </Title>
                                     {registryPluginsForServer.length === 0 ? (
-                                        <EmptyState titleText="No registry plugins apply to this server"
-                                                    variant={EmptyStateVariant.sm}
-                                                    className="pf-v6-u-mt-md">
+                                        <EmptyState
+                                            titleText="No registry plugins apply to this server"
+                                            variant={EmptyStateVariant.sm}
+                                            className="pf-v6-u-mt-md">
                                             <EmptyStateBody>
-                                                Assign plugins in the Plugins page or rely on system-managed
+                                                Assign plugins in the Plugins page or rely on
+                                                system-managed
                                                 plugins for this server type.
                                             </EmptyStateBody>
                                         </EmptyState>
                                     ) : (
-                                        <Table aria-label="Plugins for server" variant="compact" className="pf-v6-u-mt-md">
+                                        <Table aria-label="Plugins for server" variant="compact"
+                                               className="pf-v6-u-mt-md">
                                             <Thead>
                                                 <Tr>
                                                     <Th>Name</Th>
@@ -629,13 +586,15 @@ const ServerDetail: React.FC = () => {
                                                     <Tr key={p.id}>
                                                         <Td dataLabel="Name">{p.name}</Td>
                                                         <Td dataLabel="URL">
-                                                            <span className="pf-v6-u-font-size-sm" title={p.url}>
+                                                            <span className="pf-v6-u-font-size-sm"
+                                                                  title={p.url}>
                                                                 {p.url.length > 80 ? `${p.url.slice(0, 80)}…` : p.url}
                                                             </span>
                                                         </Td>
                                                         <Td dataLabel="Source">
                                                             {p.systemManaged ? (
-                                                                <Label color="purple">System-managed</Label>
+                                                                <Label
+                                                                    color="purple">System-managed</Label>
                                                             ) : (
                                                                 <Label color="green">User</Label>
                                                             )}

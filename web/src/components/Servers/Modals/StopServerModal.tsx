@@ -1,16 +1,15 @@
 import React from 'react';
 import {
+    Alert,
     Button,
     ButtonVariant,
     Grid,
     GridItem,
-    Icon,
     Modal,
     ModalBody,
     ModalFooter,
     ModalVariant
 } from '@patternfly/react-core';
-import {ExclamationTriangleIcon} from "@patternfly/react-icons";
 
 interface StopServerModalProps {
     isOpen: boolean;
@@ -37,12 +36,9 @@ const StopServerModal: React.FC<StopServerModalProps> = ({
                 <Grid hasGutter component="ul">
                     <GridItem className="pf-v6-u-mt-xl">Are you sure you want to stop
                         Server <strong>{serverName}</strong>?</GridItem>
-                    <GridItem>
-                        <Icon status="warning" className="mr-2">
-                            <ExclamationTriangleIcon/>
-                        </Icon>
-                        All players will be disconnected when the server stops.
-                    </GridItem>
+                    <Alert variant="danger"
+                           title="All players will be disconnected when the server restarts."
+                           ouiaId="DisconnectPlayerAlert"/>
                 </Grid>
             </ModalBody>
             <ModalFooter>
