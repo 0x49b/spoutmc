@@ -56,10 +56,7 @@ func Start() (*echo.Echo, error) {
 	e.Pre(middleware.RemoveTrailingSlash())
 
 	e.Use(middleware.Recover())
-	corsOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
-	if envOrigins := os.Getenv("SPOUTMC_CORS_ORIGINS"); envOrigins != "" {
-		corsOrigins = strings.Split(envOrigins, ",")
-	}
+	corsOrigins := getCORSOrigins()
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: corsOrigins,
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodOptions},
@@ -178,4 +175,39 @@ func shouldWriteRoutes() bool {
 	}
 
 	return parsed
+}
+
+func getCORSOrigins() []string {
+	defaultOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
+
+	origins := make([]string, 0, len(defaultOrigins))
+	seen := make(map[string]struct{}, len(defaultOrigins))
+
+	for _, origin := range defaultOrigins {
+		trimmed := strings.TrimSpace(origin)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		origins = append(origins, trimmed)
+	}
+
+	if envOrigins := strings.TrimSpace(os.Getenv("SPOUTMC_CORS_ORIGINS")); envOrigins != "" {
+		for _, origin := range strings.Split(envOrigins, ",") {
+			trimmed := strings.TrimSpace(origin)
+			if trimmed == "" {
+				continue
+			}
+			if _, ok := seen[trimmed]; ok {
+				continue
+			}
+			seen[trimmed] = struct{}{}
+			origins = append(origins, trimmed)
+		}
+	}
+
+	return origins
 }
