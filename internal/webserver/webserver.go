@@ -84,7 +84,7 @@ func Start() (*echo.Echo, error) {
 	}))
 
 	if distFS, err := static.GetDistFS(); err == nil {
-		logger.Info("🎨 Serving embedded frontend from binary")
+		logger.Info("Serving embedded frontend from binary")
 
 		e.GET("/assets/*", echo.WrapHandler(
 			http.FileServer(http.FS(distFS)),

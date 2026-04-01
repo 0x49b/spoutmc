@@ -286,16 +286,24 @@ export const addPlayerJournalEntry = (playerUuid: string, entry: string) =>
 export const getBanDurations = () => api.get<BanDurationsResponseDTO>(`/player/ban-durations`);
 
 // Setup API functions
-export const completeSetup = (setupData: {
+export interface CompleteSetupRequest {
   dataPath: string;
   acceptEula: boolean;
   adminEmail?: string;
   adminPassword?: string;
   adminDisplayName?: string;
-}) => api.post('/setup/complete', setupData);
+  enableGitOps?: boolean;
+  gitPollInterval?: string;
+  gitRepository?: string;
+  gitBranch?: string;
+}
+
+export const completeSetup = (setupData: CompleteSetupRequest) => api.post('/setup/complete', setupData);
 
 export interface SetupStatusDTO {
   completed: boolean;
+  eulaAccepted: boolean;
+  adminExists: boolean;
 }
 
 export const getSetupStatus = () => api.get<SetupStatusDTO>('/setup/status');

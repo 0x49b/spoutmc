@@ -24,7 +24,6 @@ var lock = sync.Mutex{}
 var logger = log.GetLogger(log.ModuleSetup)
 
 const setupMarkerFileName = ".spoutmc_setup_complete"
-const defaultUnconfiguredDataPath = "/path/where/server/data/is/stored"
 
 func RegisterSetupRoutes(g *echo.Group) {
 	g.GET("/setup/status", getSetupStatus)
@@ -37,6 +36,40 @@ type SetupRequest struct {
 	AdminEmail       string `json:"adminEmail"`
 	AdminPassword    string `json:"adminPassword"`
 	AdminDisplayName string `json:"adminDisplayName"`
+	EnableGitOps     bool   `json:"enableGitOps"`
+	GitPollInterval  string `json:"gitPollInterval"`
+	GitRepository    string `json:"gitRepository"`
+	GitBranch        string `json:"gitBranch"`
+}
+
+type SetupStatusResponse struct {
+	Completed    bool `json:"completed"`
+	EULAAccepted bool `json:"eulaAccepted"`
+	AdminExists  bool `json:"adminExists"`
+}
+
+// CurrentSetupStatus returns setup completion details used by API and startup gating.
+func CurrentSetupStatus() (SetupStatusResponse, error) {
+	cfg := config.All()
+	eulaAccepted := cfg.EULA != nil && cfg.EULA.Accepted
+	adminExists, err := hasAdminUser()
+	if err != nil {
+		return SetupStatusResponse{}, err
+	}
+	return SetupStatusResponse{
+		Completed:    eulaAccepted && adminExists,
+		EULAAccepted: eulaAccepted,
+		AdminExists:  adminExists,
+	}, nil
+}
+
+// IsSetupComplete reports whether setup prerequisites are satisfied.
+func IsSetupComplete() (bool, error) {
+	status, err := CurrentSetupStatus()
+	if err != nil {
+		return false, err
+	}
+	return status.Completed, nil
 }
 
 func completeSetup(c echo.Context) error {
@@ -62,6 +95,58 @@ func completeSetup(c echo.Context) error {
 		})
 	}
 
+	adminExists, err := hasAdminUser()
+	if err != nil {
+		logger.Error("Failed to check admin existence", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to verify administrator account state",
+		})
+	}
+
+	if !adminExists {
+		if strings.TrimSpace(req.AdminEmail) == "" || strings.TrimSpace(req.AdminPassword) == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Administrator email and password are required",
+			})
+		}
+		if len(req.AdminPassword) < 6 {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Administrator password must be at least 6 characters",
+			})
+		}
+	}
+
+	var gitConfig *models.GitConfig
+	if req.EnableGitOps {
+		if strings.TrimSpace(req.GitRepository) == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Git repository is required when GitOps is enabled",
+			})
+		}
+		if strings.TrimSpace(req.GitBranch) == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Git branch is required when GitOps is enabled",
+			})
+		}
+		if strings.TrimSpace(req.GitPollInterval) == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Git poll interval is required when GitOps is enabled",
+			})
+		}
+		pollInterval, err := time.ParseDuration(strings.TrimSpace(req.GitPollInterval))
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Git poll interval must be a valid duration (example: 30s, 1m, 5m)",
+			})
+		}
+		gitConfig = &models.GitConfig{
+			Enabled:      true,
+			Repository:   strings.TrimSpace(req.GitRepository),
+			Branch:       strings.TrimSpace(req.GitBranch),
+			PollInterval: pollInterval,
+		}
+	}
+
 	logger.Info("Completing setup",
 		zap.String("dataPath", req.DataPath),
 		zap.Bool("eulaAccepted", req.AcceptEula))
@@ -76,6 +161,7 @@ func completeSetup(c echo.Context) error {
 		Accepted:   req.AcceptEula,
 		AcceptedOn: time.Now(),
 	}
+	currentConfig.Git = gitConfig
 
 	if err := saveConfigToFile(currentConfig); err != nil {
 		logger.Error("Failed to save configuration", zap.Error(err))
@@ -98,37 +184,34 @@ func completeSetup(c echo.Context) error {
 		})
 	}
 
-	if req.AdminEmail != "" && req.AdminPassword != "" && len(req.AdminPassword) >= 6 {
+	if !adminExists {
 		db := storage.GetDB()
 		if db != nil {
-			var count int64
-			if db.Model(&models.User{}).Count(&count); count == 0 {
-				hashedPassword, err := access.Hash(req.AdminPassword)
-				if err != nil {
-					logger.Warn("Failed to hash admin password", zap.Error(err))
+			hashedPassword, err := access.Hash(req.AdminPassword)
+			if err != nil {
+				logger.Warn("Failed to hash admin password", zap.Error(err))
+			} else {
+				adminUser := models.User{
+					Email:       strings.TrimSpace(req.AdminEmail),
+					Password:    hashedPassword,
+					DisplayName: strings.TrimSpace(req.AdminDisplayName),
+				}
+				if adminUser.DisplayName == "" {
+					adminUser.DisplayName = "Admin"
+				}
+				if err := db.Transaction(func(tx *gorm.DB) error {
+					if err := tx.Create(&adminUser).Error; err != nil {
+						return err
+					}
+					var adminRole models.Role
+					if err := tx.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
+						return err
+					}
+					return tx.Model(&adminUser).Association("Roles").Append(&adminRole)
+				}); err != nil {
+					logger.Warn("Failed to create initial admin user", zap.Error(err))
 				} else {
-					adminUser := models.User{
-						Email:       req.AdminEmail,
-						Password:    hashedPassword,
-						DisplayName: req.AdminDisplayName,
-					}
-					if adminUser.DisplayName == "" {
-						adminUser.DisplayName = "Admin"
-					}
-					if err := db.Transaction(func(tx *gorm.DB) error {
-						if err := tx.Create(&adminUser).Error; err != nil {
-							return err
-						}
-						var adminRole models.Role
-						if err := tx.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
-							return err
-						}
-						return tx.Model(&adminUser).Association("Roles").Append(&adminRole)
-					}); err != nil {
-						logger.Warn("Failed to create initial admin user", zap.Error(err))
-					} else {
-						logger.Info("Created initial admin user", zap.String("email", req.AdminEmail))
-					}
+					logger.Info("Created initial admin user", zap.String("email", req.AdminEmail))
 				}
 			}
 		}
@@ -143,24 +226,18 @@ func completeSetup(c echo.Context) error {
 }
 
 func getSetupStatus(c echo.Context) error {
-	cfg := config.All()
-	if cfg.EULA == nil || !cfg.EULA.Accepted {
-		return c.JSON(http.StatusOK, map[string]bool{"completed": false})
+	status, err := CurrentSetupStatus()
+	if err != nil {
+		logger.Warn("Failed to check admin user state", zap.Error(err))
+		cfg := config.All()
+		eulaAccepted := cfg.EULA != nil && cfg.EULA.Accepted
+		status = SetupStatusResponse{
+			Completed:    false,
+			EULAAccepted: eulaAccepted,
+			AdminExists:  false,
+		}
 	}
-	if cfg.Storage == nil {
-		return c.JSON(http.StatusOK, map[string]bool{"completed": false})
-	}
-	dataPath := strings.TrimSpace(cfg.Storage.DataPath)
-	if dataPath == "" || dataPath == defaultUnconfiguredDataPath {
-		return c.JSON(http.StatusOK, map[string]bool{"completed": false})
-	}
-
-	if markerExists(dataPath) {
-		return c.JSON(http.StatusOK, map[string]bool{"completed": true})
-	}
-
-	// Backward-compatible fallback for installs completed before marker support.
-	return c.JSON(http.StatusOK, map[string]bool{"completed": true})
+	return c.JSON(http.StatusOK, status)
 }
 
 func markerExists(dataPath string) bool {
@@ -225,6 +302,22 @@ func saveConfigToFile(cfg models.SpoutConfiguration) error {
 			"accepted_on": cfg.EULA.AcceptedOn,
 		}
 	}
+	if cfg.Git != nil {
+		gitSection := map[string]interface{}{}
+		if existingGit, ok := existingConfig["git"].(map[string]interface{}); ok {
+			for key, value := range existingGit {
+				gitSection[key] = value
+			}
+		}
+		gitSection["enabled"] = cfg.Git.Enabled
+		gitSection["repository"] = cfg.Git.Repository
+		gitSection["branch"] = cfg.Git.Branch
+		gitSection["poll_interval"] = cfg.Git.PollInterval.String()
+		gitSection["token"] = "${SPOUTMC_GIT_TOKEN}"
+		gitSection["webhook_secret"] = "${SPOUTMC_WEBHOOK_SECRET}"
+		gitSection["local_path"] = filepath.Join(cfg.Storage.DataPath, "git")
+		existingConfig["git"] = gitSection
+	}
 
 	yamlData, err := yaml.Marshal(existingConfig)
 	if err != nil {
@@ -241,4 +334,21 @@ func saveConfigToFile(cfg models.SpoutConfiguration) error {
 		zap.Bool("eulaAccepted", cfg.EULA.Accepted))
 
 	return nil
+}
+
+func hasAdminUser() (bool, error) {
+	db := storage.GetDB()
+	if db == nil {
+		return false, nil
+	}
+	var count int64
+	err := db.Table("users").
+		Joins("JOIN user_roles ur ON ur.user_id = users.id").
+		Joins("JOIN roles r ON r.id = ur.role_id").
+		Where("r.name = ?", "admin").
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

@@ -18,6 +18,32 @@ import (
 
 var logger = log.GetLogger(log.ModuleGit)
 
+func resolveEnvTemplate(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+
+	// Backward-compatible parser for legacy template format:
+	// ${SPOUTMC_GIT_TOKEN | "fallback" }
+	if strings.HasPrefix(trimmed, "${") && strings.HasSuffix(trimmed, "}") {
+		inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "${"), "}"))
+		if strings.Contains(inner, "|") {
+			parts := strings.SplitN(inner, "|", 2)
+			envKey := strings.TrimSpace(parts[0])
+			fallbackRaw := strings.TrimSpace(parts[1])
+			if envKey != "" {
+				if envValue, ok := os.LookupEnv(envKey); ok && envValue != "" {
+					return envValue
+				}
+			}
+			return strings.Trim(strings.TrimSpace(fallbackRaw), "\"")
+		}
+	}
+
+	return os.ExpandEnv(trimmed)
+}
+
 type Repository struct {
 	config            *models.GitConfig
 	repo              *git.Repository
@@ -30,8 +56,8 @@ func NewRepository(config *models.GitConfig) (*Repository, error) {
 		return nil, fmt.Errorf("git config is nil")
 	}
 
-	config.Token = os.ExpandEnv(config.Token)
-	config.WebhookSecret = os.ExpandEnv(config.WebhookSecret)
+	config.Token = resolveEnvTemplate(config.Token)
+	config.WebhookSecret = resolveEnvTemplate(config.WebhookSecret)
 
 	localPath := os.ExpandEnv(config.LocalPath)
 	if localPath == "" {

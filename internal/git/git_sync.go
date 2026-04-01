@@ -53,7 +53,8 @@ func InitializeGitOps() error {
 }
 func StartGitPoller(ctx context.Context) {
 	if globalPoller == nil {
-		logger.Error("Git poller not initialized")
+		logger.Error("Git poller not initialized, try to start")
+		StartGitPoller(ctx)
 		return
 	}
 
@@ -91,6 +92,15 @@ func LoadConfigurationFromGit() error {
 	return nil
 }
 func TriggerManualSync(ctx context.Context) error {
+	if globalPoller == nil {
+		if !config.IsGitOpsEnabled() {
+			return fmt.Errorf("git poller not initialized")
+		}
+		if err := InitializeGitOps(); err != nil {
+			return fmt.Errorf("git poller not initialized and on-demand initialization failed: %w", err)
+		}
+	}
+
 	if globalPoller == nil {
 		return fmt.Errorf("git poller not initialized")
 	}

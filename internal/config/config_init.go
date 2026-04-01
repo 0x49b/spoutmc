@@ -37,9 +37,9 @@ func EnsureConfigExists() error {
 		logger.Info("✅ Created default configuration file", zap.String("path", configPath))
 		logger.Warn("⚠️  SpoutMC has been initialized with a default configuration.")
 		logger.Warn("⚠️  Please review and accept the EULA in config/spoutmc.yaml")
-		logger.Warn("⚠️  Set 'eula.accepted: true' to continue.")
+		logger.Warn("⚠️  Setup wizard will prompt for EULA acceptance.")
 
-		return fmt.Errorf("EULA not accepted - please review config/spoutmc.yaml")
+		return nil
 	}
 
 	return checkEULAStatus(configPath)
@@ -75,6 +75,15 @@ func createDefaultConfig(workingDir string) models.SpoutConfiguration {
 				"plugins",
 			},
 		},
+		PlayerBans: &models.PlayerBansConfig{
+			BanDurations: []models.BanDurationOption{
+				{Key: "1h", Label: "1 hour", Duration: 1 * time.Hour},
+				{Key: "5h", Label: "5 hours", Duration: 5 * time.Hour},
+				{Key: "1d", Label: "1 day", Duration: 24 * time.Hour},
+				{Key: "3d", Label: "3 days", Duration: 24 * 3 * time.Hour},
+				{Key: "2w", Label: "2 weeks", Duration: 24 * 14 * time.Hour},
+			},
+		},
 		Servers: []models.SpoutServer{},
 	}
 }
@@ -107,10 +116,25 @@ func writeConfigWithComments(path string, cfg models.SpoutConfiguration) error {
 	}
 	builder.WriteString("\n")
 
+	builder.WriteString("# Player bans configuration\n")
+	builder.WriteString("player-bans:\n")
+	builder.WriteString("  ban-durations:\n")
+	for _, option := range cfg.PlayerBans.BanDurations {
+		builder.WriteString(fmt.Sprintf("    - key: \"%s\"\n", option.Key))
+		builder.WriteString(fmt.Sprintf("      label: \"%s\"\n", option.Label))
+		builder.WriteString(fmt.Sprintf("      duration: \"%s\"\n", formatBanDuration(option.Duration)))
+	}
+	builder.WriteString("\n")
+
 	builder.WriteString("# Server configurations, only needed if you do not use GitOps\n")
 	builder.WriteString("servers: []\n")
 
 	return os.WriteFile(path, []byte(builder.String()), 0644)
+}
+
+func formatBanDuration(duration time.Duration) string {
+	hours := duration / time.Hour
+	return fmt.Sprintf("%dh", hours)
 }
 
 func checkEULAStatus(configPath string) error {
@@ -128,8 +152,8 @@ func checkEULAStatus(configPath string) error {
 
 	if cfg.EULA == nil || !cfg.EULA.Accepted {
 		logger.Warn("⚠️  EULA not accepted")
-		logger.Warn("⚠️  Please set 'eula.accepted: true' in config/spoutmc.yaml")
-		return fmt.Errorf("EULA not accepted - please review config/spoutmc.yaml")
+		logger.Warn("⚠️  Setup wizard will prompt for EULA acceptance")
+		return nil
 	}
 
 	if cfg.EULA.AcceptedOn.IsZero() {

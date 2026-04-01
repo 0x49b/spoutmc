@@ -525,7 +525,8 @@ function App() {
             try {
                 const response = await getSetupStatus();
                 if (!cancelled) {
-                    setSetupCompleted(response.data.completed);
+                    const status = response.data;
+                    setSetupCompleted(status.eulaAccepted && status.adminExists);
                 }
             } catch (error) {
                 console.error('Failed to fetch setup status:', error);

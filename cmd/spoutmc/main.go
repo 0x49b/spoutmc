@@ -15,6 +15,7 @@ import (
 	"spoutmc/internal/update"
 	"spoutmc/internal/watchdog"
 	"spoutmc/internal/webserver"
+	setupapi "spoutmc/internal/webserver/api/v1/setup"
 	"strings"
 	"syscall"
 	"time"
@@ -27,6 +28,7 @@ var logger = log.GetLogger(log.ModuleMain)
 var c *echo.Echo
 var wd *watchdog.Watchdog
 var Version = "dev"
+var startedOperations = make(map[string]bool)
 
 type operation func(ctx context.Context) error
 
@@ -43,6 +45,7 @@ func main() {
 
 	if err := runStartupSequence(ctx); err != nil {
 		log.HandleError(err)
+		runShutdownSequence()
 		os.Exit(1)
 	}
 
@@ -67,14 +70,30 @@ func initializeConfiguration() error {
 
 // runStartupSequence executes all startup operations in order
 func runStartupSequence(ctx context.Context) error {
+	startedOperations = make(map[string]bool)
 	startupOps := getStartupOperations()
-	startupOrder := getStartupOrder()
+	if err := runOperationSequence(ctx, startupOps, getSetupPhaseStartupOrder()); err != nil {
+		return err
+	}
 
-	for _, key := range startupOrder {
+	if err := waitForSetupCompletion(ctx); err != nil {
+		return err
+	}
+
+	return runOperationSequence(ctx, startupOps, getPostSetupStartupOrder())
+}
+
+func runOperationSequence(ctx context.Context, operations map[string]operation, order []string) error {
+	for _, key := range order {
+		op, ok := operations[key]
+		if !ok {
+			return fmt.Errorf("missing startup operation: %s", key)
+		}
 		logger.Info(fmt.Sprintf("starting: %s", key))
-		if err := startupOps[key](ctx); err != nil {
+		if err := op(ctx); err != nil {
 			return fmt.Errorf("%s failed to start: %w", key, err)
 		}
+		startedOperations[key] = true
 	}
 
 	return nil
@@ -89,12 +108,31 @@ func runShutdownSequence() {
 	shutdownOrder := getShutdownOrder()
 
 	for _, key := range shutdownOrder {
+		if !shouldRunShutdownOperation(key) {
+			logger.Info(fmt.Sprintf("skipping shutdown for non-started module: %s", key))
+			continue
+		}
 		logger.Warn(fmt.Sprintf("initiate stopping of: %s", key))
 		if err := shutdownOps[key](shutdownCtx); err != nil {
 			log.HandleError(err)
 		} else {
 			logger.Info(fmt.Sprintf("%s shut down gracefully", key))
 		}
+	}
+}
+
+func shouldRunShutdownOperation(key string) bool {
+	switch key {
+	case "fileWatcher":
+		return startedOperations["fileWatcher"]
+	case "watchdog":
+		return startedOperations["watchdog"]
+	case "containers":
+		return startedOperations["spoutmc"]
+	case "webserver":
+		return startedOperations["webserver"]
+	default:
+		return true
 	}
 }
 
@@ -114,19 +152,55 @@ func getStartupOperations() map[string]operation {
 	}
 }
 
-// getStartupOrder returns the order of startup operations
-func getStartupOrder() []string {
+// getSetupPhaseStartupOrder returns startup operations required for setup flow.
+func getSetupPhaseStartupOrder() []string {
 	return []string{
-		"gitSync",         // Initialize GitOps first (loads config from Git)
-		"velocityEnvVars", // Inject Velocity env vars to backend servers
-		"infrastructure",  // No-op (SQLite only; MySQL/MariaDB removed)
-		"spoutmc",         // Then start containers with loaded config
+		"database",  // Setup status and admin creation require DB access.
+		"webserver", // Setup wizard/API must be reachable before full startup.
+	}
+}
+
+// getPostSetupStartupOrder returns operations deferred until setup is complete.
+func getPostSetupStartupOrder() []string {
+	return []string{
+		"gitSync",         // Initialize GitOps once setup has completed.
+		"velocityEnvVars", // Inject Velocity env vars to backend servers.
+		"infrastructure",  // No-op (SQLite only; MySQL/MariaDB removed).
+		"spoutmc",         // Start containers only after setup gate opens.
 		"watchdog",
 		"fileWatcher",
-		"database",      // Connect to DB and run migrations (after infrastructure)
-		"playerBanCron", // Start periodic unban scheduler (after DB is ready)
+		"playerBanCron", // Start periodic unban scheduler after full startup.
 		"updateScheduler",
-		"webserver",
+	}
+}
+
+func waitForSetupCompletion(ctx context.Context) error {
+	waitTicker := time.NewTicker(2 * time.Second)
+	defer waitTicker.Stop()
+
+	waitingLogged := false
+
+	for {
+		status, err := setupapi.CurrentSetupStatus()
+		if err != nil {
+			logger.Warn("Failed to check setup status, will retry", zap.Error(err))
+		} else if status.Completed {
+			if waitingLogged {
+				logger.Info("Setup completed, starting remaining modules")
+			}
+			return nil
+		} else if !waitingLogged {
+			logger.Warn("Setup is incomplete; delaying module startup until wizard is finished",
+				zap.Bool("eulaAccepted", status.EULAAccepted),
+				zap.Bool("adminExists", status.AdminExists))
+			waitingLogged = true
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("startup interrupted while waiting for setup completion: %w", ctx.Err())
+		case <-waitTicker.C:
+		}
 	}
 }
 

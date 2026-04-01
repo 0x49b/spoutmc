@@ -24,5 +24,7 @@ FROM alpine:latest
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=builder /app/spoutmc ./spoutmc
+RUN addgroup -S spoutmc && adduser -S -G spoutmc spoutmc && chown -R spoutmc:spoutmc /app
+USER spoutmc
 EXPOSE 3000
 ENTRYPOINT ["/app/spoutmc"]
