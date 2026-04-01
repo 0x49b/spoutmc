@@ -36,7 +36,7 @@ import {ConsoleTab} from '../Servers/ServerDetailTabs/ConsoleTab';
 import {InfrastructureOverviewTab} from './InfrastructureOverviewTab';
 import {ServerStats} from '../../model/ServerStats';
 
-const API_BASE_URL = 'http://localhost:3000/api/v1'; // TODO: use env/config
+const API_BASE_URL = api.getApiBaseUrl();
 
 const getTypeLabel = (type: string) => {
   switch (type) {

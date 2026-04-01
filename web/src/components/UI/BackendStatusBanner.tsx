@@ -2,11 +2,11 @@ import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Banner} from '@patternfly/react-core';
 import {ExclamationTriangleIcon} from '@patternfly/react-icons';
 import {useAuthStore} from '../../store/authStore';
-import {withSSEAuth} from '../../service/apiService';
+import {getApiBaseUrl, withSSEAuth} from '../../service/apiService';
 
 type ConnectionState = 'unknown' | 'connected' | 'disconnected';
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Global backend indicator.

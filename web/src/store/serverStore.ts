@@ -34,7 +34,7 @@ interface ServerState {
   getSelectedServer: () => Server | undefined;
 }
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_BASE_URL = api.getApiBaseUrl();
 
 // Sort servers: Proxy first, Lobby second, then game servers by port
 const sortServers = (servers: Server[]): Server[] => {

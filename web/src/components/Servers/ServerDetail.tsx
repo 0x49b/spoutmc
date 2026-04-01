@@ -112,7 +112,7 @@ const ServerDetail: React.FC = () => {
     // Set up SSE connection for server stats
     useEffect(() => {
         if (server?.id && !useWsTransport) {
-            const statsUrl = api.withSSEAuth(`http://localhost:3000/api/v1/server/${server.id}/stats`);
+            const statsUrl = api.withSSEAuth(api.buildApiUrl(`/server/${server.id}/stats`));
 
             statsEventSourceRef.current = new EventSource(statsUrl);
             statsEventSourceRef.current.onmessage = (event: MessageEvent) => {
@@ -139,7 +139,7 @@ const ServerDetail: React.FC = () => {
             return;
         }
 
-        const wsClient = acquireServerRealtimeWsClient(server.id, `ws://localhost:3000/api/v1/ws/server/${server.id}`);
+        const wsClient = acquireServerRealtimeWsClient(server.id, api.buildWsUrl(`/ws/server/${server.id}`));
         realtimeWsRef.current = wsClient;
 
         wsClient.addListener({
@@ -619,8 +619,8 @@ const ServerDetail: React.FC = () => {
                         >
                             <ConsoleTab
                                 containerId={server.id}
-                                logsUrl={api.withSSEAuth(`http://localhost:3000/api/v1/server/${server.id}/logs`)}
-                                commandUrl={`http://localhost:3000/api/v1/server/${server.id}/command`}
+                                logsUrl={api.withSSEAuth(api.buildApiUrl(`/server/${server.id}/logs`))}
+                                commandUrl={api.buildApiUrl(`/server/${server.id}/command`)}
                                 isActive={activeTab === 'console'}
                                 enableSendCommand={true}
                                 wsClient={useWsTransport ? realtimeWsRef.current : null}

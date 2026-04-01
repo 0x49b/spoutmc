@@ -23,7 +23,7 @@ interface InfrastructureState {
   getContainerById: (id: string) => InfrastructureContainer | undefined;
 }
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_BASE_URL = api.getApiBaseUrl();
 
 export const useInfrastructureStore = create<InfrastructureState>((set, get) => ({
   containers: [],

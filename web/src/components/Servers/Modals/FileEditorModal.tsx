@@ -11,7 +11,7 @@ import {
 } from '@patternfly/react-core';
 import {SaveIcon} from '@patternfly/react-icons';
 import {CodeEditor, Language} from '@patternfly/react-code-editor';
-import {getAuthFetchHeaders} from '../../../service/apiService.ts';
+import {buildApiUrl, getAuthFetchHeaders} from '../../../service/apiService.ts';
 
 interface FileEditorModalProps {
     isOpen: boolean;
@@ -82,7 +82,7 @@ const FileEditorModal: React.FC<FileEditorModalProps> = ({
 
         try {
             const response = await fetch(
-                `http://localhost:3000/api/v1/server/${serverId}/file?path=${encodeURIComponent(filePath)}${volume ? `&volume=${encodeURIComponent(volume)}` : ''}`,
+                buildApiUrl(`/server/${serverId}/file?path=${encodeURIComponent(filePath)}${volume ? `&volume=${encodeURIComponent(volume)}` : ''}`),
                 { headers: getAuthFetchHeaders() }
             );
 

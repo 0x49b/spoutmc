@@ -1,7 +1,80 @@
 import axios from 'axios';
 import { clearToken, getToken } from '../security/tokenVault';
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_PATH_PREFIX = '/api/v1';
+
+function stripTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+function normalizeApiBaseUrl(value: string): string {
+  const trimmed = stripTrailingSlash(value.trim());
+  if (trimmed.endsWith('/api/v1')) {
+    return trimmed;
+  }
+  if (trimmed.endsWith('/api')) {
+    return `${trimmed}/v1`;
+  }
+  return `${trimmed}${API_PATH_PREFIX}`;
+}
+
+function resolveApiBaseUrl(): string {
+  const envValue = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (envValue && envValue.trim() !== '') {
+    return normalizeApiBaseUrl(envValue);
+  }
+  return API_PATH_PREFIX;
+}
+
+function normalizeWsBaseUrl(value: string): string {
+  const trimmed = value.trim();
+  const withWsScheme = trimmed
+    .replace(/^https:\/\//i, 'wss://')
+    .replace(/^http:\/\//i, 'ws://');
+
+  return normalizeApiBaseUrl(withWsScheme);
+}
+
+function resolveWsBaseUrl(apiBaseUrl: string): string {
+  const envValue = import.meta.env.VITE_WS_BASE_URL as string | undefined;
+  if (envValue && envValue.trim() !== '') {
+    return normalizeWsBaseUrl(envValue);
+  }
+
+  if (/^https?:\/\//i.test(apiBaseUrl)) {
+    return normalizeWsBaseUrl(apiBaseUrl);
+  }
+
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}${apiBaseUrl}`;
+  }
+
+  return `ws://localhost:3000${API_PATH_PREFIX}`;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+const WS_BASE_URL = resolveWsBaseUrl(API_BASE_URL);
+
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}
+
+export function buildApiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
+export function buildWsUrl(path: string): string {
+  if (/^wss?:\/\//i.test(path)) {
+    return path;
+  }
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${WS_BASE_URL}${normalizedPath}`;
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -42,7 +115,8 @@ export function withSSEAuth(url: string): string {
   const token = localStorage.getItem('auth_token');
   if (!token) return url;
   try {
-    const u = new URL(url);
+    const baseOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+    const u = new URL(url, baseOrigin);
     u.searchParams.set('access_token', token);
     return u.toString();
   } catch {
