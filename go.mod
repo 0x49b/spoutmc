@@ -13,6 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/samber/slog-zap v1.0.0
 	github.com/shirou/gopsutil/v4 v4.25.11
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
@@ -23,7 +24,7 @@ require (
 	golang.org/x/net v0.52.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/gorm v1.31.1
+	gorm.io/gorm v1.31.2
 )
 
 require (
@@ -69,7 +70,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
